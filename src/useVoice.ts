@@ -1,31 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
 
-// Free STUN servers (no account, no cost). For players behind strict/symmetric
-// NATs you may also need a TURN relay — add one below. STUN-only works for the
-// large majority of home networks.
-const ICE: RTCConfiguration = {
-  iceServers: [
-    { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
-    // Optional TURN (uncomment + fill in to maximise connectivity):
-    // { urls: "turn:YOUR_TURN_HOST:3478", username: "user", credential: "pass" },
-  ],
-};
+/**
+ * Jitsi Meet configuration.
+ * Uses the free public meet.jit.si server.
+ * For production you can self-host or use JaaS (8x8.vc).
+ */
+const JITSI_DOMAIN = "meet.jit.si";
+const JITSI_MUC = `conference.${JITSI_DOMAIN}`;
+const JITSI_LIB_URL = `https://${JITSI_DOMAIN}/libs/lib-jitsi-meet.min.js`;
 
-// Keep mesh video light enough to be viable for many peers.
-const VIDEO: MediaTrackConstraints = {
-  width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 15, max: 20 },
+// Keep mesh video light
+const VIDEO_CONSTRAINTS = {
+  resolution: 360,
+  constraints: {
+    video: {
+      height: { ideal: 240, max: 360 },
+      width: { ideal: 320, max: 480 },
+    },
+  },
 };
 
 export type CallPeer = { playerId: string; name: string };
-
-type PeerState = {
-  pc: RTCPeerConnection;
-  makingOffer: boolean;
-  ignoreOffer: boolean;
-  polite: boolean;
-};
 
 export type Call = {
   joined: boolean;
@@ -33,255 +30,385 @@ export type Call = {
   camOn: boolean;
   localStream: MediaStream | null;
   remoteStreams: Record<string, MediaStream>;
-  speaking: Record<string, boolean>; // peerId -> bool, "me" for local
+  speaking: Record<string, boolean>;
   join: () => Promise<void>;
   leave: () => Promise<void>;
   toggleMute: () => void;
   toggleCamera: () => Promise<void>;
 };
 
+/* ---- Load lib-jitsi-meet dynamically ---- */
+let jitsiLoadPromise: Promise<void> | null = null;
+
+function loadJitsiLib(): Promise<void> {
+  if ((window as any).JitsiMeetJS) return Promise.resolve();
+  if (jitsiLoadPromise) return jitsiLoadPromise;
+  jitsiLoadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = JITSI_LIB_URL;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load lib-jitsi-meet"));
+    document.head.appendChild(script);
+  });
+  return jitsiLoadPromise;
+}
 export function useVoice(
   code: string | null,
   myId: string,
-  peers: CallPeer[],
+  _peers: CallPeer[], // peers list kept for interface compat; Jitsi manages its own roster
 ): Call {
   const setVoice = useMutation(api.avalon.setVoice);
-  const sendSignal = useMutation(api.avalon.sendSignal);
-  const clearSignals = useMutation(api.avalon.clearSignals);
 
   const [joined, setJoined] = useState(false);
   const [muted, setMuted] = useState(false);
   const [camOn, setCamOn] = useState(false);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({});
+  const [remoteStreams, setRemoteStreams] = useState<
+    Record<string, MediaStream>
+  >({});
   const [speaking, setSpeaking] = useState<Record<string, boolean>>({});
 
-  const local = useRef<MediaStream | null>(null);
-  const peersRef = useRef<Map<string, PeerState>>(new Map());
-  const pendingCand = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
-  const monitors = useRef<Map<string, () => void>>(new Map());
-  const processed = useRef<Set<string>>(new Set());
-  const audioCtx = useRef<AudioContext | null>(null);
+  // Jitsi refs
+  const connectionRef = useRef<any>(null);
+  const roomRef = useRef<any>(null);
+  const localTracksRef = useRef<any[]>([]);
+  const remoteTracksRef = useRef<Map<string, any[]>>(new Map());
+  // Maps Jitsi participantId -> game playerId (via displayName)
+  const jitsiToPlayerRef = useRef<Map<string, string>>(new Map());
 
-  const signals = useQuery(
-    api.avalon.getSignals,
-    joined && code ? { code, toId: myId } : "skip",
-  );
-
-  /* ---- speaking detection (Web Audio RMS) ---- */
-  const monitor = useCallback((key: string, stream: MediaStream) => {
-    if (monitors.current.has(key)) return;
-    try {
-      if (!audioCtx.current) audioCtx.current = new AudioContext();
-      const ctx = audioCtx.current;
-      const src = ctx.createMediaStreamSource(stream);
-      const an = ctx.createAnalyser();
-      an.fftSize = 512;
-      src.connect(an);
-      const buf = new Uint8Array(an.frequencyBinCount);
-      let raf = 0;
-      const loop = () => {
-        an.getByteTimeDomainData(buf);
-        let sum = 0;
-        for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
-        const rms = Math.sqrt(sum / buf.length);
-        setSpeaking((s) => {
-          const on = rms > 0.045;
-          return s[key] === on ? s : { ...s, [key]: on };
-        });
-        raf = requestAnimationFrame(loop);
-      };
-      loop();
-      monitors.current.set(key, () => { cancelAnimationFrame(raf); try { src.disconnect(); } catch {} });
-    } catch { /* best-effort */ }
-  }, []);
-
-  const send = useCallback(
-    (toId: string, kind: "offer" | "answer" | "candidate", data: unknown) => {
-      if (code) sendSignal({ code, fromId: myId, toId, kind, data: JSON.stringify(data) }).catch(() => {});
-    },
-    [code, myId, sendSignal],
-  );
-
-  const drainCandidates = useCallback(async (peerId: string, pc: RTCPeerConnection) => {
-    const arr = pendingCand.current.get(peerId);
-    if (!arr) return;
-    for (const c of arr) { try { await pc.addIceCandidate(c); } catch {} }
-    pendingCand.current.delete(peerId);
-  }, []);
-
-  const closePeer = useCallback((peerId: string) => {
-    peersRef.current.get(peerId)?.pc.close();
-    peersRef.current.delete(peerId);
-    pendingCand.current.delete(peerId);
-    monitors.current.get(peerId)?.();
-    monitors.current.delete(peerId);
-    setRemoteStreams((s) => { const n = { ...s }; delete n[peerId]; return n; });
-    setSpeaking((s) => { const n = { ...s }; delete n[peerId]; return n; });
-  }, []);
-
-  /* ---- create a peer connection (perfect-negotiation) ---- */
-  const createPeer = useCallback((peerId: string): PeerState => {
-    const existing = peersRef.current.get(peerId);
-    if (existing) return existing;
-    const pc = new RTCPeerConnection(ICE);
-    const ps: PeerState = { pc, makingOffer: false, ignoreOffer: false, polite: myId > peerId };
-    peersRef.current.set(peerId, ps);
-
-    local.current?.getTracks().forEach((t) => pc.addTrack(t, local.current!));
-
-    pc.onicecandidate = ({ candidate }) => {
-      if (candidate) send(peerId, "candidate", candidate.toJSON());
-    };
-    pc.ontrack = ({ streams: [stream] }) => {
-      if (!stream) return;
-      setRemoteStreams((s) => (s[peerId] === stream ? s : { ...s, [peerId]: stream }));
-      monitor(peerId, stream);
-    };
-    pc.onnegotiationneeded = async () => {
-      try {
-        ps.makingOffer = true;
-        await pc.setLocalDescription();
-        if (pc.localDescription) send(peerId, pc.localDescription.type as "offer" | "answer", pc.localDescription);
-      } catch { /* ignore */ } finally {
-        ps.makingOffer = false;
-      }
-    };
-    return ps;
-  }, [myId, send, monitor]);
-
-  /* ---- consume incoming handshakes ---- */
-  useEffect(() => {
-    if (!signals || !joined) return;
-    let cancelled = false;
-    (async () => {
-      for (const sig of signals) {
-        if (processed.current.has(sig._id)) continue;
-        processed.current.add(sig._id);
-        try {
-          if (sig.kind === "offer" || sig.kind === "answer") {
-            const desc = JSON.parse(sig.data) as RTCSessionDescriptionInit;
-            const ps = createPeer(sig.fromId);
-            const pc = ps.pc;
-            const collision = desc.type === "offer" && (ps.makingOffer || pc.signalingState !== "stable");
-            ps.ignoreOffer = !ps.polite && collision;
-            if (ps.ignoreOffer) continue;
-            await pc.setRemoteDescription(desc); // implicit rollback for polite peer
-            await drainCandidates(sig.fromId, pc);
-            if (desc.type === "offer") {
-              await pc.setLocalDescription();
-              if (pc.localDescription) send(sig.fromId, "answer", pc.localDescription);
-            }
-          } else if (sig.kind === "candidate") {
-            const cand = JSON.parse(sig.data) as RTCIceCandidateInit;
-            const ps = peersRef.current.get(sig.fromId);
-            if (ps && ps.pc.remoteDescription) {
-              try { await ps.pc.addIceCandidate(cand); } catch { if (!ps.ignoreOffer) {/* ignore */} }
-            } else {
-              const arr = pendingCand.current.get(sig.fromId) ?? [];
-              arr.push(cand);
-              pendingCand.current.set(sig.fromId, arr);
-            }
-          }
-        } catch { /* ignore malformed/late signals */ }
-      }
-      const ids = signals.map((s) => s._id);
-      if (!cancelled && ids.length) clearSignals({ ids }).catch(() => {});
-    })();
-    return () => { cancelled = true; };
-  }, [signals, joined, createPeer, drainCandidates, send, clearSignals]);
-
-  /* ---- reconcile mesh with current call roster ---- */
-  useEffect(() => {
-    if (!joined || !local.current) return;
-    const want = new Set(peers.map((p) => p.playerId));
-    for (const p of peers) {
-      if (p.playerId !== myId && !peersRef.current.has(p.playerId)) {
-        createPeer(p.playerId); // adding tracks fires negotiationneeded
-      }
+  /* ---- helpers to build MediaStream from Jitsi tracks ---- */
+  const buildLocalStream = useCallback(() => {
+    const tracks = localTracksRef.current
+      .map((t) => t.getOriginalStream()?.getTracks())
+      .flat()
+      .filter(Boolean);
+    if (tracks.length > 0) {
+      const ms = new MediaStream(tracks);
+      setLocalStream(ms);
+    } else {
+      setLocalStream(null);
     }
-    for (const peerId of Array.from(peersRef.current.keys())) {
-      if (!want.has(peerId)) closePeer(peerId);
-    }
-  }, [peers, joined, myId, createPeer, closePeer]);
+  }, []);
 
-  /* ---- actions ---- */
+  const buildRemoteStream = useCallback((participantId: string) => {
+    const gameId = jitsiToPlayerRef.current.get(participantId) ?? participantId;
+    const jitsiTracks = remoteTracksRef.current.get(participantId) ?? [];
+    const nativeTracks = jitsiTracks
+      .map((t: any) => t.getOriginalStream()?.getTracks())
+      .flat()
+      .filter(Boolean);
+    if (nativeTracks.length > 0) {
+      setRemoteStreams((prev) => ({
+        ...prev,
+        [gameId]: new MediaStream(nativeTracks),
+      }));
+    } else {
+      setRemoteStreams((prev) => {
+        const n = { ...prev };
+        delete n[gameId];
+        return n;
+      });
+    }
+  }, []);
+
+  /* ---- join ---- */
   const join = useCallback(async () => {
+    if (!code) return;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      local.current = stream;
-      setLocalStream(stream);
+      await loadJitsiLib();
+      const JitsiMeetJS = (window as any).JitsiMeetJS;
+      JitsiMeetJS.init();
+      JitsiMeetJS.setLogLevel(JitsiMeetJS.logLevels.ERROR);
+
+      // Create connection
+      const connection = new JitsiMeetJS.JitsiConnection(null, null, {
+        hosts: {
+          domain: JITSI_DOMAIN,
+          muc: JITSI_MUC,
+        },
+        serviceUrl: `wss://${JITSI_DOMAIN}/xmpp-websocket`,
+      });
+      connectionRef.current = connection;
+
+      // Connection events
+      connection.addEventListener(
+        JitsiMeetJS.events.connection.CONNECTION_ESTABLISHED,
+        () => {
+          // Join conference room named after game code
+          const roomName = `avalon-${code.toLowerCase()}`;
+          const room = connection.initJitsiConference(roomName, {
+            openBridgeChannel: true,
+            ...VIDEO_CONSTRAINTS,
+          });
+          roomRef.current = room;
+
+          // Conference events
+          room.on(JitsiMeetJS.events.conference.TRACK_ADDED, (track: any) => {
+            if (track.isLocal()) return;
+            const participantId = track.getParticipantId();
+            const existing = remoteTracksRef.current.get(participantId) ?? [];
+            existing.push(track);
+            remoteTracksRef.current.set(participantId, existing);
+            buildRemoteStream(participantId);
+
+            track.addEventListener(
+              JitsiMeetJS.events.track.TRACK_MUTE_CHANGED,
+              () => {
+                buildRemoteStream(participantId);
+              },
+            );
+          });
+
+          room.on(JitsiMeetJS.events.conference.TRACK_REMOVED, (track: any) => {
+            if (track.isLocal()) return;
+            const participantId = track.getParticipantId();
+            const existing = remoteTracksRef.current.get(participantId) ?? [];
+            remoteTracksRef.current.set(
+              participantId,
+              existing.filter((t: any) => t !== track),
+            );
+            buildRemoteStream(participantId);
+          });
+
+          room.on(JitsiMeetJS.events.conference.USER_LEFT, (id: string) => {
+            const gameId = jitsiToPlayerRef.current.get(id) ?? id;
+            remoteTracksRef.current.delete(id);
+            jitsiToPlayerRef.current.delete(id);
+            setRemoteStreams((prev) => {
+              const n = { ...prev };
+              delete n[gameId];
+              return n;
+            });
+            setSpeaking((prev) => {
+              const n = { ...prev };
+              delete n[gameId];
+              return n;
+            });
+          });
+
+          // Dominant speaker detection (Jitsi built-in)
+          room.on(
+            JitsiMeetJS.events.conference.DOMINANT_SPEAKER_CHANGED,
+            (id: string) => {
+              const myJitsiId = room.myUserId();
+              const isMe = id === myJitsiId;
+              const gameId = isMe
+                ? "me"
+                : (jitsiToPlayerRef.current.get(id) ?? id);
+              setSpeaking((prev) => {
+                const next: Record<string, boolean> = {};
+                for (const key of Object.keys(prev)) next[key] = false;
+                next[gameId] = true;
+                return next;
+              });
+            },
+          );
+
+          // Track display name changes to build jitsi->game ID mapping
+          room.on(
+            JitsiMeetJS.events.conference.DISPLAY_NAME_CHANGED,
+            (id: string, displayName: string) => {
+              if (displayName) {
+                jitsiToPlayerRef.current.set(id, displayName);
+                // Rebuild stream under the correct key
+                buildRemoteStream(id);
+              }
+            },
+          );
+
+          // Also capture initial participants who joined before us
+          room.on(
+            JitsiMeetJS.events.conference.USER_JOINED,
+            (id: string, participant: any) => {
+              const name = participant.getDisplayName?.();
+              if (name) {
+                jitsiToPlayerRef.current.set(id, name);
+              }
+            },
+          );
+
+          // Set display name to game player ID for mapping
+          room.setDisplayName(myId);
+
+          room.join();
+        },
+      );
+
+      connection.addEventListener(
+        JitsiMeetJS.events.connection.CONNECTION_FAILED,
+        (err: any) => {
+          console.error("Jitsi connection failed:", err);
+          alert("Could not connect to voice server. Please try again.");
+        },
+      );
+
+      connection.connect();
+
+      // Create local audio track
+      const localTracks = await JitsiMeetJS.createLocalTracks({
+        devices: ["audio"],
+      });
+      localTracksRef.current = localTracks;
+      buildLocalStream();
+
+      // Add tracks to room once it's ready
+      const waitForRoom = setInterval(() => {
+        if (roomRef.current && roomRef.current.isJoined()) {
+          clearInterval(waitForRoom);
+          for (const track of localTracks) {
+            roomRef.current.addTrack(track);
+          }
+        }
+      }, 100);
+
+      setJoined(true);
       setMuted(false);
       setCamOn(false);
-      monitor("me", stream);
-      setJoined(true);
       if (code) await setVoice({ code, playerId: myId, on: true });
-    } catch {
-      alert("A microphone is needed for the war council. Please allow mic access.");
+    } catch (e) {
+      console.error("Failed to join voice:", e);
+      alert(
+        "A microphone is needed for the war council. Please allow mic access.",
+      );
     }
-  }, [code, myId, monitor, setVoice]);
+  }, [code, myId, setVoice, buildLocalStream, buildRemoteStream]);
 
+  /* ---- leave ---- */
   const leave = useCallback(async () => {
+    // Dispose local tracks
+    for (const track of localTracksRef.current) {
+      try {
+        track.dispose();
+      } catch {}
+    }
+    localTracksRef.current = [];
+
+    // Leave room
+    if (roomRef.current) {
+      try {
+        await roomRef.current.leave();
+      } catch {}
+      roomRef.current = null;
+    }
+
+    // Disconnect
+    if (connectionRef.current) {
+      try {
+        connectionRef.current.disconnect();
+      } catch {}
+      connectionRef.current = null;
+    }
+
+    remoteTracksRef.current.clear();
+    jitsiToPlayerRef.current.clear();
     setJoined(false);
-    if (code) await setVoice({ code, playerId: myId, on: false }).catch(() => {});
-    for (const peerId of Array.from(peersRef.current.keys())) closePeer(peerId);
-    local.current?.getTracks().forEach((t) => t.stop());
-    local.current = null;
-    monitors.current.get("me")?.();
-    monitors.current.delete("me");
     setLocalStream(null);
     setRemoteStreams({});
+    setSpeaking({});
     setMuted(false);
     setCamOn(false);
-    setSpeaking({});
-  }, [code, myId, closePeer, setVoice]);
 
+    if (code)
+      await setVoice({ code, playerId: myId, on: false }).catch(() => {});
+  }, [code, myId, setVoice]);
+
+  /* ---- toggleMute ---- */
   const toggleMute = useCallback(() => {
-    setMuted((m) => {
-      const next = !m;
-      local.current?.getAudioTracks().forEach((t) => { t.enabled = !next; });
-      return next;
-    });
-  }, []);
+    const audioTrack = localTracksRef.current.find(
+      (t: any) => t.getType() === "audio",
+    );
+    if (!audioTrack) return;
+    if (muted) {
+      audioTrack.unmute();
+    } else {
+      audioTrack.mute();
+    }
+    setMuted(!muted);
+  }, [muted]);
 
+  /* ---- toggleCamera ---- */
   const toggleCamera = useCallback(async () => {
-    if (!local.current) return;
+    const JitsiMeetJS = (window as any).JitsiMeetJS;
+    if (!JitsiMeetJS || !roomRef.current) return;
+
     if (camOn) {
-      // turn off: remove + stop the video track (triggers renegotiation per peer)
-      for (const { pc } of peersRef.current.values()) {
-        const sender = pc.getSenders().find((s) => s.track?.kind === "video");
-        if (sender) pc.removeTrack(sender);
+      // Remove video track
+      const videoTrack = localTracksRef.current.find(
+        (t: any) => t.getType() === "video",
+      );
+      if (videoTrack) {
+        if (roomRef.current.isJoined()) {
+          try {
+            await roomRef.current.removeTrack(videoTrack);
+          } catch {}
+        }
+        videoTrack.dispose();
+        localTracksRef.current = localTracksRef.current.filter(
+          (t: any) => t !== videoTrack,
+        );
       }
-      local.current.getVideoTracks().forEach((t) => { t.stop(); local.current!.removeTrack(t); });
       setCamOn(false);
-      setLocalStream(new MediaStream(local.current.getTracks()));
+      buildLocalStream();
     } else {
       try {
-        const vstream = await navigator.mediaDevices.getUserMedia({ video: VIDEO });
-        const vtrack = vstream.getVideoTracks()[0];
-        local.current.addTrack(vtrack);
-        for (const { pc } of peersRef.current.values()) pc.addTrack(vtrack, local.current!);
+        const [videoTrack] = await JitsiMeetJS.createLocalTracks({
+          devices: ["video"],
+          constraints: VIDEO_CONSTRAINTS.constraints,
+        });
+        localTracksRef.current.push(videoTrack);
+        if (roomRef.current.isJoined()) {
+          roomRef.current.addTrack(videoTrack);
+        }
         setCamOn(true);
-        setLocalStream(new MediaStream(local.current.getTracks()));
+        buildLocalStream();
       } catch {
         alert("Could not access the camera.");
       }
     }
-  }, [camOn]);
+  }, [camOn, buildLocalStream]);
 
-  /* ---- cleanup ---- */
+  /* ---- cleanup on unmount ---- */
   useEffect(() => {
-    const bye = () => { if (joined && code) setVoice({ code, playerId: myId, on: false }).catch(() => {}); };
+    return () => {
+      for (const track of localTracksRef.current) {
+        try {
+          track.dispose();
+        } catch {}
+      }
+      if (roomRef.current) {
+        try {
+          roomRef.current.leave();
+        } catch {}
+      }
+      if (connectionRef.current) {
+        try {
+          connectionRef.current.disconnect();
+        } catch {}
+      }
+    };
+  }, []);
+
+  /* ---- notify server on page close ---- */
+  useEffect(() => {
+    const bye = () => {
+      if (joined && code)
+        setVoice({ code, playerId: myId, on: false }).catch(() => {});
+    };
     window.addEventListener("pagehide", bye);
     return () => window.removeEventListener("pagehide", bye);
   }, [joined, code, myId, setVoice]);
 
-  useEffect(() => () => {
-    peersRef.current.forEach((ps) => ps.pc.close());
-    peersRef.current.clear();
-    local.current?.getTracks().forEach((t) => t.stop());
-    audioCtx.current?.close().catch(() => {});
-  }, []);
-
-  return { joined, muted, camOn, localStream, remoteStreams, speaking, join, leave, toggleMute, toggleCamera };
+  return {
+    joined,
+    muted,
+    camOn,
+    localStream,
+    remoteStreams,
+    speaking,
+    join,
+    leave,
+    toggleMute,
+    toggleCamera,
+  };
 }

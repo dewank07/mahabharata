@@ -5,6 +5,7 @@ import {
   TEAM_COUNTS, QUEST_SIZES, DOUBLE_FAIL_QUEST,
   ROLE_TEAM, buildRoles, knownNames, Role,
 } from "./logic";
+import { THEMES } from "./themes";
 
 /* ------------------------------- helpers ------------------------------- */
 const LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -68,9 +69,10 @@ async function resolveVotes(
   } else {
     const rc = room.rejectCount + 1;
     if (rc >= 5) {
+      const theme = THEMES[room.themeId ?? "india"] ?? THEMES.india;
       await ctx.db.patch(room._id, {
         phase: "end", winner: "evil",
-        winReason: "Five war parties rejected in a row — the council collapses into chaos. Adharma triumphs.",
+        winReason: theme.winReasons.fiveRejections,
         lastVote,
       });
     } else {
@@ -107,9 +109,10 @@ async function resolveQuest(
   };
 
   if (failures >= 3) {
+    const theme = THEMES[room.themeId ?? "india"] ?? THEMES.india;
     await ctx.db.patch(room._id, {
       phase: "end", winner: "evil", questResults: results, lastQuest,
-      winReason: "Three battles lost — the Kauravas overrun Kurukshetra. Adharma triumphs.",
+      winReason: theme.winReasons.threeFails,
     });
   } else if (successes >= 3) {
     await ctx.db.patch(room._id, { phase: "assassin", questResults: results, lastQuest });
@@ -128,19 +131,27 @@ export const createRoom = mutation({
   args: {
     playerId: v.string(),
     name: v.string(),
+    themeId: v.optional(v.string()),
     opts: v.object({
       percival: v.boolean(), morgana: v.boolean(),
       mordred: v.boolean(), oberon: v.boolean(),
     }),
   },
-  handler: async (ctx, { playerId, name, opts }) => {
+  handler: async (ctx, { playerId, name, themeId, opts }) => {
     let code = makeCode();
     for (let i = 0; i < 6 && (await roomByCode(ctx, code)); i++) code = makeCode();
     const roomId = await ctx.db.insert("rooms", {
-      code, hostId: playerId, phase: "lobby",
-      leaderIndex: 0, roundId: 0, questIndex: 0,
+      code,
+      themeId: themeId ?? "india",
+      hostId: playerId,
+      phase: "lobby",
+      leaderIndex: 0,
+      roundId: 0,
+      questIndex: 0,
       questResults: [null, null, null, null, null],
-      rejectCount: 0, proposedTeam: [], opts,
+      rejectCount: 0,
+      proposedTeam: [],
+      opts,
     });
     await ctx.db.insert("players", { roomId, playerId, name: name.trim(), seat: 0 });
     return { code };
@@ -204,6 +215,21 @@ export const setOpts = mutation({
     if (room.hostId !== playerId) throw new Error("Only the host can change roles.");
     if (room.phase !== "lobby") return;
     await ctx.db.patch(room._id, { opts });
+  },
+});
+
+export const changeTheme = mutation({
+  args: {
+    code: v.string(),
+    playerId: v.string(),
+    themeId: v.string(),
+  },
+  handler: async (ctx, { code, playerId, themeId }) => {
+    const room = requireRoom(await roomByCode(ctx, code));
+    if (room.hostId !== playerId) throw new Error("Only the host can change themes.");
+    if (room.phase !== "lobby") throw new Error("Cannot change theme after game started.");
+    if (!THEMES[themeId]) throw new Error(`Theme ${themeId} not found.`);
+    await ctx.db.patch(room._id, { themeId });
   },
 });
 
@@ -329,12 +355,13 @@ export const assassinate = mutation({
     if (!me || me.role !== "assassin") throw new Error("Only the Assassin may strike.");
     const target = players.find((p) => p.playerId === targetId);
     const foundMerlin = target?.role === "merlin";
+    const theme = THEMES[room.themeId ?? "india"] ?? THEMES.india;
     await ctx.db.patch(room._id, {
       phase: "end", assassinGuess: targetId,
       winner: foundMerlin ? "evil" : "good",
       winReason: foundMerlin
-        ? "Ashwatthama's strike finds Krishna! Against all dharma, adharma seizes victory."
-        : "Ashwatthama strikes the wrong warrior — Krishna lives. Dharma prevails upon Kurukshetra!",
+        ? theme.winReasons.assassinHit
+        : theme.winReasons.assassinMiss,
     });
   },
 });
@@ -453,16 +480,20 @@ export const getRoom = query({
         q.eq("roomId", room._id).eq("questIndex", room.questIndex))
       .collect();
 
+    const theme = THEMES[room.themeId ?? "india"] ?? THEMES.india;
+
     let known: string[] = [];
     if (me?.role) {
       const others = players
         .filter((p) => p.playerId !== playerId && p.role)
         .map((p) => ({ name: p.name, role: p.role as Role }));
-      known = knownNames(me.role as Role, others);
+      known = knownNames(me.role as Role, others, theme);
     }
 
     return {
       code: room.code,
+      themeId: room.themeId ?? "india",
+      theme,
       phase: room.phase,
       hostId: room.hostId,
       leaderIndex: room.leaderIndex,

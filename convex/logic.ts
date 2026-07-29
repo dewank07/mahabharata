@@ -1,6 +1,7 @@
 // Pure, framework-agnostic Avalon rules. No Convex imports so it can be unit-tested
 // and shared. Keep everything here DETERMINISTIC except buildRoles (only ever called
 // inside a mutation, where randomness is allowed).
+import { ThemeConfig } from "./themes";
 
 export type Role =
   | "merlin"
@@ -70,14 +71,31 @@ export function buildRoles(playerIds: string[], opts: Opts): Record<string, Role
 export function knownNames(
   myRole: Role,
   others: { name: string; role: Role }[],
+  theme: ThemeConfig,
 ): string[] {
+  const roleDef = theme.roles.find((r) => r.id === myRole);
+  if (!roleDef) return [];
+
+  const revealAbility = roleDef.abilities.find((a) => a.type === "reveal");
+  if (!revealAbility) return [];
+
+  const target = revealAbility.target;
+  if (!target) return [];
+
   let seen: { name: string; role: Role }[] = [];
-  if (myRole === "merlin") {
-    seen = others.filter((p) => ROLE_TEAM[p.role] === "evil" && p.role !== "mordred");
-  } else if (myRole === "percival") {
-    seen = others.filter((p) => p.role === "merlin" || p.role === "morgana");
-  } else if (ROLE_TEAM[myRole] === "evil" && myRole !== "oberon") {
-    seen = others.filter((p) => ROLE_TEAM[p.role] === "evil" && p.role !== "oberon");
+
+  if (target.roles) {
+    seen = others.filter((p) => target.roles!.includes(p.role));
+  } else if (target.team) {
+    seen = others.filter((p) => {
+      const pDef = theme.roles.find((r) => r.id === p.role);
+      return pDef?.team === target.team;
+    });
   }
+
+  if (target.excludeRoles) {
+    seen = seen.filter((p) => !target.excludeRoles!.includes(p.role));
+  }
+
   return seen.map((p) => p.name).sort((a, b) => a.localeCompare(b));
 }

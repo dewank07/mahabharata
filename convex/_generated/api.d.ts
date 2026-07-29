@@ -10,6 +10,7 @@
 
 import type * as avalon from "../avalon.js";
 import type * as logic from "../logic.js";
+import type * as themes from "../themes.js";
 
 import type {
   ApiFromModules,
@@ -20,6 +21,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   avalon: typeof avalon;
   logic: typeof logic;
+  themes: typeof themes;
 }>;
 
 /**

@@ -15,6 +15,7 @@ const role = v.union(
 export default defineSchema({
   rooms: defineTable({
     code: v.string(),
+    themeId: v.string(),
     hostId: v.string(), // client-generated player session id
     phase: v.union(
       v.literal("lobby"),

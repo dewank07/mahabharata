@@ -2,6 +2,7 @@ import { useState, type CSSProperties } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { useVoice } from "./useVoice";
+import { THEMES, THEME_LIST } from "../convex/themes";
 import {
   Crown,
   Sword,
@@ -49,50 +50,18 @@ type Role =
   | "oberon"
   | "minion";
 
-const ROLE: Record<
+const ROLE_TEAM: Record<
   Role,
-  { name: string; team: "good" | "evil"; desc: string }
+  "good" | "evil"
 > = {
-  merlin: {
-    name: "Krishna",
-    team: "good",
-    desc: "The divine charioteer. You perceive the Kauravas — but Duryodhana is veiled from your sight. Guide the Pandavas subtly: should Ashwatthama name you at the end, dharma falls.",
-  },
-  percival: {
-    name: "Arjuna",
-    team: "good",
-    desc: "Greatest of archers. You behold two figures — Krishna and the deceiver Shakuni — yet cannot tell which is divine. Find and shield the true guide.",
-  },
-  servant: {
-    name: "Pandava Warrior",
-    team: "good",
-    desc: "A loyal soldier of dharma. You hold no divine sight — read the field, weigh each word, and fight true.",
-  },
-  assassin: {
-    name: "Ashwatthama",
-    team: "evil",
-    desc: "Wrathful son of Drona. Should the Pandavas win three battles, you may strike in the night — name Krishna to seize victory for adharma.",
-  },
-  morgana: {
-    name: "Shakuni",
-    team: "evil",
-    desc: "Master of dice and deceit. To Arjuna you appear as Krishna himself, clouding the search for the true guide.",
-  },
-  mordred: {
-    name: "Duryodhana",
-    team: "evil",
-    desc: "Lord of the Kauravas. Even Krishna's sight cannot pierce your veil. Command from the shadows.",
-  },
-  oberon: {
-    name: "Jayadratha",
-    team: "evil",
-    desc: "A lone agent of adharma. You know not your fellow Kauravas, nor they you — yet Krishna sees you plainly.",
-  },
-  minion: {
-    name: "Kaurava Warrior",
-    team: "evil",
-    desc: "A soldier of adharma. You know your fellow Kauravas. Sabotage the battles without being unmasked.",
-  },
+  merlin: "good",
+  percival: "good",
+  servant: "good",
+  assassin: "evil",
+  morgana: "evil",
+  mordred: "evil",
+  oberon: "evil",
+  minion: "evil",
 };
 
 const QUEST_SIZES: Record<number, number[]> = {
@@ -113,15 +82,13 @@ const TEAM_COUNTS: Record<number, [number, number]> = {
 };
 const DOUBLE_FAIL_QUEST = 3;
 
-function knowledgeLabel(role: Role): string {
-  if (role === "merlin")
-    return "The Kauravas you perceive (Duryodhana is veiled from you):";
-  if (role === "percival")
-    return "One of these is Krishna, one is Shakuni — you cannot tell which:";
-  if (role === "oberon") return "You fight alone — you know no other Kauravas.";
-  if (ROLE[role].team === "evil")
-    return "Your fellow Kauravas (Jayadratha stays hidden):";
-  return "You hold no divine sight. Trust your dharma.";
+function getRoleMeta(role: string, theme: any) {
+  return theme.roles.find((r: any) => r.id === role) ?? {
+    name: role,
+    team: ROLE_TEAM[role as Role] ?? "good",
+    desc: "",
+    knowledgeLabel: "",
+  };
 }
 
 /* ================================ chakra crest =========================== */
@@ -175,6 +142,48 @@ function Chakra({
   );
 }
 
+function CrestIcon({
+  icon,
+  size = 40,
+  color = "var(--theme-gold)",
+}: {
+  icon: "chakra" | "shield" | "ankh" | "lightning" | "fort";
+  size?: number;
+  color?: string;
+}) {
+  if (icon === "shield") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="none" />
+      </svg>
+    );
+  }
+  if (icon === "ankh") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 100 100" fill="none" stroke={color} strokeWidth={6} strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="50" cy="32" r="15" fill="none" />
+        <path d="M50 47v40M32 60h36" />
+      </svg>
+    );
+  }
+  if (icon === "lightning") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="none" />
+      </svg>
+    );
+  }
+  if (icon === "fort") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 100 100" fill="none" stroke={color} strokeWidth={6} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M15 80V45l10-10h10V22h15v13h10V22h15v13h10l10 10v35H15z" fill="none" />
+        <path d="M40 80V62c0-5 5-10 10-10s10 5 10 10v18" fill="none" />
+      </svg>
+    );
+  }
+  return <Chakra size={size} color={color} />;
+}
+
 const hasLiveVideo = (s?: MediaStream | null) =>
   !!s && s.getVideoTracks().some((t) => t.readyState === "live");
 /* ================================ component =============================== */
@@ -192,16 +201,49 @@ export default function App() {
     mordred: false,
     oberon: false,
   });
+  const [localThemeId, setLocalThemeId] = useState<string>("india");
 
   const room = useQuery(
     api.avalon.getRoom,
     code ? { code, playerId: pid } : "skip",
   );
 
+  const activeTheme = room?.theme ?? THEMES[localThemeId] ?? THEMES.india;
+
+  const getAccentGradient = (id: string): string => {
+    switch (id) {
+      case "medieval": return "#1c2d5a";
+      case "egyptian": return "#2d2013";
+      case "greek": return "#162238";
+      case "maratha": return "#4a1c02";
+      case "india":
+      default:
+        return "#3a1d4d";
+    }
+  };
+
+  const styleVariables = {
+    "--theme-ink": activeTheme.colors.ink,
+    "--theme-ink2": activeTheme.colors.ink2,
+    "--theme-panel": activeTheme.colors.panel,
+    "--theme-panel2": activeTheme.colors.panel2,
+    "--theme-line": activeTheme.colors.line,
+    "--theme-gold": activeTheme.colors.gold,
+    "--theme-gold-dim": activeTheme.colors.goldDim,
+    "--theme-parch": activeTheme.colors.parch,
+    "--theme-parch-dim": activeTheme.colors.parchDim,
+    "--theme-good": activeTheme.colors.good,
+    "--theme-good-dk": activeTheme.colors.goodDk,
+    "--theme-evil": activeTheme.colors.evil,
+    "--theme-evil-dk": activeTheme.colors.evilDk,
+    "--theme-accent-gradient": getAccentGradient(activeTheme.id),
+  } as CSSProperties;
+
   const mCreate = useMutation(api.avalon.createRoom);
   const mJoin = useMutation(api.avalon.joinRoom);
   const mLeave = useMutation(api.avalon.leaveRoom);
   const mSetOpts = useMutation(api.avalon.setOpts);
+  const mChangeTheme = useMutation(api.avalon.changeTheme);
   const mStart = useMutation(api.avalon.startGame);
   const mBegin = useMutation(api.avalon.beginQuests);
   const mPropose = useMutation(api.avalon.proposeTeam);
@@ -221,7 +263,7 @@ export default function App() {
 
   async function createRoom() {
     if (!name.trim()) return setMsg("Speak your name first.");
-    const r = await mCreate({ playerId: pid, name, opts });
+    const r = await mCreate({ playerId: pid, name, themeId: localThemeId, opts });
     setCode(r.code);
     setMsg("");
   }
@@ -257,7 +299,7 @@ export default function App() {
 
   /* =============================== render =============================== */
   return (
-    <div style={st.root}>
+    <div style={{ ...st.root, ...styleVariables }}>
       <StyleTag />
       <div style={st.shell}>
         {!code && Home()}
@@ -486,22 +528,47 @@ export default function App() {
     return (
       <div style={st.home}>
         <div style={st.crest}>
-          <Chakra size={46} color={C.gold} />
+          <CrestIcon icon={activeTheme.crestIcon} size={46} color={C.gold} />
         </div>
-        <h1 style={st.title}>Dharmayuddha</h1>
-        <div style={st.deva}>धर्मयुद्ध · कुरुक्षेत्र</div>
+        <h1 style={st.title}>{activeTheme.name}</h1>
+        {activeTheme.devanagariLabel && (
+          <div style={st.deva}>{activeTheme.devanagariLabel}</div>
+        )}
         <p style={st.subtitle}>
-          The War of Kurukshetra — a game of dharma, deceit &amp; hidden
-          allegiance for 5–10 warriors
+          {activeTheme.tagline}
         </p>
         <div style={st.card}>
+          <label style={st.label}>Select Game Theme</label>
+          <select
+            value={localThemeId}
+            onChange={(e) => setLocalThemeId(e.target.value)}
+            style={{
+              ...st.input,
+              background: C.ink2,
+              color: C.parch,
+              border: `1px solid ${C.line}`,
+              borderRadius: 8,
+              cursor: "pointer",
+              fontFamily: serifBody,
+              padding: "8px 12px",
+              marginBottom: 14,
+              width: "100%",
+            }}
+          >
+            {THEME_LIST.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+
           <label style={st.label}>Your name</label>
           <input
             style={st.input}
             value={name}
             maxLength={16}
             onChange={(e) => setName(e.target.value)}
-            placeholder='Warrior of the field…'
+            placeholder='Your name…'
           />
           <div style={{ height: 14 }} />
           <button style={st.btnGold} onClick={wrap(createRoom)}>
@@ -564,6 +631,20 @@ export default function App() {
       setOpts(next);
       if (code) mSetOpts({ code, playerId: pid, opts: next }).catch(() => {});
     };
+
+    const merlinName = activeTheme.roles.find(r => r.id === "merlin")?.name || "Merlin";
+    const percivalName = activeTheme.roles.find(r => r.id === "percival")?.name || "Percival";
+    const assassinName = activeTheme.roles.find(r => r.id === "assassin")?.name || "Assassin";
+    const morganaName = activeTheme.roles.find(r => r.id === "morgana")?.name || "Morgana";
+    const mordredName = activeTheme.roles.find(r => r.id === "mordred")?.name || "Mordred";
+    const oberonName = activeTheme.roles.find(r => r.id === "oberon")?.name || "Oberon";
+
+    const handleThemeChange = (newThemeId: string) => {
+      if (code) {
+        mChangeTheme({ code, playerId: pid, themeId: newThemeId }).catch((err) => console.error(err));
+      }
+    };
+
     return (
       <div style={st.panelWrap}>
         {Header()}
@@ -578,6 +659,47 @@ export default function App() {
             <Copy size={14} /> copy
           </button>
         </div>
+
+        <div style={{ marginBottom: 16, marginTop: 8 }}>
+          <label style={{ ...st.label, marginBottom: 6, display: "block" }}>Game Theme</label>
+          {isHost ? (
+            <select
+              value={activeTheme.id}
+              onChange={(e) => handleThemeChange(e.target.value)}
+              style={{
+                ...st.input,
+                padding: "8px 12px",
+                background: C.ink2,
+                color: C.parch,
+                border: `1px solid ${C.line}`,
+                borderRadius: 8,
+                width: "100%",
+                cursor: "pointer",
+                fontFamily: serifBody,
+              }}
+            >
+              {THEME_LIST.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} — {t.tagline}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div
+              style={{
+                padding: "10px 14px",
+                background: C.panel,
+                border: `1px solid ${C.line}`,
+                borderRadius: 8,
+                fontSize: 14.5,
+                color: C.parchDim,
+              }}
+            >
+              <span style={{ color: C.gold, fontWeight: 600 }}>{activeTheme.name}</span> — {activeTheme.tagline}
+            </div>
+          )}
+        </div>
+
         <h2 style={st.h2}>
           <Users size={18} /> Warriors gathered ({n}/10)
         </h2>
@@ -603,39 +725,39 @@ export default function App() {
             </h2>
             <div style={st.optGrid}>
               <RoleToggle
-                label='Arjuna'
+                label={percivalName}
                 team='good'
-                desc='Sees Krishna & Shakuni'
+                desc={`Sees ${merlinName} & ${morganaName}`}
                 on={opts.percival}
                 onClick={() => toggle("percival")}
               />
               <RoleToggle
-                label='Shakuni'
+                label={morganaName}
                 team='evil'
-                desc='Appears as Krishna'
+                desc={`Appears as ${merlinName}`}
                 on={opts.morgana}
                 disabled={!opts.morgana && evilPicked >= evilSlots}
                 onClick={() => toggle("morgana")}
               />
               <RoleToggle
-                label='Duryodhana'
+                label={mordredName}
                 team='evil'
-                desc='Veiled from Krishna'
+                desc={`Veiled from ${merlinName}`}
                 on={opts.mordred}
                 disabled={!opts.mordred && evilPicked >= evilSlots}
                 onClick={() => toggle("mordred")}
               />
               <RoleToggle
-                label='Jayadratha'
+                label={oberonName}
                 team='evil'
-                desc='Lone, unknown Kaurava'
+                desc={`Lone, unknown ${activeTheme.evilTeamName}`}
                 on={opts.oberon}
                 disabled={!opts.oberon && evilPicked >= evilSlots}
                 onClick={() => toggle("oberon")}
               />
             </div>
             <p style={st.note}>
-              Krishna &amp; Ashwatthama always take the field. Kaurava special
+              {merlinName} &amp; {assassinName} always take the field. Special
               slots used: {evilPicked}/{evilSlots}.
             </p>
             <button
@@ -708,7 +830,7 @@ export default function App() {
 
   function Reveal() {
     if (!myRole) return <p style={st.waiting}>The lots are cast…</p>;
-    const meta = ROLE[myRole];
+    const meta = getRoleMeta(myRole, activeTheme);
     const good = meta.team === "good";
     return (
       <div style={st.panelWrap}>
@@ -732,15 +854,15 @@ export default function App() {
             <div>
               <div style={st.roleTeam}>
                 {good
-                  ? "Sworn to Dharma · Pandava"
-                  : "Sworn to Adharma · Kaurava"}
+                  ? `Sworn to Good · ${activeTheme.goodTeamName}`
+                  : `Sworn to Evil · ${activeTheme.evilTeamName}`}
               </div>
               <div style={st.roleName}>{meta.name}</div>
             </div>
           </div>
           <p style={st.roleDesc}>{meta.desc}</p>
           <div style={st.knowBox}>
-            <div style={st.knowLabel}>{knowledgeLabel(myRole)}</div>
+            <div style={st.knowLabel}>{meta.knowledgeLabel}</div>
             {room!.me!.known.length > 0 ? (
               <div style={st.knowNames}>
                 {room!.me!.known.map((nm) => (
@@ -759,11 +881,11 @@ export default function App() {
             style={{ ...st.btnGold, marginTop: 16 }}
             onClick={wrap(() => mBegin({ code: code!, playerId: pid }))}
           >
-            <Sword size={16} /> All have learned their dharma — sound the conch
+            <Sword size={16} /> All have learned their roles — begin the quests
           </button>
         ) : (
           <p style={st.waiting}>
-            Study your dharma. The host will sound the conch shortly…
+            Study your role. The host will start the quests shortly…
           </p>
         )}
       </div>
@@ -772,6 +894,8 @@ export default function App() {
 
   function Assassin() {
     const amAssassin = myRole === "assassin";
+    const merlinName = activeTheme.roles.find(r => r.id === "merlin")?.name || "Merlin";
+    const assassinName = activeTheme.roles.find(r => r.id === "assassin")?.name || "Assassin";
     return (
       <div style={st.panelWrap}>
         {Header()}
@@ -786,17 +910,17 @@ export default function App() {
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <Flame size={26} color={C.evil} />
-            <div style={st.roleName}>The Pandavas have won three battles…</div>
+            <div style={st.roleName}>The {activeTheme.goodTeamName} have completed three quests…</div>
           </div>
           <p style={st.roleDesc}>
-            Yet Ashwatthama may still turn the tide. If Krishna is named,
-            adharma seizes victory.
+            Yet {assassinName} may still turn the tide. If {merlinName} is named,
+            the {activeTheme.evilTeamName} seize victory.
           </p>
         </div>
         {amAssassin ? (
           <div style={st.actionCard}>
             <div style={st.actionTitle}>
-              Name the warrior you believe is Krishna
+              Name the player you believe is {merlinName}
             </div>
             <div style={st.seatGrid}>
               {players
@@ -820,7 +944,7 @@ export default function App() {
           </div>
         ) : (
           <p style={st.waiting}>
-            Ashwatthama stalks the night… your fate hangs in the balance.
+            The assassin stalks the night… your fate hangs in the balance.
           </p>
         )}
       </div>
@@ -848,7 +972,7 @@ export default function App() {
             <Flame size={34} color={C.evil} />
           )}
           <div style={st.endTitle}>
-            {goodWon ? "Dharma Prevails" : "Adharma Triumphs"}
+            {goodWon ? "Good Prevails" : "Evil Triumphs"}
           </div>
           <p style={st.endReason}>{room!.winReason}</p>
         </div>
@@ -858,7 +982,7 @@ export default function App() {
         </h2>
         <div style={st.revealGrid}>
           {players.map((p) => {
-            const r = p.role ? ROLE[p.role as Role] : null;
+            const r = p.role ? getRoleMeta(p.role, activeTheme) : null;
             const good = r?.team === "good";
             return (
               <div
@@ -917,7 +1041,7 @@ export default function App() {
     return (
       <div style={st.voiceBar}>
         <div style={st.voiceLeft}>
-          <Chakra size={14} color={voice.joined ? C.good : C.parchDim} />
+          <CrestIcon icon={activeTheme.crestIcon} size={14} color={voice.joined ? C.good : C.parchDim} />
           <span style={st.voiceTitle}>War Council</span>
           {inCall.length > 0 ? (
             <span style={st.voiceHint}>{inCall.length} present</span>
@@ -1014,15 +1138,15 @@ export default function App() {
 
   function QuestPanel(onTeam: boolean) {
     const played = room!.questProgress.iSubmitted;
-    const isEvil = myRole ? ROLE[myRole].team === "evil" : false;
+    const isEvil = myRole ? ROLE_TEAM[myRole] === "evil" : false;
     return (
       <div style={st.actionCard}>
-        <div style={st.actionTitle}>Battle {room!.questIndex + 1} rages</div>
+        <div style={st.actionTitle}>Quest {room!.questIndex + 1} rages</div>
         {onTeam ? (
           !played ? (
             <>
               <p style={st.note}>
-                You march in this battle. Commit your deed in secret.
+                You march in this quest. Commit your deed in secret.
               </p>
               <div style={st.voteBtns}>
                 <button
@@ -1031,7 +1155,7 @@ export default function App() {
                     mCard({ code: code!, playerId: pid, card: "success" }),
                   )}
                 >
-                  <Check size={18} /> Valor
+                  <Check size={18} /> Success
                 </button>
                 <button
                   style={{
@@ -1044,12 +1168,12 @@ export default function App() {
                     mCard({ code: code!, playerId: pid, card: "fail" }),
                   )}
                 >
-                  <X size={18} /> Sabotage {isEvil ? "" : "🔒"}
+                  <X size={18} /> Fail {isEvil ? "" : "🔒"}
                 </button>
               </div>
               {!isEvil && (
                 <p style={st.noteDim}>
-                  Those sworn to dharma must fight with Valor.
+                  Those sworn to Good must fight for Success.
                 </p>
               )}
             </>
@@ -1169,8 +1293,8 @@ export default function App() {
         style={{ ...st.banner, borderColor: q.success ? C.goodDk : C.evilDk }}
       >
         <div style={st.bannerHead}>
-          Battle {q.questIndex + 1}:{" "}
-          {q.success ? "Won for Dharma" : "Lost to Adharma"}
+          Quest {q.questIndex + 1}:{" "}
+          {q.success ? "Won for Good" : "Lost to Evil"}
         </div>
         <div style={st.bannerRow}>
           {q.fails} act{q.fails !== 1 ? "s" : ""} of sabotage
@@ -1181,13 +1305,13 @@ export default function App() {
 
   function SecretRole() {
     if (!myRole) return null;
-    const meta = ROLE[myRole];
+    const meta = getRoleMeta(myRole, activeTheme);
     const good = meta.team === "good";
     return (
       <div style={st.secretWrap}>
         <button style={st.secretBtn} onClick={() => setShowRole((s) => !s)}>
           {showRole ? <EyeOff size={14} /> : <Eye size={14} />}{" "}
-          {showRole ? "Conceal my dharma" : "Glimpse my dharma"}
+          {showRole ? "Conceal my role" : "Glimpse my role"}
         </button>
         {showRole && (
           <div
@@ -1198,7 +1322,7 @@ export default function App() {
             </strong>
             <span style={{ color: C.parchDim, fontSize: 12 }}>
               {" "}
-              — {good ? "Dharma" : "Adharma"}
+              — {good ? "Good" : "Evil"}
             </span>
           </div>
         )}
@@ -1211,8 +1335,8 @@ export default function App() {
     return (
       <div style={st.header}>
         <div style={st.headerL}>
-          <Chakra size={20} color={C.gold} />
-          <span style={st.headerTitle}>Kurukshetra</span>
+          <CrestIcon icon={activeTheme.crestIcon} size={20} color={C.gold} />
+          <span style={st.headerTitle}>{activeTheme.name}</span>
         </div>
         {me && <span style={st.headerName}>{me.name}</span>}
       </div>
@@ -1225,12 +1349,12 @@ function StyleTag() {
     <style>{`
       @import url('https://fonts.googleapis.com/css2?family=Rozha+One&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap');
       *{ box-sizing:border-box; } html,body,#root{ margin:0; min-height:100%; }
-      body{ background:#160b22; }
+      body{ background: var(--theme-ink); transition: background 0.3s ease; }
       @keyframes spin { to { transform: rotate(360deg); } }
       @keyframes fadeUp { from { opacity:0; transform:translateY(8px);} to {opacity:1;transform:none;} }
       @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(63,159,142,.4); } 50% { box-shadow: 0 0 0 6px rgba(63,159,142,0); } }
-      ::-webkit-scrollbar { width: 8px; } ::-webkit-scrollbar-thumb { background:#43305a; border-radius:4px; }
-      input:focus { outline: none; border-color: #e3a93c !important; }
+      ::-webkit-scrollbar { width: 8px; } ::-webkit-scrollbar-thumb { background: var(--theme-line); border-radius:4px; }
+      input:focus { outline: none; border-color: var(--theme-gold) !important; }
       button { font-family: 'Spectral', Georgia, serif; cursor: pointer; }
     `}</style>
   );
@@ -1238,19 +1362,19 @@ function StyleTag() {
 
 /* -------------------------------- palette ------------------------------- */
 const C = {
-  ink: "#160b22",
-  ink2: "#1f1430",
-  panel: "#251732",
-  panel2: "#2f1d40",
-  line: "#43305a",
-  gold: "#e3a93c",
-  goldDim: "#a9802c",
-  parch: "#f2e7d0",
-  parchDim: "#bcae93",
-  good: "#3f9f8e",
-  goodDk: "#1d4a43",
-  evil: "#c14a3f",
-  evilDk: "#5e201b",
+  ink: "var(--theme-ink)",
+  ink2: "var(--theme-ink2)",
+  panel: "var(--theme-panel)",
+  panel2: "var(--theme-panel2)",
+  line: "var(--theme-line)",
+  gold: "var(--theme-gold)",
+  goldDim: "var(--theme-gold-dim)",
+  parch: "var(--theme-parch)",
+  parchDim: "var(--theme-parch-dim)",
+  good: "var(--theme-good)",
+  goodDk: "var(--theme-good-dk)",
+  evil: "var(--theme-evil)",
+  evilDk: "var(--theme-evil-dk)",
 };
 const serifDisplay = "'Rozha One', Georgia, serif";
 const serifBody = "'Spectral', Georgia, serif";
@@ -1261,7 +1385,8 @@ const st: Record<string, CSSProperties> = {
     fontFamily: serifBody,
     minHeight: "100vh",
     color: C.parch,
-    background: `radial-gradient(1200px 620px at 50% -12%, #3a1d4d 0%, ${C.ink} 56%)`,
+    background: "radial-gradient(1200px 620px at 50% -12%, var(--theme-accent-gradient) 0%, var(--theme-ink) 56%)",
+    transition: "background 0.3s ease",
     padding: "18px 12px",
   },
   shell: { maxWidth: 580, margin: "0 auto" },

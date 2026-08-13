@@ -48,139 +48,11 @@ export interface ThemeConfig {
 }
 
 export const THEMES: Record<string, ThemeConfig> = {
-  medieval: {
-    id: "medieval",
-    name: "Medieval Kingdom",
-    tagline: "Every world has heroes. Every kingdom has traitors.",
-    crestIcon: "shield",
-    goodTeamName: "Knights of Arthur",
-    evilTeamName: "Minions of Mordred",
-    colors: {
-      ink: "#0a1128",
-      ink2: "#121e40",
-      panel: "#1c2d5a",
-      panel2: "#253c73",
-      line: "#3d5a80",
-      gold: "#e2b13c",
-      goldDim: "#a8832c",
-      parch: "#e0f1f7",
-      parchDim: "#98c1d9",
-      good: "#3f9f8e",
-      goodDk: "#1d4a43",
-      evil: "#c14a3f",
-      evilDk: "#5e201b",
-    },
-    roles: [
-      {
-        id: "merlin",
-        name: "Merlin",
-        team: "good",
-        desc: "The wise wizard. You perceive the minions of Mordred, but Mordred himself is veiled from your sight. Guide the knights of Arthur subtly: if the Assassin names you at the end, Arthur's cause falls.",
-        knowledgeLabel: "The minions of evil you perceive (Mordred is veiled):",
-        abilities: [
-          {
-            type: "reveal",
-            target: { team: "evil", excludeRoles: ["mordred"] },
-          },
-        ],
-      },
-      {
-        id: "percival",
-        name: "Percival",
-        team: "good",
-        desc: "The noble protector. You behold two figures — Merlin and the deceiver Morgana — yet cannot tell which is the true wizard. Find and shield the true guide.",
-        knowledgeLabel: "One of these is Merlin, one is Morgana — you cannot tell which:",
-        abilities: [
-          {
-            type: "reveal",
-            target: { roles: ["merlin", "morgana"] },
-          },
-        ],
-      },
-      {
-        id: "servant",
-        name: "Loyal Knight",
-        team: "good",
-        desc: "A loyal servant of Arthur. You hold no magical sight — read the field, weigh each word, and vote true to complete the quests.",
-        knowledgeLabel: "You hold no magical sight. Trust your companions.",
-        abilities: [],
-      },
-      {
-        id: "assassin",
-        name: "Assassin",
-        team: "evil",
-        desc: "Wrathful agent of Mordred. Should Arthur's knights complete three quests, you may strike in the night — name Merlin to seize victory for evil.",
-        knowledgeLabel: "Your fellow minions of evil (Oberon stays hidden):",
-        abilities: [
-          {
-            type: "reveal",
-            target: { team: "evil", excludeRoles: ["oberon"] },
-          },
-          {
-            type: "assassinate",
-            targetRole: "merlin",
-          },
-        ],
-      },
-      {
-        id: "morgana",
-        name: "Morgana",
-        team: "evil",
-        desc: "Mistress of illusions. To Percival you appear as Merlin himself, clouding the search for the true wizard.",
-        knowledgeLabel: "Your fellow minions of evil (Oberon stays hidden):",
-        abilities: [
-          {
-            type: "reveal",
-            target: { team: "evil", excludeRoles: ["oberon"] },
-          },
-        ],
-      },
-      {
-        id: "mordred",
-        name: "Mordred",
-        team: "evil",
-        desc: "The dark lord of rebellion. Even Merlin's sight cannot pierce your veil. Command from the shadows.",
-        knowledgeLabel: "Your fellow minions of evil (Oberon stays hidden):",
-        abilities: [
-          {
-            type: "reveal",
-            target: { team: "evil", excludeRoles: ["oberon"] },
-          },
-        ],
-      },
-      {
-        id: "oberon",
-        name: "Oberon",
-        team: "evil",
-        desc: "A lone agent of chaos. You know not your fellow minions, nor they you — yet Merlin sees you plainly.",
-        knowledgeLabel: "You fight alone — you know no other evil minions.",
-        abilities: [],
-      },
-      {
-        id: "minion",
-        name: "Minion of Mordred",
-        team: "evil",
-        desc: "A loyal soldier of evil. You know your fellow minions. Sabotage the quests without being unmasked.",
-        knowledgeLabel: "Your fellow minions of evil (Oberon stays hidden):",
-        abilities: [
-          {
-            type: "reveal",
-            target: { team: "evil", excludeRoles: ["oberon"] },
-          },
-        ],
-      },
-    ],
-    winReasons: {
-      fiveRejections: "Five quest parties rejected in a row — the round table collapses into chaos. Evil triumphs.",
-      threeFails: "Three quests failed — the minions of Mordred overrun Camelot. Evil triumphs.",
-      assassinHit: "The Assassin's strike finds Merlin! Against all odds, Mordred seizes victory.",
-      assassinMiss: "The Assassin strikes the wrong knight — Merlin lives. Arthur's kingdom prevails!",
-    },
-  },
   india: {
     id: "india",
     name: "Indian Mythology",
-    tagline: "Dharma vs Adharma. Every world has heroes. Every kingdom has traitors.",
+    tagline:
+      "Dharma vs Adharma. Every world has heroes. Every kingdom has traitors.",
     devanagariLabel: "धर्मसंस्थापनार्थाय सम्भवामि युगे युगे",
     crestIcon: "chakra",
     goodTeamName: "Pandavas",
@@ -206,7 +78,8 @@ export const THEMES: Record<string, ThemeConfig> = {
         name: "Krishna",
         team: "good",
         desc: "The divine charioteer. You perceive the Kauravas — but Duryodhana is veiled from your sight. Guide the Pandavas subtly: should Ashwatthama name you at the end, dharma falls.",
-        knowledgeLabel: "The Kauravas you perceive (Duryodhana is veiled from you):",
+        knowledgeLabel:
+          "The Kauravas you perceive (Duryodhana is veiled from you):",
         abilities: [
           {
             type: "reveal",
@@ -219,7 +92,8 @@ export const THEMES: Record<string, ThemeConfig> = {
         name: "Arjuna",
         team: "good",
         desc: "Greatest of archers. You behold two figures — Krishna and the deceiver Shakuni — yet cannot tell which is divine. Find and shield the true guide.",
-        knowledgeLabel: "One of these is Krishna, one is Shakuni — you cannot tell which:",
+        knowledgeLabel:
+          "One of these is Krishna, one is Shakuni — you cannot tell which:",
         abilities: [
           {
             type: "reveal",
@@ -301,10 +175,148 @@ export const THEMES: Record<string, ThemeConfig> = {
       },
     ],
     winReasons: {
-      fiveRejections: "Five war parties rejected in a row — the council collapses into chaos. Adharma triumphs.",
-      threeFails: "Three battles lost — the Kauravas overrun Kurukshetra. Adharma triumphs.",
-      assassinHit: "Ashwatthama's strike finds Krishna! Against all dharma, adharma seizes victory.",
-      assassinMiss: "Ashwatthama strikes the wrong warrior — Krishna lives. Dharma prevails upon Kurukshetra!",
+      fiveRejections:
+        "Five war parties rejected in a row — the council collapses into chaos. Adharma triumphs.",
+      threeFails:
+        "Three battles lost — the Kauravas overrun Kurukshetra. Adharma triumphs.",
+      assassinHit:
+        "Ashwatthama's strike finds Krishna! Against all dharma, adharma seizes victory.",
+      assassinMiss:
+        "Ashwatthama strikes the wrong warrior — Krishna lives. Dharma prevails upon Kurukshetra!",
+    },
+  },
+  medieval: {
+    id: "medieval",
+    name: "Medieval Kingdom",
+    tagline: "Every world has heroes. Every kingdom has traitors.",
+    crestIcon: "shield",
+    goodTeamName: "Knights of Arthur",
+    evilTeamName: "Minions of Mordred",
+    colors: {
+      ink: "#0a1128",
+      ink2: "#121e40",
+      panel: "#1c2d5a",
+      panel2: "#253c73",
+      line: "#3d5a80",
+      gold: "#e2b13c",
+      goldDim: "#a8832c",
+      parch: "#e0f1f7",
+      parchDim: "#98c1d9",
+      good: "#3f9f8e",
+      goodDk: "#1d4a43",
+      evil: "#c14a3f",
+      evilDk: "#5e201b",
+    },
+    roles: [
+      {
+        id: "merlin",
+        name: "Merlin",
+        team: "good",
+        desc: "The wise wizard. You perceive the minions of Mordred, but Mordred himself is veiled from your sight. Guide the knights of Arthur subtly: if the Assassin names you at the end, Arthur's cause falls.",
+        knowledgeLabel: "The minions of evil you perceive (Mordred is veiled):",
+        abilities: [
+          {
+            type: "reveal",
+            target: { team: "evil", excludeRoles: ["mordred"] },
+          },
+        ],
+      },
+      {
+        id: "percival",
+        name: "Percival",
+        team: "good",
+        desc: "The noble protector. You behold two figures — Merlin and the deceiver Morgana — yet cannot tell which is the true wizard. Find and shield the true guide.",
+        knowledgeLabel:
+          "One of these is Merlin, one is Morgana — you cannot tell which:",
+        abilities: [
+          {
+            type: "reveal",
+            target: { roles: ["merlin", "morgana"] },
+          },
+        ],
+      },
+      {
+        id: "servant",
+        name: "Loyal Knight",
+        team: "good",
+        desc: "A loyal servant of Arthur. You hold no magical sight — read the field, weigh each word, and vote true to complete the quests.",
+        knowledgeLabel: "You hold no magical sight. Trust your companions.",
+        abilities: [],
+      },
+      {
+        id: "assassin",
+        name: "Assassin",
+        team: "evil",
+        desc: "Wrathful agent of Mordred. Should Arthur's knights complete three quests, you may strike in the night — name Merlin to seize victory for evil.",
+        knowledgeLabel: "Your fellow minions of evil (Oberon stays hidden):",
+        abilities: [
+          {
+            type: "reveal",
+            target: { team: "evil", excludeRoles: ["oberon"] },
+          },
+          {
+            type: "assassinate",
+            targetRole: "merlin",
+          },
+        ],
+      },
+      {
+        id: "morgana",
+        name: "Morgana",
+        team: "evil",
+        desc: "Mistress of illusions. To Percival you appear as Merlin himself, clouding the search for the true wizard.",
+        knowledgeLabel: "Your fellow minions of evil (Oberon stays hidden):",
+        abilities: [
+          {
+            type: "reveal",
+            target: { team: "evil", excludeRoles: ["oberon"] },
+          },
+        ],
+      },
+      {
+        id: "mordred",
+        name: "Mordred",
+        team: "evil",
+        desc: "The dark lord of rebellion. Even Merlin's sight cannot pierce your veil. Command from the shadows.",
+        knowledgeLabel: "Your fellow minions of evil (Oberon stays hidden):",
+        abilities: [
+          {
+            type: "reveal",
+            target: { team: "evil", excludeRoles: ["oberon"] },
+          },
+        ],
+      },
+      {
+        id: "oberon",
+        name: "Oberon",
+        team: "evil",
+        desc: "A lone agent of chaos. You know not your fellow minions, nor they you — yet Merlin sees you plainly.",
+        knowledgeLabel: "You fight alone — you know no other evil minions.",
+        abilities: [],
+      },
+      {
+        id: "minion",
+        name: "Minion of Mordred",
+        team: "evil",
+        desc: "A loyal soldier of evil. You know your fellow minions. Sabotage the quests without being unmasked.",
+        knowledgeLabel: "Your fellow minions of evil (Oberon stays hidden):",
+        abilities: [
+          {
+            type: "reveal",
+            target: { team: "evil", excludeRoles: ["oberon"] },
+          },
+        ],
+      },
+    ],
+    winReasons: {
+      fiveRejections:
+        "Five quest parties rejected in a row — the round table collapses into chaos. Evil triumphs.",
+      threeFails:
+        "Three quests failed — the minions of Mordred overrun Camelot. Evil triumphs.",
+      assassinHit:
+        "The Assassin's strike finds Merlin! Against all odds, Mordred seizes victory.",
+      assassinMiss:
+        "The Assassin strikes the wrong knight — Merlin lives. Arthur's kingdom prevails!",
     },
   },
   egyptian: {
@@ -348,7 +360,8 @@ export const THEMES: Record<string, ThemeConfig> = {
         name: "Horus",
         team: "good",
         desc: "The Sky Avenger. You behold two figures — Ra and the deceiver Anubis — yet cannot tell which is the true Sun. Shield the true guide.",
-        knowledgeLabel: "One of these is Ra, one is Anubis — you cannot tell which:",
+        knowledgeLabel:
+          "One of these is Ra, one is Anubis — you cannot tell which:",
         abilities: [
           {
             type: "reveal",
@@ -430,10 +443,14 @@ export const THEMES: Record<string, ThemeConfig> = {
       },
     ],
     winReasons: {
-      fiveRejections: "Five delegations rejected — the Pharaoh's court collapses. Chaos triumphs.",
-      threeFails: "Three temple tasks sabotaged — Chaos consumes the Nile. Chaos triumphs.",
-      assassinHit: "Set's storm strikes down Ra! Egypt is plunged into eternal darkness.",
-      assassinMiss: "Set strikes the wrong god — Ra rises anew. Ma'at reigns forever!",
+      fiveRejections:
+        "Five delegations rejected — the Pharaoh's court collapses. Chaos triumphs.",
+      threeFails:
+        "Three temple tasks sabotaged — Chaos consumes the Nile. Chaos triumphs.",
+      assassinHit:
+        "Set's storm strikes down Ra! Egypt is plunged into eternal darkness.",
+      assassinMiss:
+        "Set strikes the wrong god — Ra rises anew. Ma'at reigns forever!",
     },
   },
   greek: {
@@ -477,7 +494,8 @@ export const THEMES: Record<string, ThemeConfig> = {
         name: "Athena",
         team: "good",
         desc: "Goddess of wisdom. You behold two figures — Zeus and the deceiver Hecate — yet cannot tell which is the true King. Find and shield the true guide.",
-        knowledgeLabel: "One of these is Zeus, one is Hecate — you cannot tell which:",
+        knowledgeLabel:
+          "One of these is Zeus, one is Hecate — you cannot tell which:",
         abilities: [
           {
             type: "reveal",
@@ -490,7 +508,8 @@ export const THEMES: Record<string, ThemeConfig> = {
         name: "Hero of Olympus",
         team: "good",
         desc: "A noble hero. You hold no divine foresight — watch the portents, read the gods, and fight true.",
-        knowledgeLabel: "You hold no divine foresight. Trust your fellow heroes.",
+        knowledgeLabel:
+          "You hold no divine foresight. Trust your fellow heroes.",
         abilities: [],
       },
       {
@@ -541,7 +560,8 @@ export const THEMES: Record<string, ThemeConfig> = {
         name: "Typhon",
         team: "evil",
         desc: "The father of monsters. You know no other agent of Tartarus, nor they you — but Zeus sees your monstrous form clearly.",
-        knowledgeLabel: "You fight alone — you know no other agents of Tartarus.",
+        knowledgeLabel:
+          "You fight alone — you know no other agents of Tartarus.",
         abilities: [],
       },
       {
@@ -559,10 +579,14 @@ export const THEMES: Record<string, ThemeConfig> = {
       },
     ],
     winReasons: {
-      fiveRejections: "Five councils rejected in a row — the gods scatter in discord. Tartarus triumphs.",
-      threeFails: "Three quests sabotaged — the Titans break free and overrun Olympus. Tartarus triumphs.",
-      assassinHit: "Hades strikes down Zeus with a helm of darkness! Olympus falls to the Underworld.",
-      assassinMiss: "Hades strikes the wrong god — Zeus's thunderbolt prevails! Olympus is saved.",
+      fiveRejections:
+        "Five councils rejected in a row — the gods scatter in discord. Tartarus triumphs.",
+      threeFails:
+        "Three quests sabotaged — the Titans break free and overrun Olympus. Tartarus triumphs.",
+      assassinHit:
+        "Hades strikes down Zeus with a helm of darkness! Olympus falls to the Underworld.",
+      assassinMiss:
+        "Hades strikes the wrong god — Zeus's thunderbolt prevails! Olympus is saved.",
     },
   },
   maratha: {
@@ -607,7 +631,8 @@ export const THEMES: Record<string, ThemeConfig> = {
         name: "Baji Prabhu",
         team: "good",
         desc: "The legendary commander. You behold two figures — Maharaj and the deceiver Shaista Khan — yet cannot tell which is the true King. Shield the true guide.",
-        knowledgeLabel: "One of these is Shivaji Maharaj, one is Shaista Khan — you cannot tell which:",
+        knowledgeLabel:
+          "One of these is Shivaji Maharaj, one is Shaista Khan — you cannot tell which:",
         abilities: [
           {
             type: "reveal",
@@ -628,7 +653,8 @@ export const THEMES: Record<string, ThemeConfig> = {
         name: "Siddi Johar",
         team: "evil",
         desc: "The relentless besieger. Should the Mavalas complete three missions, you may strike in the night — name Shivaji Maharaj to end Swarajya.",
-        knowledgeLabel: "Your fellow empire loyalists (Ganoji Shirke stays hidden):",
+        knowledgeLabel:
+          "Your fellow empire loyalists (Ganoji Shirke stays hidden):",
         abilities: [
           {
             type: "reveal",
@@ -645,7 +671,8 @@ export const THEMES: Record<string, ThemeConfig> = {
         name: "Shaista Khan",
         team: "evil",
         desc: "The imperial general. To Baji Prabhu you appear as Shivaji Maharaj himself, casting doubt in the ranks.",
-        knowledgeLabel: "Your fellow empire loyalists (Ganoji Shirke stays hidden):",
+        knowledgeLabel:
+          "Your fellow empire loyalists (Ganoji Shirke stays hidden):",
         abilities: [
           {
             type: "reveal",
@@ -658,7 +685,8 @@ export const THEMES: Record<string, ThemeConfig> = {
         name: "Aurangzeb",
         team: "evil",
         desc: "The Mughal Emperor. You rule from deep within the imperial court; even Shivaji Maharaj cannot pierce your veil. Direct operations from the shadows.",
-        knowledgeLabel: "Your fellow empire loyalists (Ganoji Shirke stays hidden):",
+        knowledgeLabel:
+          "Your fellow empire loyalists (Ganoji Shirke stays hidden):",
         abilities: [
           {
             type: "reveal",
@@ -671,7 +699,8 @@ export const THEMES: Record<string, ThemeConfig> = {
         name: "Ganoji Shirke",
         team: "evil",
         desc: "The insider traitor. You know no other empire loyalist, nor they you — but Shivaji Maharaj sees your treachery clearly.",
-        knowledgeLabel: "You betray alone — you know no other empire loyalists.",
+        knowledgeLabel:
+          "You betray alone — you know no other empire loyalists.",
         abilities: [],
       },
       {
@@ -679,7 +708,8 @@ export const THEMES: Record<string, ThemeConfig> = {
         name: "Adilshahi Spy",
         team: "evil",
         desc: "A spy of the Sultan. You know your fellow agents. Sabotage the fort defenses without being unmasked.",
-        knowledgeLabel: "Your fellow empire loyalists (Ganoji Shirke stays hidden):",
+        knowledgeLabel:
+          "Your fellow empire loyalists (Ganoji Shirke stays hidden):",
         abilities: [
           {
             type: "reveal",
@@ -689,10 +719,14 @@ export const THEMES: Record<string, ThemeConfig> = {
       },
     ],
     winReasons: {
-      fiveRejections: "Five war councils rejected in a row — the commanders fall into infighting. Swarajya fails.",
-      threeFails: "Three fort defenses failed — the Imperial forces overrun the Deccan. Swarajya fails.",
-      assassinHit: "Siddi Johar's siege captures Shivaji Maharaj! Swarajya is crushed.",
-      assassinMiss: "Siddi Johar strikes the wrong commander — Maharaj escapes. Swarajya reigns supreme!",
+      fiveRejections:
+        "Five war councils rejected in a row — the commanders fall into infighting. Swarajya fails.",
+      threeFails:
+        "Three fort defenses failed — the Imperial forces overrun the Deccan. Swarajya fails.",
+      assassinHit:
+        "Siddi Johar's siege captures Shivaji Maharaj! Swarajya is crushed.",
+      assassinMiss:
+        "Siddi Johar strikes the wrong commander — Maharaj escapes. Swarajya reigns supreme!",
     },
   },
 };

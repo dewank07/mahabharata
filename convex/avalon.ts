@@ -138,11 +138,13 @@ export const createRoom = mutation({
     }),
   },
   handler: async (ctx, { playerId, name, themeId, opts }) => {
+    const resolvedTheme = themeId ?? "india";
+    if (!THEMES[resolvedTheme]) throw new Error(`Theme ${resolvedTheme} not found.`);
     let code = makeCode();
     for (let i = 0; i < 6 && (await roomByCode(ctx, code)); i++) code = makeCode();
     const roomId = await ctx.db.insert("rooms", {
       code,
-      themeId: themeId ?? "india",
+      themeId: resolvedTheme,
       hostId: playerId,
       phase: "lobby",
       leaderIndex: 0,
@@ -163,16 +165,37 @@ export const joinRoom = mutation({
   handler: async (ctx, { code, playerId, name }) => {
     const room = requireRoom(await roomByCode(ctx, code));
     const players = await playersOf(ctx, room._id);
+    const trimmed = name.trim();
+    if (!trimmed) throw new Error("Speak your name first.");
 
-    // Reclaim a seat by name (e.g. after a refresh): adopt the existing identity.
-    const existing = players.find(
-      (p) => p.name.toLowerCase() === name.trim().toLowerCase());
-    if (existing) return { code: room.code, playerId: existing.playerId };
+    // Same tab/session: reclaim this playerId's seat (survives refresh).
+    const byId = players.find((p) => p.playerId === playerId);
+    if (byId) {
+      if (byId.name !== trimmed && room.phase === "lobby") {
+        const taken = players.some(
+          (p) =>
+            p.playerId !== playerId &&
+            p.name.toLowerCase() === trimmed.toLowerCase(),
+        );
+        if (taken) throw new Error(`The name "${trimmed}" is already taken.`);
+        await ctx.db.patch(byId._id, { name: trimmed });
+      }
+      return { code: room.code, playerId };
+    }
+
+    const byName = players.find(
+      (p) => p.name.toLowerCase() === trimmed.toLowerCase(),
+    );
+    if (byName) {
+      throw new Error(
+        `The name "${trimmed}" is already seated. Pick a unique name — each tab is its own warrior.`,
+      );
+    }
 
     if (room.phase !== "lobby") throw new Error("That game has already started.");
     if (players.length >= 10) throw new Error("Room is full (10 max).");
     await ctx.db.insert("players", {
-      roomId: room._id, playerId, name: name.trim(), seat: players.length,
+      roomId: room._id, playerId, name: trimmed, seat: players.length,
     });
     return { code: room.code, playerId };
   },
@@ -276,6 +299,9 @@ export const proposeTeam = mutation({
     if (leader.playerId !== playerId) throw new Error("Only the leader proposes.");
     const size = QUEST_SIZES[players.length][room.questIndex];
     if (team.length !== size) throw new Error(`Party must be ${size} knights.`);
+    const ids = new Set(players.map((p) => p.playerId));
+    if (team.some((id) => !ids.has(id))) throw new Error("Party must be seated warriors.");
+    if (new Set(team).size !== team.length) throw new Error("Party cannot repeat a warrior.");
     await ctx.db.patch(room._id, { phase: "vote", proposedTeam: team });
   },
 });

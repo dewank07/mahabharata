@@ -30,13 +30,17 @@ import {
   Key,
 } from "lucide-react";
 
-/* ============================ identity (persists) ========================= */
+/* ============================ identity (per tab) ========================= */
+// sessionStorage so each browser tab/window is a distinct warrior.
+// Refresh in the same tab keeps the seat; a new incognito window gets a new id.
 const PID_KEY = "kurukshetra.pid";
 function loadPid(): string {
-  let id = localStorage.getItem(PID_KEY);
+  let id = sessionStorage.getItem(PID_KEY);
   if (!id) {
-    id = Math.random().toString(36).slice(2, 10);
-    localStorage.setItem(PID_KEY, id);
+    id =
+      Math.random().toString(36).slice(2, 10) +
+      Math.random().toString(36).slice(2, 6);
+    sessionStorage.setItem(PID_KEY, id);
   }
   return id;
 }
@@ -82,8 +86,11 @@ const TEAM_COUNTS: Record<number, [number, number]> = {
 const DOUBLE_FAIL_QUEST = 3;
 
 function getRoleMeta(role: string, theme: any) {
+  const roles = Array.isArray(theme?.roles)
+    ? theme.roles
+    : THEMES[theme?.id]?.roles ?? [];
   return (
-    theme.roles.find((r: any) => r.id === role) ?? {
+    roles.find((r: any) => r.id === role) ?? {
       name: role,
       team: ROLE_TEAM[role as Role] ?? "good",
       desc: "",
@@ -468,10 +475,12 @@ const getThemeQuote = (id: string): string => {
 
 /* ================================ component =============================== */
 export default function App() {
-  const [pid] = useState(loadPid);
+  const [pid, setPid] = useState(loadPid);
   const [name, setName] = useState("");
   const [codeInput, setCodeInput] = useState("");
-  const [code, setCode] = useState<string | null>(null);
+  const [code, setCode] = useState<string | null>(() =>
+    sessionStorage.getItem("kurukshetra.code"),
+  );
   const [msg, setMsg] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
   const [showRole, setShowRole] = useState(false);
@@ -483,13 +492,52 @@ export default function App() {
   });
   const [localThemeId, setLocalThemeId] = useState<string>("india");
   const [activeTab, setActiveTab] = useState<"create" | "join">("create");
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  // Prefill join from ?code=ABCD invite links
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const invite = (params.get("code") ?? "").trim().toUpperCase();
+    if (invite.length === 4 && !sessionStorage.getItem("kurukshetra.code")) {
+      setCodeInput(invite);
+      setActiveTab("join");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (code) sessionStorage.setItem("kurukshetra.code", code);
+    else sessionStorage.removeItem("kurukshetra.code");
+    const url = new URL(window.location.href);
+    if (code) url.searchParams.set("code", code);
+    else if (url.searchParams.get("code")) url.searchParams.delete("code");
+    const next = url.pathname + url.search + url.hash;
+    if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== next) {
+      window.history.replaceState({}, "", next);
+    }
+  }, [code]);
+
+  useEffect(() => {
+    if (room?.opts) setOpts(room.opts);
+  }, [room?.opts]);
 
   const room = useQuery(
     api.avalon.getRoom,
     code ? { code, playerId: pid } : "skip",
   );
 
-  const activeTheme = room?.theme ?? THEMES[localThemeId] ?? THEMES.india;
+  // Role names/lore always come from the room's themeId via the local THEMES
+  // map — never from a joiner's default "india" selection on the home screen.
+  const activeTheme =
+    (room?.themeId && THEMES[room.themeId]) ||
+    (room?.theme?.id && THEMES[room.theme.id]) ||
+    THEMES[localThemeId] ||
+    THEMES.india;
+
+  useEffect(() => {
+    if (room?.themeId && room.themeId !== localThemeId) {
+      setLocalThemeId(room.themeId);
+    }
+  }, [room?.themeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [prevBgImg, setPrevBgImg] = useState<string>("none");
   const [currentBgImg, setCurrentBgImg] = useState<string>("none");
@@ -593,8 +641,10 @@ export default function App() {
     const c = codeInput.trim().toUpperCase();
     if (c.length !== 4) return setMsg("War-council codes are 4 letters.");
     const r = await mJoin({ code: c, playerId: pid, name });
-    if (r.playerId && r.playerId !== pid)
+    if (r.playerId && r.playerId !== pid) {
       sessionStorage.setItem(PID_KEY, r.playerId);
+      setPid(r.playerId);
+    }
     setCode(r.code);
     setMsg("");
   }
@@ -619,10 +669,12 @@ export default function App() {
   const voice = useVoice(code, pid, voicePeers);
 
   /* =============================== render =============================== */
-  return (
-    <div style={{ ...st.root, ...styleVariables }}>
-      <StyleTag />
+  const shellWide =
+    !code ||
+    (room != null && !["lobby", "reveal"].includes(room.phase));
 
+  return (
+    <div className="app-root" style={styleVariables}>
       {/* Dynamic Smooth Cross-Fading Background Layers */}
       <div
         style={{
@@ -698,13 +750,7 @@ export default function App() {
           />
         )}
       </div>
-      <div
-        style={{
-          ...st.shell,
-          maxWidth: (!code || (room && !["lobby", "reveal"].includes(room.phase))) ? 1040 : 580,
-          transition: "max-width 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
-        }}
-      >
+      <div className={`app-shell${shellWide ? " app-shell--wide" : ""}`}>
         {!code && Home()}
         {code && room === undefined && (
           <div style={st.center}>
@@ -750,15 +796,12 @@ export default function App() {
             onClick={() => setShowRole(false)}
           >
             <div
-              className={`role-card-cool role-card-shine ${isGood ? "glow-good" : "glow-evil"}`}
+              className={`role-card-cool role-card-shine role-overlay-card ${isGood ? "glow-good" : "glow-evil"}`}
               style={{
                 position: "relative",
-                width: 320,
-                height: 480,
                 background: `url('/frame_${activeTheme.id}.png')`,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
-                borderRadius: 16,
                 border: `2px solid ${isGood ? C.good : C.evil}`,
                 boxShadow: `0 0 40px ${isGood ? C.goodDk : C.evilDk}, 0 0 80px rgba(0,0,0,0.8)`,
                 boxSizing: "border-box",
@@ -923,11 +966,295 @@ export default function App() {
     const size = QUEST_SIZES[n][room!.questIndex];
     const onTeam = room!.proposedTeam.includes(pid);
     const meta = myRole ? getRoleMeta(myRole, activeTheme) : null;
+    const canSelect = room!.phase === "propose" && isLeader;
+
+    const togglePick = (playerId: string) => {
+      if (!canSelect) return;
+      setPicked((q) =>
+        q.includes(playerId)
+          ? q.filter((x) => x !== playerId)
+          : q.length < size
+            ? [...q, playerId]
+            : q,
+      );
+    };
+
+    const renderSeatGrid = () => (
+      <div className="player-seat-grid">
+        {players.map((p) => {
+          const isMe = p.playerId === pid;
+          const isLdr = p.playerId === leader?.playerId;
+          const isPicked = picked.includes(p.playerId);
+          const isOnProposedTeam = room!.proposedTeam.includes(p.playerId);
+          const isSpeaking = isMe
+            ? !!voice.speaking["me"]
+            : !!voice.speaking[p.playerId];
+          const stream = isMe
+            ? voice.localStream
+            : voice.remoteStreams[p.playerId];
+          const hasVid = isMe ? voice.camOn : hasLiveVideo(stream);
+          const seatClass = [
+            "player-seat",
+            canSelect ? "player-seat--selectable" : "",
+            isPicked ? "player-seat--picked" : "",
+            isOnProposedTeam ? "player-seat--proposed" : "",
+            isSpeaking ? "player-seat--speaking" : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+
+          return (
+            <button
+              key={p.playerId}
+              type="button"
+              className={seatClass}
+              onClick={() => togglePick(p.playerId)}
+              disabled={!canSelect}
+            >
+              <div className="player-seat__avatar">
+                {hasVid && stream ? (
+                  <video
+                    autoPlay
+                    playsInline
+                    muted={isMe}
+                    ref={(el) => {
+                      if (el && stream && el.srcObject !== stream)
+                        el.srcObject = stream;
+                    }}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      transform: isMe ? "scaleX(-1)" : "none",
+                    }}
+                  />
+                ) : (
+                  p.name.slice(0, 1).toUpperCase()
+                )}
+                {isLdr && (
+                  <span style={st.crownBadge}>
+                    <Crown size={10} color={C.gold} />
+                  </span>
+                )}
+              </div>
+              <span className="player-seat__name">
+                {p.name}
+                {isMe ? " (you)" : ""}
+              </span>
+              {(isPicked || isOnProposedTeam) && (
+                <span className="player-seat__meta">
+                  {isOnProposedTeam ? "On party" : "Selected"}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    );
+
+    const renderWheel = () => (
+      <div className="player-wheel">
+        <div style={st.wheelCenterRing}>
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 800,
+              color: C.gold,
+              fontFamily: serifDisplay,
+            }}
+          >
+            {room!.voteProgress.voted}/{n}
+          </div>
+          <div
+            style={{
+              fontSize: 9,
+              opacity: 0.6,
+              letterSpacing: 1.5,
+              textTransform: "uppercase",
+            }}
+          >
+            {room!.phase === "vote" ? "Voting" : "War Room"}
+          </div>
+        </div>
+
+        {players.map((p, i) => {
+          const startAngle = Math.PI * 0.65;
+          const endAngle = Math.PI * 1.35;
+          const angle =
+            players.length > 1
+              ? startAngle +
+                (i * (endAngle - startAngle)) / (players.length - 1)
+              : startAngle;
+          const centerX = 210;
+          const centerY = 175;
+          const radius = 170;
+          const x = centerX + radius * Math.cos(angle);
+          const y = centerY + radius * Math.sin(angle);
+          const angleDeg = (angle * 180) / Math.PI;
+
+          const isMe = p.playerId === pid;
+          const isLdr = p.playerId === leader?.playerId;
+          const isPicked = picked.includes(p.playerId);
+          const isOnProposedTeam = room!.proposedTeam.includes(p.playerId);
+          const isSpeaking = isMe
+            ? !!voice.speaking["me"]
+            : !!voice.speaking[p.playerId];
+          const stream = isMe
+            ? voice.localStream
+            : voice.remoteStreams[p.playerId];
+          const hasVid = isMe ? voice.camOn : hasLiveVideo(stream);
+          const isGlowing = isOnProposedTeam || isPicked;
+          const borderGlowStyle = isSpeaking
+            ? `0 0 15px var(--theme-good), 0 0 5px var(--theme-good)`
+            : isGlowing
+              ? `0 0 15px var(--theme-gold), 0 0 5px var(--theme-gold)`
+              : "none";
+
+          return (
+            <div
+              key={p.playerId}
+              onClick={() => togglePick(p.playerId)}
+              className={`fanned-player-card ${isGlowing ? "card-glowing-glow" : ""}`}
+              style={{
+                position: "absolute",
+                left: x,
+                top: y,
+                width: 82,
+                height: 114,
+                transform: `translate(-50%, -50%) rotate(${angleDeg + 90}deg)`,
+                background:
+                  "color-mix(in srgb, var(--theme-panel) 82%, transparent)",
+                border: `1.5px solid ${isSpeaking ? C.good : isGlowing ? C.gold : "color-mix(in srgb, var(--theme-line) 40%, transparent)"}`,
+                borderRadius: 10,
+                padding: 6,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "space-between",
+                boxShadow: borderGlowStyle,
+                cursor: canSelect ? "pointer" : "default",
+                transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+                zIndex: isGlowing ? 2 : 1,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: isMe ? C.gold : C.parch,
+                  width: "100%",
+                  textAlign: "center",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {p.name}
+              </div>
+              <div
+                style={{
+                  position: "relative",
+                  width: 46,
+                  height: 46,
+                  borderRadius: "50%",
+                  border: `1.5px solid ${isSpeaking ? C.good : isGlowing ? C.gold : "rgba(255,255,255,0.1)"}`,
+                  background: "rgba(0,0,0,0.3)",
+                  overflow: "hidden",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {hasVid && stream ? (
+                  <video
+                    autoPlay
+                    playsInline
+                    muted={isMe}
+                    ref={(el) => {
+                      if (el && stream && el.srcObject !== stream)
+                        el.srcObject = stream;
+                    }}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      transform: isMe ? "scaleX(-1)" : "none",
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      fontSize: 18,
+                      fontWeight: 800,
+                      fontFamily: serifDisplay,
+                      color: isMe ? C.gold : C.parchDim,
+                    }}
+                  >
+                    {p.name.slice(0, 1).toUpperCase()}
+                  </div>
+                )}
+                {isLdr && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: -2,
+                      right: -2,
+                      background: C.ink,
+                      border: `1px solid ${C.gold}`,
+                      borderRadius: "50%",
+                      width: 14,
+                      height: 14,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Crown size={8} color={C.gold} />
+                  </div>
+                )}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                {isMe && room!.voteProgress.iVoted && (
+                  <span
+                    style={{
+                      fontSize: 8,
+                      fontWeight: 800,
+                      letterSpacing: 0.5,
+                      background: "rgba(227, 169, 60, 0.15)",
+                      border: `1px solid ${C.gold}`,
+                      borderRadius: 3,
+                      padding: "1px 4px",
+                      color: C.gold,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Voted
+                  </span>
+                )}
+                {voice.joined && p.inVoice && (
+                  <div style={{ opacity: 0.8 }}>
+                    {isMe && voice.muted ? (
+                      <MicOff size={8} color={C.evil} />
+                    ) : (
+                      <Mic
+                        size={8}
+                        color={isSpeaking ? C.good : C.parchDim}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
 
     return (
-      <div style={st.gameGrid}>
-        {/* Top Header Row (Phase & Theme Details) */}
-        <div style={st.gameHeader}>
+      <div className="game-grid">
+        {Header()}
+        {VoiceBar()}
+        <div className="game-header" style={st.gameHeader}>
           <div style={st.phaseLabel}>
             {room!.phase === "propose"
               ? "Propose War Party"
@@ -936,35 +1263,49 @@ export default function App() {
                 : "Battle Quest"}
           </div>
           <div style={st.themeSubHeader}>
-            <span style={{ marginRight: 8, display: "flex", alignItems: "center" }}>
-              <CrestIcon icon={activeTheme.crestIcon} size={16} color={C.gold} />
+            <span
+              style={{
+                marginRight: 8,
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              <CrestIcon
+                icon={activeTheme.crestIcon}
+                size={16}
+                color={C.gold}
+              />
             </span>
             {activeTheme.name}
           </div>
         </div>
 
-        {/* LEFT COLUMN: Quest Progress, Action Console, Rejection tracker */}
+        <div style={{ gridColumn: "1 / -1" }}>
+          {room!.lastVote && LastVoteBanner()}
+          {room!.lastQuest && LastQuestBanner()}
+          {VoteTrack()}
+        </div>
+
         <div style={st.gameLeft}>
-          {/* Active Mission Gemstone Progress Bar */}
           <div style={st.questBox}>
-            <div style={st.questTitle}>Active Mission (Quest) {room!.questIndex + 1}</div>
-            <div style={st.gemstoneRow}>
+            <div style={st.questTitle}>
+              Active Mission (Quest) {room!.questIndex + 1}
+            </div>
+            <div className="gemstone-row" style={st.gemstoneRow}>
               {Array.from({ length: 5 }).map((_, i) => {
                 const questNum = i + 1;
-                const questVal = room!.questResults[i]; // "success", "fail", or undefined
+                const questVal = room!.questResults[i];
                 const isCurrent = room!.questIndex === i;
                 const qSize = QUEST_SIZES[n][i];
-                
-                // Color & Icon
                 let gemColor = "rgba(255,255,255,0.06)";
                 let glow = "none";
                 let tag = `Q${questNum}`;
                 if (questVal === "success") {
-                  gemColor = "rgba(0, 210, 255, 0.25)"; // ice blue success
+                  gemColor = "rgba(0, 210, 255, 0.25)";
                   glow = "0 0 15px rgba(0, 210, 255, 0.4)";
                   tag = "Success";
                 } else if (questVal === "fail") {
-                  gemColor = "rgba(193, 74, 63, 0.25)"; // red failure
+                  gemColor = "rgba(193, 74, 63, 0.25)";
                   glow = `0 0 15px rgba(193, 74, 63, 0.4)`;
                   tag = "Failed";
                 } else if (isCurrent) {
@@ -973,22 +1314,37 @@ export default function App() {
                 }
 
                 return (
-                  <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                    <span style={{
-                      fontSize: 9,
-                      textTransform: "uppercase",
-                      fontWeight: 800,
-                      color: questVal === "success" ? "#00d2ff" : questVal === "fail" ? C.evil : C.parchDim,
-                      opacity: isCurrent || questVal ? 1 : 0.4,
-                      letterSpacing: "0.5px"
-                    }}>
+                  <div
+                    key={i}
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 9,
+                        textTransform: "uppercase",
+                        fontWeight: 800,
+                        color:
+                          questVal === "success"
+                            ? "#00d2ff"
+                            : questVal === "fail"
+                              ? C.evil
+                              : C.parchDim,
+                        opacity: isCurrent || questVal ? 1 : 0.4,
+                        letterSpacing: "0.5px",
+                      }}
+                    >
                       {tag}
                     </span>
                     <div
+                      className="gemstone"
                       style={{
-                        width: 48,
-                        height: 64,
-                        clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
+                        clipPath:
+                          "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
                         background: gemColor,
                         border: `1.5px solid ${isCurrent ? C.gold : questVal === "success" ? "#00d2ff" : questVal === "fail" ? C.evil : "rgba(255,255,255,0.12)"}`,
                         boxShadow: glow,
@@ -1000,11 +1356,12 @@ export default function App() {
                         fontWeight: 800,
                         color: isCurrent ? C.gold : C.parch,
                         textShadow: "0 1px 3px rgba(0,0,0,0.5)",
-                        transition: "all 0.3s ease",
                       }}
                     >
                       <div>{qSize}</div>
-                      <div style={{ fontSize: 9, opacity: 0.5 }}>P{questNum}</div>
+                      <div style={{ fontSize: 9, opacity: 0.5 }}>
+                        P{questNum}
+                      </div>
                     </div>
                   </div>
                 );
@@ -1012,30 +1369,40 @@ export default function App() {
             </div>
           </div>
 
-          {/* Action Console Box */}
           <div style={st.actionConsole}>
-            {/* Header sub-bar */}
             <div style={st.consoleHeader}>
               <span>Active Vote (Mission {room!.questIndex + 1})</span>
               <span style={{ color: C.gold }}>{me?.name} (You)</span>
             </div>
 
-            {/* Action Content depending on Phase */}
             <div style={st.consoleBody}>
-              {room!.phase === "propose" && (
-                isLeader ? (
+              {room!.phase === "propose" &&
+                (isLeader ? (
                   <div style={{ textAlign: "center" }}>
-                    <p style={{ margin: "0 0 12px", fontSize: 13.5, color: C.parch }}>
-                      Tap player cards on the right to select your war party ({picked.length}/{size})
+                    <p
+                      style={{
+                        margin: "0 0 12px",
+                        fontSize: 13.5,
+                        color: C.parch,
+                      }}
+                    >
+                      Tap warriors below to select your war party (
+                      {picked.length}/{size})
                     </p>
                     <button
+                      type="button"
                       className="scepter-btn"
                       style={{
                         opacity: picked.length === size ? 1 : 0.5,
-                        pointerEvents: picked.length === size ? "auto" : "none",
+                        pointerEvents:
+                          picked.length === size ? "auto" : "none",
                       }}
                       onClick={wrap(async () => {
-                        await mPropose({ code: code!, playerId: pid, team: picked });
+                        await mPropose({
+                          code: code!,
+                          playerId: pid,
+                          team: picked,
+                        });
                         setPicked([]);
                       })}
                     >
@@ -1043,247 +1410,107 @@ export default function App() {
                     </button>
                   </div>
                 ) : (
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: 12 }}>
-                    <Loader2 size={16} className="spin" style={{ color: C.gold }} />
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 10,
+                      padding: 12,
+                    }}
+                  >
+                    <Loader2
+                      size={16}
+                      style={{ ...st.spin, color: C.gold }}
+                    />
                     <span>{leader?.name} is choosing a war party…</span>
                   </div>
-                )
-              )}
+                ))}
 
               {room!.phase === "vote" && VotePanel()}
               {room!.phase === "quest" && QuestPanel(onTeam)}
             </div>
 
-            {/* Sub-bar footer: Votes In, Gearwheels, Rejections */}
-            <div style={st.consoleFooter}>
+            <div className="console-footer" style={st.consoleFooter}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span>VOTES IN:</span>
                 <span style={{ fontWeight: 700, color: C.gold }}>
                   {room!.voteProgress.voted} / {n}
                 </span>
               </div>
-
-              {/* Glowing Gears/Crystals Row */}
-              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                <Flame size={14} color={room!.proposedTeam.length > 0 ? C.gold : C.parchDim} style={{ opacity: 0.6 }} />
-                <Swords size={14} color={room!.phase === "vote" ? C.good : C.parchDim} style={{ opacity: 0.6 }} />
+              <div
+                style={{ display: "flex", gap: 6, alignItems: "center" }}
+              >
+                <Flame
+                  size={14}
+                  color={
+                    room!.proposedTeam.length > 0 ? C.gold : C.parchDim
+                  }
+                  style={{ opacity: 0.6 }}
+                />
+                <Swords
+                  size={14}
+                  color={room!.phase === "vote" ? C.good : C.parchDim}
+                  style={{ opacity: 0.6 }}
+                />
               </div>
-
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span>Rejection Count:</span>
-                <span style={{ fontWeight: 700, color: C.evil }}>{room!.rejectCount} / 5</span>
+                <span style={{ fontWeight: 700, color: C.evil }}>
+                  {room!.rejectCount} / 5
+                </span>
               </div>
             </div>
           </div>
+
+          {/* Mobile player seats sit under the console */}
+          {renderSeatGrid()}
         </div>
 
-        {/* RIGHT COLUMN: Fanned Player Wheel */}
-        <div style={st.gameRight}>
-          <div style={st.wheelContainer}>
-            {/* Center Status Ring */}
-            <div style={st.wheelCenterRing}>
-              <div style={{ fontSize: 18, fontWeight: 800, color: C.gold, fontFamily: serifDisplay }}>
-                {room!.voteProgress.voted}/{n}
-              </div>
-              <div style={{ fontSize: 9, opacity: 0.6, letterSpacing: 1.5, textTransform: "uppercase" }}>
-                {room!.phase === "vote" ? "Voting" : "War Room"}
-              </div>
-            </div>
+        <div className="game-right">{renderWheel()}</div>
 
-            {/* Player Cards arranged in a circular arc */}
-            {players.map((p, i) => {
-              // Fan them on a C-arc from 110deg (top-left) to 250deg (bottom-left)
-              // Center of the arc is at x=210px, y=175px, radius=170px
-              const startAngle = Math.PI * 0.65;
-              const endAngle = Math.PI * 1.35;
-              const angle = players.length > 1
-                ? startAngle + (i * (endAngle - startAngle)) / (players.length - 1)
-                : startAngle;
-              
-              const centerX = 210;
-              const centerY = 175;
-              const radius = 170;
-              
-              const x = centerX + radius * Math.cos(angle);
-              const y = centerY + radius * Math.sin(angle);
-              const angleDeg = (angle * 180) / Math.PI;
-
-              const isMe = p.playerId === pid;
-              const isLdr = p.playerId === leader?.playerId;
-              const isPicked = picked.includes(p.playerId);
-              const isOnProposedTeam = room!.proposedTeam.includes(p.playerId);
-              const isSpeaking = isMe ? !!voice.speaking["me"] : !!voice.speaking[p.playerId];
-              const stream = isMe ? voice.localStream : voice.remoteStreams[p.playerId];
-              const hasVid = isMe ? voice.camOn : hasLiveVideo(stream);
-
-              // Click nominee logic
-              const canSelect = room!.phase === "propose" && isLeader;
-              const cardClick = canSelect
-                ? () => {
-                    setPicked((q) =>
-                      isPicked
-                        ? q.filter((x) => x !== p.playerId)
-                        : q.length < size
-                          ? [...q, p.playerId]
-                          : q,
-                    );
-                  }
-                : undefined;
-
-              // Glowing border if speaking or nominated
-              const isGlowing = isOnProposedTeam || isPicked;
-              const borderGlowStyle = isSpeaking
-                ? `0 0 15px var(--theme-good), 0 0 5px var(--theme-good)`
-                : isGlowing
-                  ? `0 0 15px var(--theme-gold), 0 0 5px var(--theme-gold)`
-                  : "none";
-
-              return (
-                <div
-                  key={p.playerId}
-                  onClick={cardClick}
-                  className={`fanned-player-card ${isGlowing ? "card-glowing-glow" : ""}`}
-                  style={{
-                    position: "absolute",
-                    left: x,
-                    top: y,
-                    width: 82,
-                    height: 114,
-                    transform: `translate(-50%, -50%) rotate(${angleDeg + 90}deg)`,
-                    background: "color-mix(in srgb, var(--theme-panel) 82%, transparent)",
-                    border: `1.5px solid ${isSpeaking ? C.good : isGlowing ? C.gold : "color-mix(in srgb, var(--theme-line) 40%, transparent)"}`,
-                    borderRadius: 10,
-                    padding: 6,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    boxShadow: borderGlowStyle,
-                    cursor: canSelect ? "pointer" : "default",
-                    transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
-                    zIndex: isGlowing ? 2 : 1,
-                  }}
-                >
-                  {/* Name */}
-                  <div style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: isMe ? C.gold : C.parch,
-                    width: "100%",
-                    textAlign: "center",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}>
-                    {p.name}
-                  </div>
-
-                  {/* Circle WebRTC Video / Letter */}
-                  <div style={{
-                    position: "relative",
-                    width: 46,
-                    height: 46,
-                    borderRadius: "50%",
-                    border: `1.5px solid ${isSpeaking ? C.good : isGlowing ? C.gold : "rgba(255,255,255,0.1)"}`,
-                    background: "rgba(0,0,0,0.3)",
-                    overflow: "hidden",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}>
-                    {hasVid && stream ? (
-                      <video
-                        autoPlay
-                        playsInline
-                        muted={isMe}
-                        ref={(el) => {
-                          if (el && stream && el.srcObject !== stream)
-                            el.srcObject = stream;
-                        }}
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                          transform: isMe ? "scaleX(-1)" : "none",
-                        }}
-                      />
-                    ) : (
-                      <div style={{ fontSize: 18, fontWeight: 800, fontFamily: serifDisplay, color: isMe ? C.gold : C.parchDim }}>
-                        {p.name.slice(0, 1).toUpperCase()}
-                      </div>
-                    )}
-
-                    {/* Leader crown badge */}
-                    {isLdr && (
-                      <div style={{
-                        position: "absolute",
-                        top: -2,
-                        right: -2,
-                        background: C.ink,
-                        border: `1px solid ${C.gold}`,
-                        borderRadius: "50%",
-                        width: 14,
-                        height: 14,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}>
-                        <Crown size={8} color={C.gold} />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Bottom details (MIC status) */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    {isMe && room!.voteProgress.iVoted && (
-                      <span style={{
-                        fontSize: 8,
-                        fontWeight: 800,
-                        letterSpacing: 0.5,
-                        background: "rgba(227, 169, 60, 0.15)",
-                        border: `1px solid ${C.gold}`,
-                        borderRadius: 3,
-                        padding: "1px 4px",
-                        color: C.gold,
-                        textTransform: "uppercase",
-                      }}>
-                        Voted
-                      </span>
-                    )}
-
-                    {voice.joined && p.inVoice && (
-                      <div style={{ opacity: 0.8 }}>
-                        {isMe && voice.muted ? (
-                          <MicOff size={8} color={C.evil} />
-                        ) : (
-                          <Mic size={8} color={isSpeaking ? C.good : C.parchDim} />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* BOTTOM: Player Persona Deck */}
-        <div style={st.personaDeck}>
+        <div className="persona-deck" style={st.personaDeck}>
           <div style={st.personaLeft}>
-            <div style={{ fontSize: 10, textTransform: "uppercase", opacity: 0.6, letterSpacing: 1 }}>Your Identity</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
-              <span style={{ fontSize: 16, fontWeight: 700, color: C.gold, fontFamily: serifDisplay }}>
+            <div
+              style={{
+                fontSize: 10,
+                textTransform: "uppercase",
+                opacity: 0.6,
+                letterSpacing: 1,
+              }}
+            >
+              Your Identity
+            </div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                marginTop: 4,
+                flexWrap: "wrap",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 16,
+                  fontWeight: 700,
+                  color: C.gold,
+                  fontFamily: serifDisplay,
+                }}
+              >
                 {me?.name}
               </span>
-              <span style={{
-                background: "rgba(255,255,255,0.06)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: 4,
-                padding: "2px 8px",
-                fontSize: 11,
-                fontWeight: 600,
-                color: C.parchDim,
-              }}>
+              <span
+                style={{
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 4,
+                  padding: "2px 8px",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: C.parchDim,
+                }}
+              >
                 Role: {meta ? meta.name : "Warrior"}
               </span>
             </div>
@@ -1291,12 +1518,14 @@ export default function App() {
 
           <div style={st.personaCenter}>
             <button
+              type="button"
               className="btn-ghost-hover"
               style={{
                 background: "rgba(255,255,255,0.04)",
                 border: `1px solid ${showRole ? C.gold : "rgba(255,255,255,0.15)"}`,
                 borderRadius: 8,
-                padding: "8px 16px",
+                padding: "10px 16px",
+                minHeight: 44,
                 color: showRole ? C.gold : C.parch,
                 fontSize: 13,
                 fontWeight: 700,
@@ -1304,31 +1533,59 @@ export default function App() {
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
-                transition: "all 0.2s ease",
               }}
               onClick={() => setShowRole((s) => !s)}
             >
               {showRole ? <EyeOff size={16} /> : <Eye size={16} />}
-              <span>PEER (Reveal Secret Role)</span>
+              <span>Reveal Secret Role</span>
             </button>
           </div>
 
           <div style={st.personaRight}>
             {showRole && meta ? (
-              <div style={{ fontSize: 11, color: meta.team === "good" ? C.good : C.evil, fontWeight: 600, maxWidth: 300, textAlign: "right", lineHeight: 1.3 }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: meta.team === "good" ? C.good : C.evil,
+                  fontWeight: 600,
+                  maxWidth: 300,
+                  textAlign: "left",
+                  lineHeight: 1.3,
+                }}
+              >
                 {meta.desc}
               </div>
             ) : (
-              <div style={{ fontSize: 11, opacity: 0.6, fontStyle: "italic", textAlign: "right" }}>
-                Keep your allegiance secret from potential traitors in the council.
+              <div
+                style={{
+                  fontSize: 11,
+                  opacity: 0.6,
+                  fontStyle: "italic",
+                  textAlign: "left",
+                }}
+              >
+                Keep your allegiance secret from potential traitors in the
+                council.
               </div>
             )}
           </div>
         </div>
 
-        {/* Global leave button at very bottom */}
-        <div style={{ width: "100%", gridColumn: "1 / -1", display: "flex", justifyContent: "center", marginTop: 10 }}>
-          <button className="hover-scale" style={st.leaveInline} onClick={leaveRoom}>
+        <div
+          style={{
+            width: "100%",
+            gridColumn: "1 / -1",
+            display: "flex",
+            justifyContent: "center",
+            marginTop: 10,
+          }}
+        >
+          <button
+            type="button"
+            className="hover-scale"
+            style={st.leaveInline}
+            onClick={leaveRoom}
+          >
             <LogOut size={12} /> Leave War Council
           </button>
         </div>
@@ -1338,25 +1595,16 @@ export default function App() {
 
   /* ------------------------------- screens ------------------------------ */
   function Home() {
-    return (
-      <div style={st.home}>
-        {/* Glowing Background Orb */}
-        <div className="bg-glow-orb" />
+    const nameParts = activeTheme.name.split(" ");
+    const quote =
+      activeTheme.devanagariLabel ?? getThemeQuote(activeTheme.id);
 
-        {/* LEFT COLUMN: Lore & Theme Selection */}
-        <div style={st.homeLeft}>
-          {/* Dynamic Rotating Crest Frame */}
-          <div
-            style={{
-              position: "relative",
-              width: 92,
-              height: 92,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 0 16px",
-            }}
-          >
+    return (
+      <div className="home">
+        <div className="bg-glow-orb" aria-hidden />
+
+        <div className="home__brand">
+          <div className="home__crest-wrap">
             <svg
               className="rotate-board"
               style={{
@@ -1378,147 +1626,42 @@ export default function App() {
                 strokeWidth="0.8"
                 strokeDasharray="4 6"
               />
-              <circle
-                cx="50"
-                cy="50"
-                r="42"
-                fill="none"
-                stroke="color-mix(in srgb, var(--theme-line) 20%, transparent)"
-                strokeWidth="0.4"
-                strokeDasharray="20 4"
-              />
             </svg>
-            <div
-              style={{
-                margin: "auto",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 72,
-                height: 72,
-                borderRadius: "50%",
-                background:
-                  "color-mix(in srgb, var(--theme-panel) 60%, transparent)",
-                border: `1.5px solid var(--theme-gold-dim)`,
-                boxShadow:
-                  "0 10px 25px rgba(0,0,0,.5), 0 0 12px rgba(227,169,60,.1)",
-                zIndex: 1,
-              }}
-            >
+            <div className="home__crest">
               <CrestIcon
                 icon={activeTheme.crestIcon}
-                size={36}
+                size={30}
                 color={C.gold}
               />
             </div>
           </div>
 
-          <h1 style={st.title}>
-            {(() => {
-              const nameParts = activeTheme.name.split(" ");
-              return (
-                <>
-                  <span style={{ display: "block" }}>{nameParts[0]}</span>
-                  {nameParts.length > 1 && (
-                    <span
-                      style={{ display: "block", color: C.gold, marginTop: 4 }}
-                    >
-                      {nameParts.slice(1).join(" ")}
-                    </span>
-                  )}
-                </>
-              );
-            })()}
+          <h1 className="home__title">
+            <span style={{ display: "block" }}>{nameParts[0]}</span>
+            {nameParts.length > 1 && (
+              <span className="home__title-secondary">
+                {nameParts.slice(1).join(" ")}
+              </span>
+            )}
           </h1>
 
-          {(() => {
-            const quote =
-              activeTheme.devanagariLabel ?? getThemeQuote(activeTheme.id);
-            return quote ? <div style={st.deva}>{quote}</div> : null;
-          })()}
-
-          <p style={st.subtitle}>{activeTheme.tagline}</p>
-
-          <div style={st.themeSelectorBox}>
-            <label style={{ ...st.label, marginBottom: 12 }}>
-              Select Game Theme
-            </label>
-            <div style={{ ...st.themeRow, marginBottom: 0, marginTop: 0 }}>
-              {THEME_LIST.map((t) => {
-                const isSelected = t.id === localThemeId;
-                return (
-                  <button
-                    key={t.id}
-                    onClick={() => setLocalThemeId(t.id)}
-                    title={t.name}
-                    className={`theme-badge-hover ${isSelected ? "theme-badge-active" : ""}`}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: 48,
-                      height: 48,
-                      borderRadius: "50%",
-                      border: `2px solid ${isSelected ? C.gold : "rgba(255,255,255,0.08)"}`,
-                      background: isSelected
-                        ? "rgba(227,169,60,0.12)"
-                        : "rgba(0,0,0,0.25)",
-                      cursor: "pointer",
-                      transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
-                      boxShadow: isSelected
-                        ? `0 0 16px rgba(227,169,60,0.25)`
-                        : "none",
-                    }}
-                  >
-                    <CrestIcon
-                      icon={t.crestIcon}
-                      size={22}
-                      color={isSelected ? C.gold : C.parchDim}
-                    />
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          {quote ? <p className="home__quote">{quote}</p> : null}
+          <p className="home__tagline">{activeTheme.tagline}</p>
         </div>
 
-        {/* RIGHT COLUMN: The Action Portal Card */}
-        <div style={st.homeRight}>
-          <div style={st.card}>
-            {/* Tabs Header */}
-            <div style={st.tabHeader}>
+        <div className="home__action">
+          <div className="home__form-card">
+            <div className="home__tabs">
               <button
-                style={{
-                  ...st.tabBtn,
-                  color: activeTab === "create" ? C.gold : C.parchDim,
-                  borderBottom:
-                    activeTab === "create"
-                      ? `2.5px solid ${C.gold}`
-                      : `2.5px solid transparent`,
-                  background:
-                    activeTab === "create"
-                      ? "rgba(227,169,60,0.05)"
-                      : "transparent",
-                  opacity: activeTab === "create" ? 1 : 0.65,
-                }}
+                type="button"
+                className={`home__tab${activeTab === "create" ? " home__tab--active" : ""}`}
                 onClick={() => setActiveTab("create")}
               >
                 Create Council
               </button>
               <button
-                style={{
-                  ...st.tabBtn,
-                  color: activeTab === "join" ? C.gold : C.parchDim,
-                  borderBottom:
-                    activeTab === "join"
-                      ? `2.5px solid ${C.gold}`
-                      : `2.5px solid transparent`,
-                  background:
-                    activeTab === "join"
-                      ? "rgba(227,169,60,0.05)"
-                      : "transparent",
-                  opacity: activeTab === "join" ? 1 : 0.65,
-                }}
+                type="button"
+                className={`home__tab${activeTab === "join" ? " home__tab--active" : ""}`}
                 onClick={() => setActiveTab("join")}
               >
                 Join Council
@@ -1527,95 +1670,50 @@ export default function App() {
 
             {activeTab === "create" ? (
               <>
-                <label style={st.label}>Your name</label>
-                <div style={{ position: "relative" }}>
-                  <User
-                    size={16}
-                    color={C.parchDim}
-                    style={{
-                      position: "absolute",
-                      left: 12,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      opacity: 0.6,
-                    }}
-                  />
+                <label className="field-label">Your name</label>
+                <div className="field-wrap">
+                  <User size={16} color={C.parchDim} className="field-icon" />
                   <input
-                    style={{ ...st.input, paddingLeft: 38 }}
+                    className="field-input"
                     value={name}
                     maxLength={16}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Your name…"
+                    placeholder="Your name — unique per warrior"
+                    autoComplete="nickname"
                   />
                 </div>
-                <div style={{ height: 14 }} />
-                <div
-                  style={{
-                    background: "rgba(0, 0, 0, 0.2)",
-                    border: `1.5px dashed color-mix(in srgb, var(--theme-line) 30%, transparent)`,
-                    borderRadius: 10,
-                    padding: "10px 16px",
-                    fontSize: 12,
-                    color: C.parchDim,
-                    lineHeight: 1.4,
-                    fontStyle: "italic",
-                    textAlign: "center",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    height: 65,
-                    boxSizing: "border-box",
-                  }}
-                >
+                <div className="home__hint">
                   Convene a new council to generate a unique room code and host
                   your warriors.
                 </div>
-                <div style={{ height: 16 }} />
-                <button className="scepter-btn" onClick={wrap(createRoom)}>
+                <button
+                  type="button"
+                  className="scepter-btn"
+                  onClick={wrap(createRoom)}
+                >
                   <Sparkles size={14} /> Convene a War Council
                 </button>
               </>
             ) : (
               <>
-                <label style={st.label}>Your name</label>
-                <div style={{ position: "relative" }}>
-                  <User
-                    size={16}
-                    color={C.parchDim}
-                    style={{
-                      position: "absolute",
-                      left: 12,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      opacity: 0.6,
-                    }}
-                  />
+                <label className="field-label">Your name</label>
+                <div className="field-wrap">
+                  <User size={16} color={C.parchDim} className="field-icon" />
                   <input
-                    style={{ ...st.input, paddingLeft: 38 }}
+                    className="field-input"
                     value={name}
                     maxLength={16}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Your name…"
+                    placeholder="Your name — unique per warrior"
+                    autoComplete="nickname"
                   />
                 </div>
-                <div style={{ height: 14 }} />
-                <label style={st.label}>Council code</label>
-                <div style={{ position: "relative" }}>
-                  <Key
-                    size={16}
-                    color={C.parchDim}
-                    style={{
-                      position: "absolute",
-                      left: 12,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      opacity: 0.6,
-                    }}
-                  />
+                <label className="field-label">Council code</label>
+                <div className="field-wrap">
+                  <Key size={16} color={C.parchDim} className="field-icon" />
                   <input
+                    className="field-input"
                     style={{
-                      ...st.input,
-                      paddingLeft: 38,
                       letterSpacing: 6,
                       textTransform: "uppercase",
                       fontWeight: 700,
@@ -1624,21 +1722,70 @@ export default function App() {
                     maxLength={4}
                     onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
                     placeholder="ABCD"
+                    autoCapitalize="characters"
+                    autoCorrect="off"
                   />
                 </div>
-                <div style={{ height: 16 }} />
-                <button className="scepter-btn" onClick={wrap(joinRoom)}>
+                <p className="home__hint">
+                  Each tab needs a unique name. Reusing a name makes every
+                  window show the same warrior and role.
+                </p>
+                <button
+                  type="button"
+                  className="scepter-btn"
+                  onClick={wrap(joinRoom)}
+                >
                   Join a War Council
                 </button>
               </>
             )}
             {msg && <p style={st.error}>{msg}</p>}
           </div>
-          <p style={st.foot}>
+          <p className="home__foot">
             Share this URL + the council code with your warriors. State syncs
             live through Convex — talk and see one another over free
             peer-to-peer audio &amp; video.
           </p>
+        </div>
+
+        <div className="home__themes">
+          <span className="home__themes-label">Select Game Theme</span>
+          <div className="theme-row">
+            {THEME_LIST.map((t) => {
+              const isSelected = t.id === localThemeId;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setLocalThemeId(t.id)}
+                  title={t.name}
+                  className={`theme-badge-hover ${isSelected ? "theme-badge-active" : ""}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 48,
+                    height: 48,
+                    borderRadius: "50%",
+                    border: `2px solid ${isSelected ? C.gold : "rgba(255,255,255,0.08)"}`,
+                    background: isSelected
+                      ? "rgba(227,169,60,0.12)"
+                      : "rgba(0,0,0,0.25)",
+                    cursor: "pointer",
+                    boxShadow: isSelected
+                      ? `0 0 16px rgba(227,169,60,0.25)`
+                      : "none",
+                  }}
+                >
+                  <CrestIcon
+                    icon={t.crestIcon}
+                    size={22}
+                    color={isSelected ? C.gold : C.parchDim}
+                  />
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     );
@@ -1685,25 +1832,36 @@ export default function App() {
       activeTheme.roles.find((r) => r.id === "oberon")?.name || "Oberon";
 
     const handleThemeChange = (newThemeId: string) => {
+      setLocalThemeId(newThemeId);
       if (code) {
         mChangeTheme({ code, playerId: pid, themeId: newThemeId }).catch(
-          (err) => console.error(err),
+          (err) => setMsg(err?.message ?? "Could not change theme."),
         );
       }
     };
 
     return (
-      <div style={st.panelWrap}>
+      <div className="panel-wrap" style={st.panelWrap}>
         {Header()}
         {VoiceBar()}
-        <div style={st.codeBanner}>
-          <span style={st.codeLabel}>COUNCIL CODE</span>
-          <span style={st.codeBig}>{room!.code}</span>
+        <div className="code-banner">
+          <span className="code-banner__label">COUNCIL CODE</span>
+          <span className="code-banner__code">{room!.code}</span>
           <button
-            style={st.copyBtn}
-            onClick={() => navigator.clipboard?.writeText(room!.code)}
+            type="button"
+            className="code-banner__copy"
+            onClick={async () => {
+              const url = `${window.location.origin}${window.location.pathname}?code=${room!.code}`;
+              try {
+                await navigator.clipboard?.writeText(url);
+                setCopiedLink(true);
+                window.setTimeout(() => setCopiedLink(false), 2000);
+              } catch {
+                setMsg("Could not copy link.");
+              }
+            }}
           >
-            <Copy size={14} /> copy
+            <Copy size={14} /> {copiedLink ? "copied!" : "copy link"}
           </button>
         </div>
 
@@ -1776,7 +1934,7 @@ export default function App() {
             <h2 style={st.h2}>
               <ScrollText size={18} /> Roles of legend
             </h2>
-            <div style={st.optGrid}>
+            <div className="opt-grid">
               <RoleToggle
                 label={percivalName}
                 team="good"
@@ -1813,17 +1971,19 @@ export default function App() {
               {merlinName} &amp; {assassinName} always take the field. Special
               slots used: {evilPicked}/{evilSlots}.
             </p>
-            <button
-              className="btn-gold-hover"
-              style={{ ...st.btnGold, marginTop: 8, opacity: n < 5 ? 0.5 : 1 }}
-              disabled={n < 5}
-              onClick={wrap(() => mStart({ code: code!, playerId: pid }))}
-            >
-              <Swords size={16} />{" "}
-              {n < 5
-                ? `Need ${5 - n} more warrior${5 - n > 1 ? "s" : ""}`
-                : "Cast the lots & begin the war"}
-            </button>
+            <div className="sticky-cta">
+              <button
+                className="btn-gold-hover"
+                style={{ ...st.btnGold, opacity: n < 5 ? 0.5 : 1 }}
+                disabled={n < 5}
+                onClick={wrap(() => mStart({ code: code!, playerId: pid }))}
+              >
+                <Swords size={16} />{" "}
+                {n < 5
+                  ? `Need ${5 - n} more warrior${5 - n > 1 ? "s" : ""}`
+                  : "Cast the lots & begin the war"}
+              </button>
+            </div>
           </>
         ) : (
           <p style={st.waiting}>Awaiting the host to cast the lots of fate…</p>
@@ -1888,7 +2048,7 @@ export default function App() {
     const meta = getRoleMeta(myRole, activeTheme);
     const good = meta.team === "good";
     return (
-      <div style={st.panelWrap}>
+      <div className="panel-wrap" style={st.panelWrap}>
         {Header()}
         {VoiceBar()}
         <div
@@ -1956,7 +2116,7 @@ export default function App() {
     const assassinName =
       activeTheme.roles.find((r) => r.id === "assassin")?.name || "Assassin";
     return (
-      <div style={st.panelWrap}>
+      <div className="panel-wrap" style={st.panelWrap}>
         {Header()}
         {VoiceBar()}
         {QuestTrackerCompact()}
@@ -2017,7 +2177,7 @@ export default function App() {
   function EndScreen() {
     const goodWon = room!.winner === "good";
     return (
-      <div style={st.panelWrap}>
+      <div className="panel-wrap" style={st.panelWrap}>
         {Header()}
         {VoiceBar()}
         <div
@@ -2103,7 +2263,7 @@ export default function App() {
     if (!voice) return null;
     const inCall = players.filter((p) => p.inVoice);
     return (
-      <div style={st.voiceBar}>
+      <div className="voice-bar" style={st.voiceBar}>
         <div style={st.voiceLeft}>
           <CrestIcon
             icon={activeTheme.crestIcon}
@@ -2120,7 +2280,8 @@ export default function App() {
         <div style={st.voiceRight}>
           {!voice.joined ? (
             <button
-              className="btn-approve-hover hover-scale"
+              type="button"
+              className="btn-approve-hover hover-scale voice-bar__btn"
               style={st.voiceJoin}
               onClick={() => voice.join()}
             >
@@ -2129,7 +2290,8 @@ export default function App() {
           ) : (
             <>
               <button
-                className="hover-scale"
+                type="button"
+                className="hover-scale voice-bar__btn"
                 style={st.voiceIconBtn}
                 onClick={voice.toggleMute}
                 title={voice.muted ? "Unmute" : "Mute"}
@@ -2141,7 +2303,8 @@ export default function App() {
                 )}
               </button>
               <button
-                className="hover-scale"
+                type="button"
+                className="hover-scale voice-bar__btn"
                 style={st.voiceIconBtn}
                 onClick={() => voice.toggleCamera()}
                 title={voice.camOn ? "Stop camera" : "Start camera"}
@@ -2153,7 +2316,8 @@ export default function App() {
                 )}
               </button>
               <button
-                className="hover-scale"
+                type="button"
+                className="hover-scale voice-bar__btn"
                 style={st.voiceLeaveBtn}
                 onClick={() => voice.leave()}
                 title="Leave voice"
@@ -2183,7 +2347,7 @@ export default function App() {
           ))}
         </div>
         {!voted ? (
-          <div style={st.voteBtns}>
+          <div className="vote-btns" style={st.voteBtns}>
             <button
               className="btn-approve-hover"
               style={st.approve}
@@ -2225,7 +2389,7 @@ export default function App() {
               <p style={st.note}>
                 You march in this quest. Commit your deed in secret.
               </p>
-              <div style={st.voteBtns}>
+              <div className="vote-btns" style={st.voteBtns}>
                 <button
                   className="btn-approve-hover"
                   style={st.approve}
@@ -2428,275 +2592,7 @@ export default function App() {
     );
   }
 }
-/* ------------------------------ fonts / css ----------------------------- */
-function StyleTag() {
-  return (
-    <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap');
-      *{ box-sizing:border-box; } html,body,#root{ margin:0; min-height:100%; }
-      body{ background: var(--theme-ink); transition: background 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-      @keyframes spin { to { transform: rotate(360deg); } }
-      @keyframes fadeUp { from { opacity:0; transform:translateY(12px);} to {opacity:1;transform:none;} }
-      @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(63,159,142,.4); } 50% { box-shadow: 0 0 0 6px rgba(63,159,142,0); } }
-      @keyframes pulseGold { 0%,100% { box-shadow: 0 0 0 0 rgba(227,169,60,.4); } 50% { box-shadow: 0 0 0 8px rgba(227,169,60,0); } }
-      ::-webkit-scrollbar { width: 8px; height: 8px; } 
-      ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--theme-line) 60%, transparent); border-radius:4px; }
-      ::-webkit-scrollbar-track { background: transparent; }
-      
-      input, select, textarea {
-        transition: border-color 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
-      }
-      input:focus, select:focus { 
-        outline: none; 
-        border-color: var(--theme-gold) !important; 
-        box-shadow: 0 0 0 3px rgba(227, 169, 60, 0.2) !important;
-      }
-      
-      button { 
-        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); 
-        cursor: pointer; 
-      }
-      
-      /* Hover transitions */
-      .hover-scale {
-        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-      }
-      .hover-scale:hover {
-        transform: translateY(-2px);
-      }
-      .hover-scale:active {
-        transform: translateY(0);
-      }
-      .btn-gold-hover {
-        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
-      }
-      .btn-gold-hover:hover:not(:disabled) {
-        background: linear-gradient(180deg, var(--theme-gold) 0%, var(--theme-gold-dim) 100%) !important;
-        box-shadow: 0 6px 20px rgba(227,169,60,.45) !important;
-        transform: translateY(-2px);
-      }
-      .btn-gold-hover:active:not(:disabled) {
-        transform: translateY(0);
-      }
-      .btn-ghost-hover {
-        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
-      }
-      .btn-ghost-hover:hover:not(:disabled) {
-        background: rgba(227,169,60,.08) !important;
-        border-color: var(--theme-gold) !important;
-        box-shadow: 0 4px 12px rgba(227,169,60,.1) !important;
-        transform: translateY(-2px);
-      }
-      .btn-ghost-hover:active:not(:disabled) {
-        transform: translateY(0);
-      }
-      .btn-approve-hover {
-        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
-      }
-      .btn-approve-hover:hover:not(:disabled) {
-        background: rgba(63,159,142,.22) !important;
-        box-shadow: 0 4px 14px rgba(63,159,142,.25) !important;
-        transform: translateY(-2px);
-      }
-      .btn-approve-hover:active:not(:disabled) {
-        transform: translateY(0);
-      }
-      .btn-reject-hover {
-        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
-      }
-      .btn-reject-hover:hover:not(:disabled) {
-        background: rgba(193,74,63,.22) !important;
-        box-shadow: 0 4px 14px rgba(193,74,63,.25) !important;
-        transform: translateY(-2px);
-      }
-      .btn-reject-hover:active:not(:disabled) {
-        transform: translateY(0);
-      }
-      .opt-btn-hover {
-        transition: all 0.2s ease;
-      }
-      .opt-btn-hover:hover:not(:disabled) {
-        border-color: var(--theme-gold-dim) !important;
-        transform: translateY(-2.5px);
-        box-shadow: 0 6px 16px rgba(0,0,0,0.3) !important;
-      }
-      .player-chip-hover {
-        transition: all 0.2s ease;
-      }
-      .player-chip-hover:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-        border-color: var(--theme-gold-dim) !important;
-      }
-      .seat-node-hover {
-        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s ease;
-      }
-      .seat-node-hover:hover {
-        transform: scale(1.08) !important;
-        filter: brightness(1.1);
-      }
-      .circle-shield {
-        animation: pulseGold 4s infinite ease-in-out;
-      }
-      
-      /* New keyframes and classes for premium UI */
-      @keyframes cardReveal {
-        from { opacity: 0; transform: perspective(1000px) rotateX(12deg) translateY(20px) scale(0.96); }
-        to { opacity: 1; transform: perspective(1000px) rotateX(0deg) translateY(0) scale(1); }
-      }
-      @keyframes shineSweep {
-        0% { left: -75%; }
-        25%, 100% { left: 145%; }
-      }
-      @keyframes slowRotate {
-        from { transform: translate(-50%, -50%) rotate(0deg); }
-        to { transform: translate(-50%, -50%) rotate(360deg); }
-      }
-      @keyframes activePulse {
-        0%, 100% { box-shadow: 0 0 0 0 rgba(227,169,60,.45), inset 0 0 4px rgba(227,169,60,.2); }
-        50% { box-shadow: 0 0 0 8px rgba(227,169,60,0), inset 0 0 10px rgba(227,169,60,.5); }
-      }
-      @keyframes glowGood {
-        0%, 100% { box-shadow: 0 15px 35px rgba(0,0,0,.5), 0 0 12px rgba(63,159,142,.12); }
-        50% { box-shadow: 0 15px 35px rgba(0,0,0,.5), 0 0 24px rgba(63,159,142,.32); }
-      }
-      @keyframes glowEvil {
-        0%, 100% { box-shadow: 0 15px 35px rgba(0,0,0,.5), 0 0 12px rgba(193,74,63,.12); }
-        50% { box-shadow: 0 15px 35px rgba(0,0,0,.5), 0 0 24px rgba(193,74,63,.32); }
-      }
-      @keyframes floatSlow {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-8px); }
-      }
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
-      
-      .role-card-cool {
-        animation: cardReveal 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        transform-style: preserve-3d;
-      }
-      .role-card-cool.glow-good {
-        animation: cardReveal 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards, glowGood 4s infinite ease-in-out;
-      }
-      .role-card-cool.glow-evil {
-        animation: cardReveal 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards, glowEvil 4s infinite ease-in-out;
-      }
-      
-      .role-card-shine {
-        position: relative;
-        overflow: hidden;
-      }
-      .role-card-shine::after {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -75%;
-        width: 30%;
-        height: 200%;
-        background: linear-gradient(
-          to right,
-          rgba(255, 255, 255, 0) 0%,
-          rgba(255, 255, 255, 0.12) 50%,
-          rgba(255, 255, 255, 0) 100%
-        );
-        transform: rotate(28deg);
-        animation: shineSweep 7s infinite ease-in-out;
-        pointer-events: none;
-      }
-      
-      .rotate-board {
-        animation: slowRotate 160s linear infinite;
-      }
-      .active-orb-pulse {
-        animation: activePulse 2s infinite ease-in-out;
-      }
-      
-      /* Home background glowing aura orb */
-      .bg-glow-orb {
-        position: absolute;
-        width: 480px;
-        height: 480px;
-        border-radius: 50%;
-        background: radial-gradient(circle, var(--theme-gold) 0%, transparent 70%);
-        filter: blur(100px);
-        opacity: 0.12;
-        top: 35%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        pointer-events: none;
-        z-index: 0;
-        animation: orbDrift 22s infinite ease-in-out;
-      }
-      @keyframes orbDrift {
-        0%, 100% { transform: translate(-50%, -50%) scale(1); }
-        50% { transform: translate(-46%, -54%) scale(1.15); }
-      }
-      
-      .theme-badge-hover:hover {
-        transform: scale(1.15) !important;
-        border-color: var(--theme-gold) !important;
-        box-shadow: 0 0 16px rgba(227,169,60,0.3) !important;
-      }
-      .theme-badge-hover:active {
-        transform: scale(0.95) !important;
-      }
-      .theme-badge-active {
-        animation: activePulse 3s infinite ease-in-out;
-      }
-      
-      /* Golden Scepter Button Style */
-      .scepter-btn {
-        position: relative;
-        background: linear-gradient(180deg, var(--theme-scepter-bg-start) 0%, var(--theme-scepter-bg-end) 100%) !important;
-        border: 1.5px solid var(--theme-gold-dim) !important;
-        border-radius: 20px !important;
-        padding: 12px 28px !important;
-        color: var(--theme-gold) !important;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.8);
-        font-family: 'Cinzel', serif !important;
-        font-weight: 700 !important;
-        font-size: 14px !important;
-        letter-spacing: 1.8px !important;
-        box-shadow: 0 6px 20px rgba(0,0,0,.5), 0 0 12px rgba(227,169,60,.15) !important;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        margin: 12px auto 4px;
-        width: 100%;
-        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-        cursor: pointer;
-      }
-      .scepter-btn:hover:not(:disabled) {
-        transform: translateY(-2.5px) scale(1.02);
-        box-shadow: 0 10px 25px rgba(0,0,0,.6), 0 0 20px rgba(227,169,60,.35) !important;
-        border-color: var(--theme-gold) !important;
-      }
-      .scepter-btn:active:not(:disabled) {
-        transform: translateY(0);
-      }
-      .scepter-btn::before, .scepter-btn::after {
-        content: '';
-        position: absolute;
-        top: 50%;
-        width: 8px;
-        height: 28px;
-        background: linear-gradient(180deg, var(--theme-gold) 0%, var(--theme-gold-dim) 100%);
-        border: 1px solid #735314;
-        border-radius: 3px;
-        transform: translateY(-50%);
-      }
-      .scepter-btn::before {
-        left: -4px;
-      }
-      .scepter-btn::after {
-        right: -4px;
-      }
-    `}</style>
-  );
-}
+/* StyleTag styles moved to src/styles.css */
 
 /* -------------------------------- palette ------------------------------- */
 const C = {

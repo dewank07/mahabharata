@@ -516,14 +516,14 @@ export default function App() {
     }
   }, [code]);
 
-  useEffect(() => {
-    if (room?.opts) setOpts(room.opts);
-  }, [room?.opts]);
-
   const room = useQuery(
     api.avalon.getRoom,
     code ? { code, playerId: pid } : "skip",
   );
+
+  useEffect(() => {
+    if (room?.opts) setOpts(room.opts);
+  }, [room?.opts]);
 
   // Role names/lore always come from the room's themeId via the local THEMES
   // map — never from a joiner's default "india" selection on the home screen.

@@ -60,6 +60,8 @@ export default defineSchema({
     winner: v.optional(v.union(v.literal("good"), v.literal("evil"))),
     winReason: v.optional(v.string()),
     assassinGuess: v.optional(v.string()),
+    discussEndsAt: v.optional(v.number()),
+    selectEndsAt: v.optional(v.number()),
   }).index("by_code", ["code"]),
 
   players: defineTable({

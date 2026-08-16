@@ -2,7 +2,9 @@ import { useState, useEffect, type CSSProperties } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { useVoice } from "./useVoice";
+import { RevealCeremony } from "./RevealCeremony";
 import { THEMES, THEME_LIST } from "../convex/themes";
+import { DISCUSS_MS, SELECT_MS } from "../convex/logic";
 import {
   Crown,
   Sword,
@@ -28,6 +30,7 @@ import {
   Sun,
   User,
   Key,
+  Timer,
 } from "lucide-react";
 
 /* ============================ identity (per tab) ========================= */
@@ -84,6 +87,74 @@ const TEAM_COUNTS: Record<number, [number, number]> = {
   10: [6, 4],
 };
 const DOUBLE_FAIL_QUEST = 3;
+
+function fmtClock(ms: number) {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${r.toString().padStart(2, "0")}`;
+}
+
+function ProposeClock({
+  discussEndsAt,
+  selectEndsAt,
+  isLeader,
+}: {
+  discussEndsAt: number | null;
+  selectEndsAt: number | null;
+  isLeader: boolean;
+}) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(id);
+  }, []);
+  if (!discussEndsAt || !selectEndsAt) return null;
+  const inDiscuss = now < discussEndsAt;
+  const remaining = inDiscuss ? discussEndsAt - now : selectEndsAt - now;
+  const expired = now >= selectEndsAt;
+  const discussStart = discussEndsAt - DISCUSS_MS;
+  const discussFrac = Math.min(
+    1,
+    Math.max(0, (Math.min(now, discussEndsAt) - discussStart) / DISCUSS_MS),
+  );
+  const selectFrac = now <= discussEndsAt
+    ? 0
+    : Math.min(1, Math.max(0, (now - discussEndsAt) / SELECT_MS));
+  const label = expired
+    ? "Time’s up — locking a party…"
+    : inDiscuss
+      ? "Discussion"
+      : "Council selection";
+  const hint = expired
+    ? "The table will send a party automatically."
+    : inDiscuss
+      ? isLeader
+        ? "Talk it through. You may lock a party early."
+        : "3 minutes to confer. The leader may still lock early."
+      : isLeader
+        ? "Last minute — lock the war party."
+        : "Last minute for the leader to choose.";
+
+  return (
+    <div className={`war-timer${expired ? " war-timer--late" : inDiscuss ? "" : " war-timer--select"}`}>
+      <div className="war-timer__row">
+        <Timer size={14} />
+        <span className="war-timer__label">{label}</span>
+        <span className="war-timer__clock">{expired ? "0:00" : fmtClock(remaining)}</span>
+      </div>
+      <div className="war-timer__track" aria-hidden>
+        <div className="war-timer__lane">
+          <span style={{ width: `${discussFrac * 100}%` }} />
+        </div>
+        <div className="war-timer__lane war-timer__lane--select">
+          <span style={{ width: `${selectFrac * 100}%` }} />
+        </div>
+      </div>
+      <p className="war-timer__hint">{hint}</p>
+    </div>
+  );
+}
 
 function getRoleMeta(role: string, theme: any) {
   const roles = Array.isArray(theme?.roles)
@@ -772,6 +843,14 @@ export default function App() {
         )}
       </div>
 
+      {code && room && (room.lastVote || room.lastQuest) && (
+        <RevealCeremony
+          code={code}
+          lastVote={room.lastVote}
+          lastQuest={room.lastQuest}
+        />
+      )}
+
       {/* Secret Role Card Reveal Overlay */}
       {showRole && myRole && (() => {
         const rMeta = getRoleMeta(myRole, activeTheme);
@@ -1286,6 +1365,16 @@ export default function App() {
           {VoteTrack()}
         </div>
 
+        {room!.phase === "propose" && (
+          <div style={{ gridColumn: "1 / -1" }}>
+            <ProposeClock
+              discussEndsAt={room!.discussEndsAt ?? null}
+              selectEndsAt={room!.selectEndsAt ?? null}
+              isLeader={isLeader}
+            />
+          </div>
+        )}
+
         <div style={st.gameLeft}>
           <div style={st.questBox}>
             <div style={st.questTitle}>
@@ -1341,7 +1430,7 @@ export default function App() {
                       {tag}
                     </span>
                     <div
-                      className="gemstone"
+                      className={`gemstone${isCurrent ? " gemstone--current" : ""}${questVal === "success" ? " gemstone--win" : ""}${questVal === "fail" ? " gemstone--lose" : ""}`}
                       style={{
                         clipPath:
                           "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
@@ -1386,8 +1475,8 @@ export default function App() {
                         color: C.parch,
                       }}
                     >
-                      Tap warriors below to select your war party (
-                      {picked.length}/{size})
+                      Tap warriors to form the party ({picked.length}/{size}).
+                      Three minutes to discuss, then one extra minute to lock it.
                     </p>
                     <button
                       type="button"
@@ -1742,9 +1831,11 @@ export default function App() {
             {msg && <p style={st.error}>{msg}</p>}
           </div>
           <p className="home__foot">
-            Share this URL + the council code with your warriors. State syncs
-            live through Convex — talk and see one another over free
-            peer-to-peer audio &amp; video.
+            New to the war? Read the{" "}
+            <a href="#/rules" style={{ color: "var(--theme-gold)" }}>
+              laws of the Round Table
+            </a>
+            . Share this URL + the council code with your warriors.
           </p>
         </div>
 
@@ -2512,12 +2603,18 @@ export default function App() {
     const v = room!.lastVote!;
     const nm = (id: string) =>
       players.find((p) => p.playerId === id)?.name ?? "?";
+    const yes = v.approvers.length;
+    const no = v.rejecters.length;
     return (
       <div
+        className="banner-enter"
         style={{ ...st.banner, borderColor: v.approved ? C.goodDk : C.evilDk }}
       >
         <div style={st.bannerHead}>
-          {v.approved ? "✓ Party sent to battle" : "✕ Party turned away"}
+          {v.approved ? "✓ Party sent to battle" : "✕ Party turned away"}{" "}
+          <span style={{ fontWeight: 500, opacity: 0.85 }}>
+            ({yes} support · {no} oppose)
+          </span>
         </div>
         <div style={st.bannerRow}>
           <Check size={12} color={C.good} />{" "}
@@ -2534,6 +2631,7 @@ export default function App() {
     const q = room!.lastQuest!;
     return (
       <div
+        className="banner-enter"
         style={{ ...st.banner, borderColor: q.success ? C.goodDk : C.evilDk }}
       >
         <div style={st.bannerHead}>
@@ -2541,7 +2639,8 @@ export default function App() {
           {q.success ? "Won for Good" : "Lost to Evil"}
         </div>
         <div style={st.bannerRow}>
-          {q.fails} act{q.fails !== 1 ? "s" : ""} of sabotage
+          {q.size} cards · {q.fails} fail{q.fails !== 1 ? "s" : ""} ·{" "}
+          {q.size - q.fails} success{q.size - q.fails !== 1 ? "es" : ""}
         </div>
       </div>
     );

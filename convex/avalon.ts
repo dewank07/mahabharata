@@ -1,8 +1,10 @@
-import { query, mutation, MutationCtx } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { Doc, Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 import {
-  TEAM_COUNTS, QUEST_SIZES, DOUBLE_FAIL_QUEST,
+  TEAM_COUNTS, QUEST_SIZES, DOUBLE_FAIL_QUEST, DISCUSS_MS, SELECT_MS,
   ROLE_TEAM, buildRoles, knownNames, Role,
 } from "./logic";
 import { THEMES } from "./themes";
@@ -45,6 +47,29 @@ function requireRoom<T>(r: T | null): T {
   return r;
 }
 
+async function enterPropose(
+  ctx: MutationCtx,
+  roomId: Id<"rooms">,
+  patch: Partial<Omit<Doc<"rooms">, "_id" | "_creationTime">> = {},
+) {
+  const now = Date.now();
+  const discussEndsAt = now + DISCUSS_MS;
+  const selectEndsAt = discussEndsAt + SELECT_MS;
+  await ctx.db.patch(roomId, {
+    ...patch,
+    phase: "propose",
+    discussEndsAt,
+    selectEndsAt,
+  });
+  const after = await ctx.db.get(roomId);
+  if (!after) return;
+  await ctx.scheduler.runAfter(
+    DISCUSS_MS + SELECT_MS,
+    internal.avalon.forceProposeIfNeeded,
+    { roomId, roundId: after.roundId },
+  );
+}
+
 /* ----------------------------- resolution ------------------------------ */
 async function resolveVotes(
   ctx: MutationCtx,
@@ -76,8 +101,8 @@ async function resolveVotes(
         lastVote,
       });
     } else {
-      await ctx.db.patch(room._id, {
-        phase: "propose", rejectCount: rc,
+      await enterPropose(ctx, room._id, {
+        rejectCount: rc,
         leaderIndex: (room.leaderIndex + 1) % n,
         roundId: room.roundId + 1, proposedTeam: [], lastVote,
       });
@@ -117,8 +142,8 @@ async function resolveQuest(
   } else if (successes >= 3) {
     await ctx.db.patch(room._id, { phase: "assassin", questResults: results, lastQuest });
   } else {
-    await ctx.db.patch(room._id, {
-      phase: "propose", questResults: results, lastQuest,
+    await enterPropose(ctx, room._id, {
+      questResults: results, lastQuest,
       questIndex: room.questIndex + 1,
       leaderIndex: (room.leaderIndex + 1) % n,
       roundId: room.roundId + 1, rejectCount: 0, proposedTeam: [],
@@ -285,7 +310,23 @@ export const beginQuests = mutation({
   handler: async (ctx, { code, playerId }) => {
     const room = requireRoom(await roomByCode(ctx, code));
     if (room.hostId !== playerId) throw new Error("Only the host can begin.");
-    if (room.phase === "reveal") await ctx.db.patch(room._id, { phase: "propose" });
+    if (room.phase === "reveal") await enterPropose(ctx, room._id);
+  },
+});
+
+export const forceProposeIfNeeded = internalMutation({
+  args: { roomId: v.id("rooms"), roundId: v.number() },
+  handler: async (ctx, { roomId, roundId }) => {
+    const room = await ctx.db.get(roomId);
+    if (!room || room.phase !== "propose" || room.roundId !== roundId) return;
+    const players = await playersOf(ctx, roomId);
+    if (players.length === 0) return;
+    const size = QUEST_SIZES[players.length][room.questIndex];
+    if (!size) return;
+    const leader = players[room.leaderIndex] ?? players[0];
+    const rest = players.filter((p) => p.playerId !== leader.playerId);
+    const team = [leader.playerId, ...rest.map((p) => p.playerId)].slice(0, size);
+    await ctx.db.patch(roomId, { phase: "vote", proposedTeam: team });
   },
 });
 
@@ -534,6 +575,8 @@ export const getRoom = query({
       winner: room.winner ?? null,
       winReason: room.winReason ?? null,
       assassinGuess: room.assassinGuess ?? null,
+      discussEndsAt: room.discussEndsAt ?? null,
+      selectEndsAt: room.selectEndsAt ?? null,
       players: players.map((p) => ({
         playerId: p.playerId,
         name: p.name,

@@ -24,6 +24,10 @@ export const QUEST_SIZES: Record<number, number[]> = {
 
 export const DOUBLE_FAIL_QUEST = 3; // 4th quest needs 2 fails (only when players >= 7)
 
+/** Leader clock: discuss, then extra time to lock the war party. */
+export const DISCUSS_MS = 3 * 60 * 1000;
+export const SELECT_MS = 1 * 60 * 1000;
+
 export const ROLE_TEAM: Record<Role, "good" | "evil"> = {
   merlin: "good", percival: "good", servant: "good",
   assassin: "evil", morgana: "evil", mordred: "evil", oberon: "evil", minion: "evil",

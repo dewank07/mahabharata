@@ -2710,7 +2710,7 @@ const C = {
   evilDk: "var(--theme-evil-dk)",
 };
 const serifDisplay = "'Cinzel', 'Rozha One', Georgia, serif";
-const serifBody = "'Plus Jakarta Sans', 'Spectral', Georgia, serif";
+const serifBody = "Inter, system-ui, sans-serif";
 
 /* -------------------------------- styles -------------------------------- */
 const st: Record<string, CSSProperties> = {

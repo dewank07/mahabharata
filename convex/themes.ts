@@ -47,6 +47,23 @@ export interface ThemeConfig {
   };
 }
 
+/** Shared Divine Council canvas — indigo void, ethereal gold, dharma / adharma. */
+export const DIVINE_COLORS: ThemeConfig["colors"] = {
+  ink: "#051424",
+  ink2: "#0d1c2d",
+  panel: "#122131",
+  panel2: "#1c2b3c",
+  line: "#4d4635",
+  gold: "#f2ca50",
+  goldDim: "#d4af37",
+  parch: "#d4e4fa",
+  parchDim: "#b9c8de",
+  good: "#10B981",
+  goodDk: "#064e3b",
+  evil: "#e07a72",
+  evilDk: "#7f1d1d",
+};
+
 export const THEMES: Record<string, ThemeConfig> = {
   india: {
     id: "india",
@@ -57,21 +74,7 @@ export const THEMES: Record<string, ThemeConfig> = {
     crestIcon: "chakra",
     goodTeamName: "Pandavas",
     evilTeamName: "Kauravas",
-    colors: {
-      ink: "#160b22",
-      ink2: "#1f1430",
-      panel: "#251732",
-      panel2: "#2f1d40",
-      line: "#43305a",
-      gold: "#e3a93c",
-      goldDim: "#a9802c",
-      parch: "#f2e7d0",
-      parchDim: "#bcae93",
-      good: "#3f9f8e",
-      goodDk: "#1d4a43",
-      evil: "#c14a3f",
-      evilDk: "#5e201b",
-    },
+    colors: { ...DIVINE_COLORS },
     roles: [
       {
         id: "merlin",
@@ -192,21 +195,7 @@ export const THEMES: Record<string, ThemeConfig> = {
     crestIcon: "shield",
     goodTeamName: "Knights of Arthur",
     evilTeamName: "Minions of Mordred",
-    colors: {
-      ink: "#0a1128",
-      ink2: "#121e40",
-      panel: "#1c2d5a",
-      panel2: "#253c73",
-      line: "#3d5a80",
-      gold: "#e2b13c",
-      goldDim: "#a8832c",
-      parch: "#e0f1f7",
-      parchDim: "#98c1d9",
-      good: "#3f9f8e",
-      goodDk: "#1d4a43",
-      evil: "#c14a3f",
-      evilDk: "#5e201b",
-    },
+    colors: { ...DIVINE_COLORS },
     roles: [
       {
         id: "merlin",
@@ -326,21 +315,7 @@ export const THEMES: Record<string, ThemeConfig> = {
     crestIcon: "ankh",
     goodTeamName: "Followers of Ma'at",
     evilTeamName: "Agents of Chaos",
-    colors: {
-      ink: "#120d07",
-      ink2: "#1d150b",
-      panel: "#2c2010",
-      panel2: "#3c2c16",
-      line: "#5c4527",
-      gold: "#f0b83f",
-      goldDim: "#b88a2a",
-      parch: "#f7eccd",
-      parchDim: "#c4b48d",
-      good: "#00a896",
-      goodDk: "#028090",
-      evil: "#d62246",
-      evilDk: "#8b1028",
-    },
+    colors: { ...DIVINE_COLORS },
     roles: [
       {
         id: "merlin",
@@ -460,21 +435,7 @@ export const THEMES: Record<string, ThemeConfig> = {
     crestIcon: "lightning",
     goodTeamName: "Olympians",
     evilTeamName: "Agents of Tartarus",
-    colors: {
-      ink: "#0b0f19",
-      ink2: "#161d2d",
-      panel: "#222b3d",
-      panel2: "#2e3b52",
-      line: "#485973",
-      gold: "#d4af37",
-      goldDim: "#9c7c23",
-      parch: "#f0f3f6",
-      parchDim: "#a3b1c6",
-      good: "#0077b6",
-      goodDk: "#03045e",
-      evil: "#b7094c",
-      evilDk: "#7209b7",
-    },
+    colors: { ...DIVINE_COLORS },
     roles: [
       {
         id: "merlin",
@@ -597,21 +558,7 @@ export const THEMES: Record<string, ThemeConfig> = {
     crestIcon: "fort",
     goodTeamName: "Mavalas",
     evilTeamName: "Imperial Forces",
-    colors: {
-      ink: "#190e05",
-      ink2: "#24160c",
-      panel: "#331e0f",
-      panel2: "#422814",
-      line: "#663d1f",
-      gold: "#ff7e1a",
-      goldDim: "#cc5b0d",
-      parch: "#fff2e6",
-      parchDim: "#e6b89c",
-      good: "#2e7d32",
-      goodDk: "#1b5e20",
-      evil: "#c62828",
-      evilDk: "#8e0000",
-    },
+    colors: { ...DIVINE_COLORS },
     roles: [
       {
         id: "merlin",

@@ -32,9 +32,9 @@ function Router() {
       style={
         onRules
           ? ({
-              "--theme-ink": "#0f1724",
-              "--theme-gold": "#e2b13c",
-              "--theme-parch": "#e8e4d4",
+              "--theme-ink": "#051424",
+              "--theme-gold": "#f2ca50",
+              "--theme-parch": "#d4e4fa",
             } as CSSProperties)
           : undefined
       }

@@ -47,8 +47,8 @@ export interface ThemeConfig {
   };
 }
 
-/** Shared Divine Council canvas — indigo void, ethereal gold, dharma / adharma. */
-export const DIVINE_COLORS: ThemeConfig["colors"] = {
+/** Indian myth — indigo void, saffron gold, dharma / adharma. */
+export const INDIA_COLORS: ThemeConfig["colors"] = {
   ink: "#051424",
   ink2: "#0d1c2d",
   panel: "#122131",
@@ -64,17 +64,37 @@ export const DIVINE_COLORS: ThemeConfig["colors"] = {
   evilDk: "#7f1d1d",
 };
 
+/** Original Avalon — midnight navy, antique gold, cool parchment. */
+export const MEDIEVAL_COLORS: ThemeConfig["colors"] = {
+  ink: "#0a1128",
+  ink2: "#121e40",
+  panel: "#162445",
+  panel2: "#1c2d5a",
+  line: "#3d5a80",
+  gold: "#e2b13c",
+  goldDim: "#a8832c",
+  parch: "#e8eef4",
+  parchDim: "#98c1d9",
+  good: "#3f9f8e",
+  goodDk: "#1d4a43",
+  evil: "#c14a3f",
+  evilDk: "#5e201b",
+};
+
+/** @deprecated Use INDIA_COLORS. Kept so older imports still type-check. */
+export const DIVINE_COLORS = INDIA_COLORS;
+
 export const THEMES: Record<string, ThemeConfig> = {
   india: {
     id: "india",
     name: "Indian Mythology",
     tagline:
-      "Dharma vs Adharma. Every world has heroes. Every kingdom has traitors.",
+      "Dharma vs Adharma on Kurukshetra. Every world has heroes. Every kingdom has traitors.",
     devanagariLabel: "धर्मसंस्थापनार्थाय सम्भवामि युगे युगे",
     crestIcon: "chakra",
     goodTeamName: "Pandavas",
     evilTeamName: "Kauravas",
-    colors: { ...DIVINE_COLORS },
+    colors: { ...INDIA_COLORS },
     roles: [
       {
         id: "merlin",
@@ -191,11 +211,11 @@ export const THEMES: Record<string, ThemeConfig> = {
   medieval: {
     id: "medieval",
     name: "Medieval Kingdom",
-    tagline: "Every world has heroes. Every kingdom has traitors.",
+    tagline: "The original Avalon. Knights of Arthur against Mordred’s traitors.",
     crestIcon: "shield",
     goodTeamName: "Knights of Arthur",
     evilTeamName: "Minions of Mordred",
-    colors: { ...DIVINE_COLORS },
+    colors: { ...MEDIEVAL_COLORS },
     roles: [
       {
         id: "merlin",
@@ -678,9 +698,18 @@ export const THEMES: Record<string, ThemeConfig> = {
   },
 };
 
-export const THEME_LIST = Object.values(THEMES).map((t) => ({
-  id: t.id,
-  name: t.name,
-  tagline: t.tagline,
-  crestIcon: t.crestIcon,
-}));
+/** Playable worlds. Other keys in THEMES stay for older rooms. */
+export const PLAYABLE_THEME_IDS = ["medieval", "india"] as const;
+
+export const THEME_LIST = PLAYABLE_THEME_IDS.map((id) => {
+  const t = THEMES[id];
+  if (!t) throw new Error(`Missing playable theme: ${id}`);
+  return {
+    id: t.id,
+    name: t.name,
+    tagline: t.tagline,
+    crestIcon: t.crestIcon,
+    goodTeamName: t.goodTeamName,
+    evilTeamName: t.evilTeamName,
+  };
+});

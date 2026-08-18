@@ -302,6 +302,65 @@ function CrestIcon({
   return <Chakra size={size} color={color} />;
 }
 
+function ThemePickRow({
+  selectedId,
+  onSelect,
+  disabled,
+}: {
+  selectedId: string;
+  onSelect?: (id: string) => void;
+  disabled?: boolean;
+}) {
+  const extra = THEMES[selectedId];
+  const items = THEME_LIST.some((t) => t.id === selectedId)
+    ? THEME_LIST
+    : extra
+      ? [
+          {
+            id: extra.id,
+            name: extra.name,
+            tagline: extra.tagline,
+            crestIcon: extra.crestIcon,
+            goodTeamName: extra.goodTeamName,
+            evilTeamName: extra.evilTeamName,
+          },
+          ...THEME_LIST,
+        ]
+      : THEME_LIST;
+
+  return (
+    <div className="theme-pick">
+      {items.map((t) => {
+        const on = t.id === selectedId;
+        return (
+          <button
+            key={t.id}
+            type="button"
+            disabled={disabled}
+            title={t.tagline}
+            className={`theme-pick__card${on ? " is-on" : ""}`}
+            onClick={() => onSelect?.(t.id)}
+          >
+            <span className="theme-pick__crest">
+              <CrestIcon
+                icon={t.crestIcon}
+                size={22}
+                color={on ? "var(--theme-gold)" : "var(--theme-parch-dim)"}
+              />
+            </span>
+            <span className="theme-pick__copy">
+              <strong>{t.name}</strong>
+              <em>
+                {t.goodTeamName} vs {t.evilTeamName}
+              </em>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ====================== Role Portrait SVG Illustrations =================== */
 function RolePortrait({ role, good, color, dim }: { role: string; good: boolean; color: string; dim: string }) {
   const primary = color;
@@ -510,23 +569,6 @@ function RolePortrait({ role, good, color, dim }: { role: string; good: boolean;
 
 const hasLiveVideo = (s?: MediaStream | null) =>
   !!s && s.getVideoTracks().some((t) => t.readyState === "live");
-const getThemeBackground = (id: string): string => {
-  switch (id) {
-    case "india":
-      return "url('/stone_bg.png')";
-    case "medieval":
-      return "url('/medieval_bg.png')";
-    case "egyptian":
-      return "url('/egyptian_bg.png')";
-    case "greek":
-      return "url('/greek_bg.png')";
-    case "maratha":
-      return "url('/maratha_bg.png')";
-    default:
-      return "none";
-  }
-};
-
 const getThemeQuote = (id: string): string => {
   switch (id) {
     case "india":
@@ -561,7 +603,7 @@ export default function App() {
     mordred: false,
     oberon: false,
   });
-  const [localThemeId, setLocalThemeId] = useState<string>("india");
+  const [localThemeId, setLocalThemeId] = useState<string>("medieval");
   const [activeTab, setActiveTab] = useState<"create" | "join">("create");
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -610,32 +652,24 @@ export default function App() {
     }
   }, [room?.themeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [prevBgImg, setPrevBgImg] = useState<string>("none");
-  const [currentBgImg, setCurrentBgImg] = useState<string>("none");
-
   useEffect(() => {
-    const nextBg = getThemeBackground(activeTheme.id);
-    if (nextBg !== currentBgImg) {
-      setPrevBgImg(currentBgImg);
-      setCurrentBgImg(nextBg);
-    }
-  }, [activeTheme.id, currentBgImg]);
+    const root = document.documentElement;
+    const c = activeTheme.colors;
+    root.dataset.realm = activeTheme.id;
+    root.style.setProperty("--theme-ink", c.ink);
+    root.style.setProperty("--theme-ink2", c.ink2);
+    root.style.setProperty("--theme-gold", c.gold);
+    document.body.style.backgroundColor = c.ink;
+    return () => {
+      delete root.dataset.realm;
+      root.style.removeProperty("--theme-ink");
+      root.style.removeProperty("--theme-ink2");
+      root.style.removeProperty("--theme-gold");
+      document.body.style.backgroundColor = "";
+    };
+  }, [activeTheme]);
 
-  const getAccentGradient = (id: string): string => {
-    switch (id) {
-      case "medieval":
-        return "#1c2d5a";
-      case "egyptian":
-        return "#2d2013";
-      case "greek":
-        return "#162238";
-      case "maratha":
-        return "#4a1c02";
-      case "india":
-      default:
-        return "#3a1d4d";
-    }
-  };
+  const getAccentGradient = (_id: string): string => activeTheme.colors.ink2;
 
   const styleVariables = {
     "--theme-ink": activeTheme.colors.ink,
@@ -652,26 +686,8 @@ export default function App() {
     "--theme-evil": activeTheme.colors.evil,
     "--theme-evil-dk": activeTheme.colors.evilDk,
     "--theme-accent-gradient": getAccentGradient(activeTheme.id),
-    "--theme-scepter-bg-start":
-      activeTheme.id === "india"
-        ? "#1b3ab3"
-        : activeTheme.id === "medieval"
-          ? "#2c3e50"
-          : activeTheme.id === "space"
-            ? "#0f3a5f"
-            : activeTheme.id === "cyberpunk"
-              ? "#0f5f5c"
-              : "#5a0f0f",
-    "--theme-scepter-bg-end":
-      activeTheme.id === "india"
-        ? "#0d1e5e"
-        : activeTheme.id === "medieval"
-          ? "#1a252f"
-          : activeTheme.id === "space"
-            ? "#051829"
-            : activeTheme.id === "cyberpunk"
-              ? "#052928"
-              : "#2e0505",
+    "--theme-scepter-bg-start": activeTheme.colors.ink2,
+    "--theme-scepter-bg-end": activeTheme.colors.ink,
   } as CSSProperties;
 
   const mCreate = useMutation(api.avalon.createRoom);
@@ -745,82 +761,7 @@ export default function App() {
     (room != null && !["lobby", "reveal"].includes(room.phase));
 
   return (
-    <div className="app-root" style={styleVariables}>
-      {/* Dynamic Smooth Cross-Fading Background Layers */}
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: -1,
-          pointerEvents: "none",
-          overflow: "hidden",
-        }}
-      >
-        {/* Layer 1: Previous Background (acting as base during transition) */}
-        {prevBgImg !== "none" ? (
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              backgroundImage: `linear-gradient(to right, rgba(0, 0, 0, 0.78) 0%, rgba(0, 0, 0, 0.45) 45%, rgba(0, 0, 0, 0.65) 100%), ${prevBgImg}`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              backgroundRepeat: "no-repeat",
-            }}
-          />
-        ) : (
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              background:
-                "radial-gradient(1400px 800px at 50% -8%, var(--theme-accent-gradient) 0%, var(--theme-ink) 72%)",
-            }}
-          />
-        )}
-
-        {/* Layer 2: Current Background (fades in on top) */}
-        {currentBgImg !== "none" ? (
-          <div
-            key={currentBgImg}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              backgroundImage: `linear-gradient(to right, rgba(0, 0, 0, 0.78) 0%, rgba(0, 0, 0, 0.45) 45%, rgba(0, 0, 0, 0.65) 100%), ${currentBgImg}`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              backgroundRepeat: "no-repeat",
-              animation: "bgFadeIn 0.8s forwards cubic-bezier(0.16, 1, 0.3, 1)",
-            }}
-          />
-        ) : (
-          <div
-            key="radial-gradient"
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              background:
-                "radial-gradient(1400px 800px at 50% -8%, var(--theme-accent-gradient) 0%, var(--theme-ink) 72%)",
-              animation: "bgFadeIn 0.8s forwards cubic-bezier(0.16, 1, 0.3, 1)",
-            }}
-          />
-        )}
-      </div>
+    <div className="app-root" style={styleVariables} data-realm={activeTheme.id}>
       <div className={`app-shell${shellWide ? " app-shell--wide" : ""}`}>
         {!code && Home()}
         {code && room === undefined && (
@@ -1690,8 +1631,6 @@ export default function App() {
 
     return (
       <div className="home">
-        <div className="bg-glow-orb" aria-hidden />
-
         <div className="home__brand">
           <div className="home__crest-wrap">
             <svg
@@ -1840,43 +1779,11 @@ export default function App() {
         </div>
 
         <div className="home__themes">
-          <span className="home__themes-label">Select Game Theme</span>
-          <div className="theme-row">
-            {THEME_LIST.map((t) => {
-              const isSelected = t.id === localThemeId;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setLocalThemeId(t.id)}
-                  title={t.name}
-                  className={`theme-badge-hover ${isSelected ? "theme-badge-active" : ""}`}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 48,
-                    height: 48,
-                    borderRadius: "50%",
-                    border: `2px solid ${isSelected ? C.gold : "rgba(255,255,255,0.08)"}`,
-                    background: isSelected
-                      ? "rgba(227,169,60,0.12)"
-                      : "rgba(0,0,0,0.25)",
-                    cursor: "pointer",
-                    boxShadow: isSelected
-                      ? `0 0 16px rgba(227,169,60,0.25)`
-                      : "none",
-                  }}
-                >
-                  <CrestIcon
-                    icon={t.crestIcon}
-                    size={22}
-                    color={isSelected ? C.gold : C.parchDim}
-                  />
-                </button>
-              );
-            })}
-          </div>
+          <span className="home__themes-label">Choose a world</span>
+          <ThemePickRow
+            selectedId={localThemeId}
+            onSelect={setLocalThemeId}
+          />
         </div>
       </div>
     );
@@ -1957,47 +1864,18 @@ export default function App() {
         </div>
 
         <div style={{ marginBottom: 16, marginTop: 8 }}>
-          <label style={{ ...st.label, marginBottom: 6, display: "block" }}>
+          <label style={{ ...st.label, marginBottom: 8, display: "block" }}>
             Game Theme
           </label>
-          {isHost ? (
-            <select
-              value={activeTheme.id}
-              onChange={(e) => handleThemeChange(e.target.value)}
-              style={{
-                ...st.input,
-                padding: "8px 12px",
-                background: C.ink2,
-                color: C.parch,
-                border: `1px solid ${C.line}`,
-                borderRadius: 8,
-                width: "100%",
-                cursor: "pointer",
-                fontFamily: serifBody,
-              }}
-            >
-              {THEME_LIST.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} — {t.tagline}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <div
-              style={{
-                padding: "10px 14px",
-                background: C.panel,
-                border: `1px solid ${C.line}`,
-                borderRadius: 8,
-                fontSize: 14.5,
-                color: C.parchDim,
-              }}
-            >
-              <span style={{ color: C.gold, fontWeight: 600 }}>
-                {activeTheme.name}
-              </span>{" "}
-              — {activeTheme.tagline}
-            </div>
+          <ThemePickRow
+            selectedId={activeTheme.id}
+            onSelect={isHost ? handleThemeChange : undefined}
+            disabled={!isHost}
+          />
+          {!isHost && (
+            <p style={{ margin: "8px 0 0", fontSize: 12.5, color: C.parchDim }}>
+              {activeTheme.tagline}
+            </p>
           )}
         </div>
 

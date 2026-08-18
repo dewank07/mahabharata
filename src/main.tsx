@@ -16,6 +16,21 @@ if (!url) {
 
 const convex = new ConvexReactClient(url);
 
+function RoyalVoid() {
+  return (
+    <div className="royal-void" aria-hidden>
+      <div className="royal-void__lintel" />
+      <div className="royal-void__corona" />
+      <div className="royal-void__ring" />
+      <span className="royal-void__mote royal-void__mote--a" />
+      <span className="royal-void__mote royal-void__mote--b" />
+      <span className="royal-void__mote royal-void__mote--c" />
+      <span className="royal-void__mote royal-void__mote--d" />
+      <div className="royal-void__vignette" />
+    </div>
+  );
+}
+
 function Router() {
   const [hash, setHash] = useState(window.location.hash);
   useEffect(() => {
@@ -39,6 +54,7 @@ function Router() {
           : undefined
       }
     >
+      <RoyalVoid />
       {onRules ? (
         <RulesPage />
       ) : (

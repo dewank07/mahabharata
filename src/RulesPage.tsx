@@ -14,26 +14,50 @@ import {
   X,
 } from "lucide-react";
 import { THEMES, THEME_LIST, type ThemeConfig } from "../convex/themes";
-import { DOUBLE_FAIL_QUEST, QUEST_SIZES, TEAM_COUNTS } from "../convex/logic";
+import {
+  DOUBLE_FAIL_QUEST,
+  QUEST_SIZES,
+  TEAM_COUNTS,
+  MAX_REJECTS,
+  LADY_MIN_PLAYERS,
+  PLOT_CARDS,
+  plotCardsPerRound,
+  NIGHT_ORDER,
+} from "../convex/logic";
 
 const BASE = THEMES.medieval;
 const BASE_ROLE_IDS = [
   "merlin",
   "percival",
+  "guinevere",
+  "tristan",
+  "isolde",
+  "lancelot_good",
   "servant",
   "assassin",
   "morgana",
   "mordred",
   "oberon",
+  "lancelot_evil",
   "minion",
 ] as const;
 
+/** Roles that come as an inseparable pair. */
+const PAIRED: Record<string, string> = {
+  tristan: "Always with Isolde",
+  isolde: "Always with Tristan",
+  lancelot_good: "Always with the fallen Lancelot",
+  lancelot_evil: "Always with the loyal Lancelot",
+};
+
 const PHASES = [
-  { id: "lobby", title: "Council", detail: "5–10 warriors join. Host picks theme and optional roles." },
-  { id: "reveal", title: "Secret lots", detail: "Each player sees only their own role and the knowledge that role is allowed." },
-  { id: "propose", title: "Propose", detail: "3 minutes to discuss, then 1 extra minute for the leader to lock a war party of the size shown." },
-  { id: "vote", title: "Vote", detail: "Everyone supports or opposes the party. Majority support sends them to battle." },
-  { id: "quest", title: "Quest", detail: "Party members play Success or Fail in secret. Good may only play Success." },
+  { id: "lobby", title: "Council", detail: "5–10 warriors join. Host picks the theme, the optional roles, and any expansions." },
+  { id: "reveal", title: "Night", detail: "Visions resolve in a fixed order. Each player sees only their own role and what that role is allowed to know." },
+  { id: "plot", title: "Plots", detail: "Plot cards only. At the start of each round the leader deals the round’s cards, face down, to other players." },
+  { id: "propose", title: "Propose", detail: "3 minutes to discuss, then 1 extra minute for the leader to lock a war party of the size shown. With Excalibur, the leader also arms one party member." },
+  { id: "vote", title: "Vote", detail: "Everyone supports or opposes the party. A strict majority sends them to battle; a tie turns them away." },
+  { id: "quest", title: "Quest", detail: "Party members play Success or Fail in secret. Good may only play Success. Then Excalibur, if drawn, may flip one card." },
+  { id: "lady", title: "Lady", detail: "After quests 2–4 at 7+ players, the token holder learns one player’s true allegiance and passes the token to them." },
   { id: "end", title: "Victory", detail: "Three successes trigger the Assassin’s strike. Three fails, or five rejected parties, win for Evil." },
 ];
 
@@ -45,21 +69,42 @@ function seesTargets(viewerId: string): { ids: string[]; note: string } {
   switch (viewerId) {
     case "merlin":
       return {
-        ids: ["assassin", "morgana", "oberon", "minion"],
-        note: "Sees Evil — except Mordred, who is veiled.",
+        ids: ["assassin", "morgana", "oberon", "lancelot_evil", "minion"],
+        note: "Sees Evil — except Mordred, who is veiled. A Lancelot who later switches still reads as Evil to Merlin: the vision is a snapshot of the night.",
       };
     case "percival":
       return {
         ids: ["merlin", "morgana"],
         note: "Sees Merlin and Morgana, but cannot tell them apart.",
       };
+    case "guinevere":
+      return {
+        ids: ["lancelot_good", "lancelot_evil"],
+        note: "Sees both Lancelots, but not which of them is loyal and which has fallen.",
+      };
+    case "tristan":
+      return { ids: ["isolde"], note: "Knows Isolde. If the Assassin names them both, they die together." };
+    case "isolde":
+      return { ids: ["tristan"], note: "Knows Tristan. If the Assassin names them both, they die together." };
+    case "lancelot_good":
+      return {
+        ids: [],
+        note: "Knows no one — not even the other Lancelot. Only Guinevere marks them. May play only Success.",
+      };
+    case "lancelot_evil":
+      return {
+        ids: [],
+        note: "Cannot identify their allies, though the other Evil players recognise them. Merlin and Guinevere both see them. Must play Fail.",
+      };
     case "assassin":
     case "morgana":
     case "mordred":
     case "minion":
       return {
-        ids: ["assassin", "morgana", "mordred", "minion"].filter((id) => id !== viewerId),
-        note: "Sees fellow Evil — except Oberon, who walks alone.",
+        ids: ["assassin", "morgana", "mordred", "lancelot_evil", "minion"].filter(
+          (id) => id !== viewerId,
+        ),
+        note: "Sees fellow Evil — except Oberon, who walks alone. The fallen Lancelot is recognised but does not recognise anyone back.",
       };
     case "oberon":
       return { ids: [], note: "Knows no other Evil. Merlin still sees Oberon." };
@@ -164,8 +209,13 @@ export default function RulesPage() {
             <h3>Evil triumphs</h3>
             <ul>
               <li>Three quests fail, or</li>
-              <li>Five parties are rejected in a row, or</li>
+              <li>{MAX_REJECTS} parties are rejected in a row, or</li>
               <li>Three quests succeed but the Assassin correctly names Merlin.</li>
+              <li>
+                With the lovers in play, the Assassin may instead name{" "}
+                <strong>both</strong> Tristan and Isolde. Both right wins for
+                Evil; either wrong wins for Good.
+              </li>
             </ul>
           </div>
         </div>
@@ -178,9 +228,12 @@ export default function RulesPage() {
       <section id="table-size" className="rules-section">
         <h2>Table size &amp; party counts</h2>
         <p>
-          Always in the deck: <strong>Merlin</strong> and the <strong>Assassin</strong>. Optional
-          specials (Percival, Morgana, Mordred, Oberon) fill remaining seats. Evil specials
-          cannot exceed Evil seats minus the Assassin.
+          Always in the deck: <strong>Merlin</strong> and the{" "}
+          <strong>Assassin</strong>. Optional roles fill the remaining seats and
+          can never exceed them — Percival, Guinevere and the loyal Lancelot take
+          one Good seat each, the lovers take two, and Morgana, Mordred, Oberon
+          and the fallen Lancelot take one Evil seat each. Because the Lancelots
+          are a pair, enabling them costs one seat on <em>each</em> side.
         </p>
         <div className="rules-size-picker">
           <span>Warriors at the table</span>
@@ -261,6 +314,140 @@ export default function RulesPage() {
         </div>
       </section>
 
+      <section id="night" className="rules-section">
+        <h2>The order of the night</h2>
+        <p>
+          Visions always resolve in this sequence. Steps whose role is not in the
+          game are simply skipped.
+        </p>
+        <ol className="rules-flow">
+          {NIGHT_ORDER.map((stp, i) => (
+            <li key={stp.step} className="rules-flow__step">
+              <span className="rules-flow__num">{stp.step}</span>
+              <div>
+                <strong>{stp.label}</strong>
+              </div>
+              {i < NIGHT_ORDER.length - 1 && (
+                <ArrowRight className="rules-flow__arrow" size={16} />
+              )}
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section id="lancelot" className="rules-section">
+        <h2>The Lancelots &amp; the loyalty deck</h2>
+        <p>
+          Enabling Lancelot puts <strong>two</strong> players in the game: one
+          Good, one Evil. Neither knows the other. They are the only roles whose
+          mission card is <em>forced</em> — the Evil Lancelot must play{" "}
+          <strong>Fail</strong> and the Good Lancelot must play{" "}
+          <strong>Success</strong>, every single quest they ride on.
+        </p>
+        <div className="rules-callouts">
+          <article>
+            <Swords size={18} />
+            <h3>Five cards, two switches</h3>
+            <p>
+              The loyalty deck holds 5 cards: 2 switch allegiance, 3 do nothing.
+              One is drawn at the start of every round from the{" "}
+              <strong>third</strong> onward.
+            </p>
+          </article>
+          <article>
+            <Eye size={18} />
+            <h3>A switch flips both</h3>
+            <p>
+              When a switch is drawn, both Lancelots trade sides — and their
+              forced mission cards trade with them. The draw is public; who
+              switched is not a secret, but what it means for the table is.
+            </p>
+          </article>
+          <article>
+            <EyeOff size={18} />
+            <h3>Merlin’s vision does not update</h3>
+            <p>
+              Merlin saw the Evil Lancelot on night one and still reads them as
+              Evil afterwards, even once they have turned Good. Guinevere has the
+              same problem from the other direction: she knows <em>who</em> the
+              Lancelots are and never which side either is on.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="expansions" className="rules-section">
+        <h2>Expansions</h2>
+        <p>
+          Each is an independent host toggle. Every world renames them — the
+          rules below are the same underneath.
+        </p>
+
+        <div className="rules-callouts">
+          <article>
+            <Eye size={18} />
+            <h3>Lady of the Lake</h3>
+            <p>
+              Needs <strong>{LADY_MIN_PLAYERS}+ players</strong>. The token
+              starts with the player to the first leader’s right. After quests 2,
+              3 and 4 the holder picks someone, learns their{" "}
+              <strong>true current allegiance</strong> — Lancelot switches
+              included — and then passes the token to that person. Anyone who has
+              ever held the token can never be examined.
+            </p>
+          </article>
+          <article>
+            <Swords size={18} />
+            <h3>Excalibur</h3>
+            <p>
+              When the leader proposes a party they must also hand Excalibur to
+              one party member other than themselves. After every mission card is
+              in, the holder may turn <strong>one</strong> companion’s card to its
+              opposite. The table learns <em>who</em> was struck; only the holder
+              and the target ever learn what the card had been.
+            </p>
+          </article>
+          <article>
+            <ScrollText size={18} />
+            <h3>Plot cards</h3>
+            <p>
+              At the start of each round the leader deals{" "}
+              <strong>{plotCardsPerRound(players)}</strong> card
+              {plotCardsPerRound(players) === 1 ? "" : "s"} at {players} players
+              — face down, never to themselves. Who holds how many is public;
+              which cards they are is not.
+            </p>
+          </article>
+        </div>
+
+        <div className="rules-map">
+          <div className="rules-map__head">
+            <span>Plot card</span>
+            <ArrowRight size={14} />
+            <span>What it does</span>
+          </div>
+          {Object.values(PLOT_CARDS).map((c) => (
+            <div key={c.id} className="rules-map__row">
+              <span className="rules-map__base">{c.name}</span>
+              <ArrowRight size={14} className="rules-map__arrow" />
+              <span className="rules-map__themed">{c.desc}</span>
+              <span className="rules-map__team">
+                {c.kind === "instant"
+                  ? "resolves at once"
+                  : c.kind === "effect"
+                    ? "lasts all game"
+                    : `play during ${c.window}`}
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="rules-note">
+          <strong>Ambush</strong> is the one plot card that leaves no public
+          trace — the peek is never announced, and only the player who used it
+          ever sees the result. Everything else appears in the plots log.
+        </p>
+      </section>
+
       <section id="roles" className="rules-section">
         <h2>Base characters (Medieval)</h2>
         <div className="rules-roles">
@@ -276,6 +463,8 @@ export default function RulesPage() {
                 <em className="rules-always">Always in play</em>
               ) : id === "servant" || id === "minion" ? (
                 <em>Fills remaining seats</em>
+              ) : PAIRED[id] ? (
+                <em>Optional — {PAIRED[id]}</em>
               ) : (
                 <em>Optional — host toggle</em>
               )}

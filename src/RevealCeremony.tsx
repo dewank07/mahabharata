@@ -7,6 +7,8 @@ export type LastVote = {
   approved: boolean;
   approvers: string[];
   rejecters: string[];
+  /** Name of the player who overturned an approved party with King Returns. */
+  overturnedBy?: string | null;
 };
 
 export type LastQuest = {
@@ -14,6 +16,8 @@ export type LastQuest = {
   fails: number;
   success: boolean;
   size: number;
+  /** Cards forced public by "We Found You", already resolved to names. */
+  revealed?: Array<{ name: string; card: "success" | "fail" }> | null;
 };
 
 function shuffle<T>(arr: T[]): T[] {
@@ -46,7 +50,7 @@ export function RevealCeremony({
 
   useEffect(() => {
     if (!lastVote) return;
-    const id = `${code}:v:${lastVote.roundId}:${lastVote.approvers.length}:${lastVote.rejecters.length}`;
+    const id = `${code}:v:${lastVote.roundId}:${lastVote.approvers.length}:${lastVote.rejecters.length}:${lastVote.approved ? "y" : "n"}:${lastVote.overturnedBy ?? ""}`;
     if (id === lastVoteRef.current) return;
     lastVoteRef.current = id;
     if (sessionStorage.getItem(seenKey("vote", id))) return;
@@ -58,7 +62,7 @@ export function RevealCeremony({
 
   useEffect(() => {
     if (!lastQuest) return;
-    const id = `${code}:q:${lastQuest.questIndex}:${lastQuest.fails}:${lastQuest.success}:${lastQuest.size}`;
+    const id = `${code}:q:${lastQuest.questIndex}:${lastQuest.fails}:${lastQuest.success}:${lastQuest.size}:${(lastQuest.revealed ?? []).length}`;
     if (id === lastQuestRef.current) return;
     lastQuestRef.current = id;
     if (sessionStorage.getItem(seenKey("quest", id))) return;
@@ -135,10 +139,16 @@ function VoteUnveil({ vote, onDone }: { vote: LastVote; onDone: () => void }) {
         </div>
       </div>
       <div className={`ceremony-stamp ${vote.approved ? "is-yes" : "is-no"}`}>
-        {vote.approved ? "Party rides" : "Party turned away"}
+        {vote.overturnedBy
+          ? "The King returns — party overturned"
+          : vote.approved
+            ? "Party rides"
+            : "Party turned away"}
       </div>
       <p className="ceremony__hint">
-        Majority support is required. A tie is a rejection ({yes}–{no}).
+        {vote.overturnedBy
+          ? `The council said yes (${yes}–${no}), but ${vote.overturnedBy} played King Returns. It counts as a rejection.`
+          : `Majority support is required. A tie is a rejection (${yes}–${no}).`}
       </p>
     </div>
   );
@@ -206,6 +216,14 @@ function QuestUnveil({ quest, onDone }: { quest: LastQuest; onDone: () => void }
           </div>
         ))}
       </div>
+      {(quest.revealed ?? []).length > 0 && (
+        <p className="ceremony__hint">
+          Called out by We Found You:{" "}
+          {(quest.revealed ?? [])
+            .map((r) => `${r.name} played ${r.card === "fail" ? "Fail" : "Success"}`)
+            .join(" · ")}
+        </p>
+      )}
       <div className={`ceremony-stamp ${quest.success ? "is-yes" : "is-no"}`}>
         {quest.success
           ? `Quest holds — ${quest.fails} fail${quest.fails === 1 ? "" : "s"}`

@@ -10,7 +10,10 @@ peer-to-peer audio &amp; video.
 
 (Under the hood this is the Avalon engine; the roles map as: Krishna=Merlin,
 Arjuna=Percival, Pandava Warrior=loyal servant, Ashwatthama=Assassin,
-Shakuni=Morgana, Duryodhana=Mordred, Jayadratha=Oberon, Kaurava Warrior=minion.)
+Shakuni=Morgana, Duryodhana=Mordred, Jayadratha=Oberon, Kaurava Warrior=minion,
+Kunti=Guinevere, Abhimanyu/Uttara=Tristan/Isolde, Yuyutsu/Karna=the two
+Lancelots. Expansions are themed too: Yaksha Prashna=Lady of the Lake,
+Senapati Mudra=Excalibur, Niti Patra=plot cards.)
 
 ## Why Convex (vs. the earlier polling version)
 
@@ -50,15 +53,109 @@ Notes &amp; limits:
   need a **TURN** relay — there's a commented `iceServers` slot in
   `src/useVoice.ts` (self-hosted `coturn` is the free route).
 
+## Accounts, premium tier & admin
+
+Playing is still anonymous — a guest joins with a name and no account. Google
+sign-in exists for three things: holding a subscription seat, buying one, and
+reaching the admin console.
+
+### Tiers
+
+| | Free | Premium (7 seats) |
+|---|---|---|
+| Roles | Merlin, Assassin, Percival, Morgana, servants, minions | + Mordred, Oberon, Guinevere, the lovers, both Lancelots |
+| Expansions | — | Lady of the Lake, Excalibur, Plot cards |
+| Worlds | Medieval | + Mahabharata, Maratha, Greek, Egyptian |
+| Players | 5–10 | up to the plan's seat count |
+
+A room's tier follows **the host's** plan. Seats are keyed on email, so a member
+gets premium in any room they host or join once they sign in with that Google
+account. A premium room is capped at the plan's seat count, which is what stops
+one 7-seat plan covering a 10-player table.
+
+> The free/paid split lives in one place — `PREMIUM_OPT_KEYS` and
+> `FREE_THEME_IDS` in `convex/logic.ts`. Note this currently puts the
+> Mahabharata board (the app's own branding) behind the paywall; adding
+> `"india"` to `FREE_THEME_IDS` is the one-line change to make it free.
+
+### Purchase flow
+
+`#/upgrade` → pick monthly or yearly → scan the UPI QR → paste the transaction
+reference → an admin approves it at `#/admin`, which mints the subscription and
+its seats. Nothing talks to a payment gateway; approval is the only thing that
+grants access, and the price is always read server-side, never from the client.
+
+The buyer can rename the covered emails at any time from `#/upgrade`.
+
+### Admin console — `#/admin`
+
+Payment requests (approve with a custom duration, or reject with a note), all
+subscriptions (edit seats, +30 days, revoke, reactivate, delete), the user list
+with tier, and a direct grant form for comps or payments taken offline.
+
+## Google sign-in setup
+
+Sign-in and billing need one-time configuration. Until it is done the app still
+runs — everyone is simply on the free tier, and `#/admin` says so.
+
+1. **Generate Convex Auth keys** (writes `JWKS` + `JWT_PRIVATE_KEY` to the
+   deployment):
+
+   ```bash
+   npx @convex-dev/auth
+   ```
+
+2. **Create a Google OAuth client** at
+   <https://console.cloud.google.com/apis/credentials> → *OAuth client ID* →
+   *Web application*. Add this authorised redirect URI, using your Convex
+   **site** URL (the `.convex.site` one, not `.convex.cloud`):
+
+   ```
+   https://<your-deployment>.convex.site/api/auth/callback/google
+   ```
+
+3. **Set the deployment environment variables** (`npx convex env set NAME value`,
+   or the Convex dashboard):
+
+   | Variable | Required | Purpose |
+   |---|---|---|
+   | `AUTH_GOOGLE_ID` | yes | Google OAuth client ID |
+   | `AUTH_GOOGLE_SECRET` | yes | Google OAuth client secret |
+   | `SITE_URL` | yes | Where to return after sign-in, e.g. `http://localhost:5173` |
+   | `ADMIN_EMAILS` | no | Comma-separated admins. Defaults to `dewank.r@amberstudent.com` |
+   | `UPI_VPA` | for payments | Your UPI ID, e.g. `you@okhdfcbank` — the QR is generated from it |
+   | `UPI_PAYEE_NAME` | no | Name shown in the payer's app. Defaults to `Dharmayuddha` |
+   | `PAYMENT_QR_URL` | no | Hosted image of your own static QR; shown instead of the generated one |
+   | `PRICE_MONTHLY_INR` | no | Defaults to `299` |
+   | `PRICE_YEARLY_INR` | no | Defaults to `2499` |
+   | `SUBSCRIPTION_SEATS` | no | Defaults to `7` |
+
+   Set `SITE_URL` to your production origin when you deploy.
+
+4. Restart `npx convex dev`, then sign in from the app header.
+
+To give yourself premium without paying, sign in once, then use **Grant a plan**
+in `#/admin`.
+
 ## Project layout
 
 ```
 convex/
-  schema.ts     tables: rooms, players, votes, questCards, signals (+ indexes)
-  logic.ts      pure rules: team sizes, role dealing, secrecy knowledge
-  avalon.ts     queries + mutations (game logic, read model, A/V signaling)
+  auth.ts       Convex Auth + Google provider
+  auth.config.ts / http.ts   JWT issuer and the /api/auth/* routes
+  entitlements.ts  who is premium, who is an admin, pricing (reads ctx.auth only)
+  billing.ts    subscriptions, seats, orders, admin operations
+  schema.ts     tables: rooms, players, votes, questCards, signals,
+                plotHands, plotLog, plotMarks, secrets,
+                subscriptions, seats, orders, + Convex Auth tables
+  logic.ts      pure rules: team sizes, role dealing, secrecy knowledge,
+                card restrictions, loyalty & plot decks, setup validation
+  avalon.ts     queries + mutations (state machine, read model, A/V signaling)
+  themes.ts     five worlds: role names, lore, colours, expansion naming
 src/
-  main.tsx      ConvexProvider wiring
+  main.tsx      ConvexAuthProvider + hash routing (#/rules, #/upgrade, #/admin)
+  UpgradePage.tsx  plans, UPI QR, seat form, request history
+  AdminPage.tsx    approvals, subscriptions, users, manual grants
   useVoice.ts   WebRTC mesh hook — mic + camera, perfect-negotiation signaling
   App.tsx       Mahabharata-themed UI + video grid, driven by Convex hooks
 ```
@@ -96,8 +193,42 @@ Host `dist/` on any static host (Vercel, Netlify, Cloudflare Pages, etc.) with
 - Your player identity is stored in `localStorage`, so a refresh keeps your seat.
   If that's cleared, rejoin with the **same name** to reclaim your seat.
 - Merlin & the Assassin are always in play. The host can toggle Percival,
-  Morgana, Mordred, and Oberon in the lobby (the UI caps evil specials to the
-  available evil slots, and the server enforces a valid deck regardless).
+  Morgana, Mordred, Oberon, Guinevere, the lovers (Tristan + Isolde) and the two
+  Lancelots. The lobby shows seats used per side and refuses to start an illegal
+  roster; the server re-validates and enforces a legal deck regardless.
 - Standard rules: per-count team sizes, the two-fail 4th quest for 7+ players,
   5 rejected proposals in a row = evil, and the Assassin's hunt for Merlin if
-  Good completes three quests.
+  Good completes three quests. With the lovers in play the Assassin may instead
+  name *both* of them.
+
+## Expansions
+
+All three follow the [Avalon wiki](https://avalon-game.com/wiki/) and are
+independent host toggles. Every theme renames them (see `expansions` in
+`convex/themes.ts`); the rules underneath are identical.
+
+- **The Lancelots** — one Good, one Evil, and neither knows the other. Their
+  mission card is *forced*: Evil Lancelot must Fail, Good Lancelot must Succeed.
+  A 5-card loyalty deck (2 switches, 3 blanks) is drawn from round 3 onward; a
+  switch trades both their sides. Merlin's night vision is a **snapshot**, so a
+  switched Lancelot still reads as Evil to him.
+- **Lady of the Lake** (7+ players) — the token starts to the first leader's
+  right. After quests 2–4 the holder learns one player's *current* allegiance,
+  then passes the token to them. Past holders can never be examined.
+- **Excalibur** — the leader arms one party member (never themselves). Once all
+  mission cards are in, the holder may flip one. The table sees *who* was
+  struck; only the two of them ever learn what the card had been.
+- **Plot cards** — the leader deals 1 (5–6p) / 2 (7–8p) / 3 (9–10p) face-down
+  cards each round to other players. Nine card types across three kinds:
+  `instant` resolves on receipt, `usable` is held for a specific window, and
+  `charge` lasts all game. Who holds how many is public; which cards is not.
+  **Ambush** is the only one that leaves no public trace.
+
+Every short expansion window (plot dealing, King Returns, Excalibur, the Lady)
+auto-resolves to its do-nothing outcome on a timer, so a disconnected player can
+never stall the table.
+
+> Note: the wiki fixes the plot deck's *size* (7 cards at 5–6 players, 15 at
+> 7–10) and the full card list with copy counts, but not which subset makes up
+> the smaller deck. That composition is an engine choice, marked as such in
+> `convex/logic.ts`.

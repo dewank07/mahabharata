@@ -1,8 +1,11 @@
 import { StrictMode, useEffect, useState, type CSSProperties } from "react";
 import { createRoot } from "react-dom/client";
-import { ConvexProvider, ConvexReactClient } from "convex/react";
+import { ConvexReactClient } from "convex/react";
+import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import App from "./App";
 import RulesPage from "./RulesPage";
+import AdminPage from "./AdminPage";
+import UpgradePage from "./UpgradePage";
 import "./styles.css";
 
 const url = import.meta.env.VITE_CONVEX_URL as string;
@@ -31,6 +34,13 @@ function RoyalVoid() {
   );
 }
 
+/** Palette used by the pages that sit outside a game room. */
+const PLAIN_THEME = {
+  "--theme-ink": "#051424",
+  "--theme-gold": "#f2ca50",
+  "--theme-parch": "#d4e4fa",
+} as CSSProperties;
+
 function Router() {
   const [hash, setHash] = useState(window.location.hash);
   useEffect(() => {
@@ -39,35 +49,34 @@ function Router() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
-  const onRules = hash.startsWith("#/rules");
+  const route = hash.startsWith("#/rules")
+    ? "rules"
+    : hash.startsWith("#/admin")
+      ? "admin"
+      : hash.startsWith("#/upgrade")
+        ? "upgrade"
+        : "game";
 
   return (
     <div
       className="app-root"
-      style={
-        onRules
-          ? ({
-              "--theme-ink": "#051424",
-              "--theme-gold": "#f2ca50",
-              "--theme-parch": "#d4e4fa",
-            } as CSSProperties)
-          : undefined
-      }
+      style={route === "game" ? undefined : PLAIN_THEME}
     >
       <RoyalVoid />
-      {onRules ? (
-        <RulesPage />
-      ) : (
-        <ConvexProvider client={convex}>
-          <App />
-        </ConvexProvider>
-      )}
+      {route === "rules" && <RulesPage />}
+      {route === "admin" && <AdminPage />}
+      {route === "upgrade" && <UpgradePage />}
+      {route === "game" && <App />}
     </div>
   );
 }
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <Router />
+    {/* Auth wraps everything: the admin console and the upgrade flow both need
+        a signed-in identity, and the game reads entitlement from it. */}
+    <ConvexAuthProvider client={convex}>
+      <Router />
+    </ConvexAuthProvider>
   </StrictMode>,
 );

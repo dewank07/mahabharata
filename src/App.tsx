@@ -1,10 +1,14 @@
 import { useState, useEffect, type CSSProperties } from "react";
 import { useQuery, useMutation } from "convex/react";
+import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../convex/_generated/api";
 import { useVoice } from "./useVoice";
 import { RevealCeremony } from "./RevealCeremony";
 import { THEMES, THEME_LIST } from "../convex/themes";
-import { DISCUSS_MS, SELECT_MS } from "../convex/logic";
+import {
+  DISCUSS_MS, SELECT_MS, validateSetup,
+  PREMIUM_OPT_KEYS, PREMIUM_OPT_LABELS, isPremiumTheme,
+} from "../convex/logic";
 import {
   Crown,
   Sword,
@@ -31,6 +35,10 @@ import {
   User,
   Key,
   Timer,
+  Lock,
+  LogIn,
+  Shield,
+  BadgeCheck,
 } from "lucide-react";
 
 /* ============================ identity (per tab) ========================= */
@@ -52,22 +60,77 @@ function loadPid(): string {
 type Role =
   | "merlin"
   | "percival"
+  | "guinevere"
+  | "tristan"
+  | "isolde"
+  | "lancelot_good"
   | "servant"
   | "assassin"
   | "morgana"
   | "mordred"
   | "oberon"
+  | "lancelot_evil"
   | "minion";
 
+/** Starting allegiance. A Lancelot's CURRENT side comes from the server (`me.team`). */
 const ROLE_TEAM: Record<Role, "good" | "evil"> = {
   merlin: "good",
   percival: "good",
+  guinevere: "good",
+  tristan: "good",
+  isolde: "good",
+  lancelot_good: "good",
   servant: "good",
   assassin: "evil",
   morgana: "evil",
   mordred: "evil",
   oberon: "evil",
+  lancelot_evil: "evil",
   minion: "evil",
+};
+
+/** Which existing portrait illustration stands in for each expansion role. */
+const PORTRAIT_ALIAS: Record<string, string> = {
+  guinevere: "guinevere",
+  tristan: "lovers",
+  isolde: "lovers",
+  lancelot_good: "lancelot",
+  lancelot_evil: "lancelot",
+};
+
+const PLOT_LABEL: Record<string, string> = {
+  lead_to_victory: "Lead to Victory",
+  ambush: "Ambush",
+  king_returns: "King Returns",
+  we_found_you: "We Found You",
+  restore_honor: "Restore Your Honor",
+  show_strength: "Show Your Strength",
+  show_true_nature: "Show Your True Nature",
+  are_you_the_one: "Are You the One?",
+  charge: "Charge",
+};
+
+/** Theme-aware names for the expansions, falling back to the Avalon wording. */
+function expName(theme: any, kind: "lady" | "excalibur" | "loyalty" | "plots") {
+  const fallback = {
+    lady: "Lady of the Lake",
+    excalibur: "Excalibur",
+    loyalty: "Loyalty Cards",
+    plots: "Plot Cards",
+  }[kind];
+  return theme?.expansions?.[kind]?.name ?? fallback;
+}
+
+function plotName(theme: any, card: string) {
+  return theme?.expansions?.plots?.cards?.[card] ?? PLOT_LABEL[card] ?? card;
+}
+
+const PHASE_LABEL: Record<string, string> = {
+  plot: "Deal the Plot Cards",
+  propose: "Propose War Party",
+  vote: "Vote on War Party",
+  kingReturns: "The King Returns?",
+  quest: "Battle Quest",
 };
 
 const QUEST_SIZES: Record<number, number[]> = {
@@ -306,10 +369,13 @@ function ThemePickRow({
   selectedId,
   onSelect,
   disabled,
+  lockPremium,
 }: {
   selectedId: string;
   onSelect?: (id: string) => void;
   disabled?: boolean;
+  /** Grey out and block the paid worlds. */
+  lockPremium?: boolean;
 }) {
   const extra = THEMES[selectedId];
   const items = THEME_LIST.some((t) => t.id === selectedId)
@@ -332,13 +398,16 @@ function ThemePickRow({
     <div className="theme-pick">
       {items.map((t) => {
         const on = t.id === selectedId;
+        // Never lock the world already in play, so an existing room stays usable.
+        const locked = Boolean(lockPremium) && isPremiumTheme(t.id) && !on;
         return (
           <button
             key={t.id}
             type="button"
-            disabled={disabled}
-            title={t.tagline}
+            disabled={disabled || locked}
+            title={locked ? `${t.name} — premium world` : t.tagline}
             className={`theme-pick__card${on ? " is-on" : ""}`}
+            style={locked ? { opacity: 0.55, cursor: "not-allowed" } : undefined}
             onClick={() => onSelect?.(t.id)}
           >
             <span className="theme-pick__crest">
@@ -351,7 +420,15 @@ function ThemePickRow({
             <span className="theme-pick__copy">
               <strong>{t.name}</strong>
               <em>
-                {t.goodTeamName} vs {t.evilTeamName}
+                {locked ? (
+                  <>
+                    <Lock size={10} /> Premium world
+                  </>
+                ) : (
+                  <>
+                    {t.goodTeamName} vs {t.evilTeamName}
+                  </>
+                )}
               </em>
             </span>
           </button>
@@ -366,6 +443,77 @@ function RolePortrait({ role, good, color, dim }: { role: string; good: boolean;
   const primary = color;
   const secondary = good ? "rgba(63,220,180,0.25)" : "rgba(220,80,60,0.25)";
   const glow = good ? "rgba(63,220,180,0.6)" : "rgba(220,80,60,0.6)";
+  role = PORTRAIT_ALIAS[role] ?? role;
+
+  // Guinevere / Kunti / Isis / Hera / Jijabai — crowned watcher who marks the Lancelots
+  if (role === "guinevere") return (
+    <svg viewBox="0 0 200 260" width="100%" height="100%" fill="none">
+      <circle cx="100" cy="74" r="44" fill={secondary} />
+      {/* Tall queen's crown */}
+      <path d="M74 48 L80 26 L90 44 L100 20 L110 44 L120 26 L126 48Z" fill={primary} opacity="0.9" />
+      <circle cx="100" cy="20" r="4" fill={primary} />
+      {/* Veiled head */}
+      <ellipse cx="100" cy="76" rx="29" ry="33" fill={secondary} stroke={primary} strokeWidth="2" />
+      <path d="M71 76 Q71 116 78 140" stroke={primary} strokeWidth="2" fill="none" opacity="0.7" />
+      <path d="M129 76 Q129 116 122 140" stroke={primary} strokeWidth="2" fill="none" opacity="0.7" />
+      <ellipse cx="91" cy="76" rx="5" ry="3.5" fill={primary} opacity="0.9" />
+      <ellipse cx="109" cy="76" rx="5" ry="3.5" fill={primary} opacity="0.9" />
+      {/* Gown */}
+      <path d="M70 110 Q85 124 100 121 Q115 124 130 110 L142 228 Q100 236 58 228Z" fill={secondary} stroke={primary} strokeWidth="1.5" />
+      {/* Two marked figures at her feet — the Lancelots, one bright, one dark */}
+      <circle cx="80" cy="186" r="9" fill={primary} opacity="0.85" />
+      <circle cx="120" cy="186" r="9" fill="rgba(0,0,0,0.45)" stroke={primary} strokeWidth="1.5" />
+      <path d="M80 186 L120 186" stroke={primary} strokeWidth="1" strokeDasharray="3 3" opacity="0.7" />
+      <ellipse cx="100" cy="248" rx="50" ry="8" fill={glow} opacity="0.3" />
+    </svg>
+  );
+
+  // Tristan & Isolde / Abhimanyu & Uttara / Geb & Nut / Eros & Psyche — the lovers
+  if (role === "lovers") return (
+    <svg viewBox="0 0 200 260" width="100%" height="100%" fill="none">
+      <circle cx="100" cy="96" r="54" fill={secondary} opacity="0.5" />
+      {/* Two heads leaning together */}
+      <ellipse cx="74" cy="76" rx="24" ry="27" fill={secondary} stroke={primary} strokeWidth="2" />
+      <ellipse cx="126" cy="76" rx="24" ry="27" fill={secondary} stroke={primary} strokeWidth="2" />
+      <ellipse cx="68" cy="76" rx="4" ry="3" fill={primary} opacity="0.9" />
+      <ellipse cx="82" cy="76" rx="4" ry="3" fill={primary} opacity="0.9" />
+      <ellipse cx="118" cy="76" rx="4" ry="3" fill={primary} opacity="0.9" />
+      <ellipse cx="132" cy="76" rx="4" ry="3" fill={primary} opacity="0.9" />
+      {/* Heart between them */}
+      <path d="M100 122 C92 112 80 116 80 126 C80 136 100 148 100 148 C100 148 120 136 120 126 C120 116 108 112 100 122Z"
+        fill={primary} opacity="0.75" />
+      {/* Joined cloaks */}
+      <path d="M50 104 Q62 118 74 116 L86 132 L100 150 L114 132 L126 116 Q138 118 150 104 L156 230 Q100 240 44 230Z"
+        fill={secondary} stroke={primary} strokeWidth="1.5" />
+      {/* Clasped hands */}
+      <path d="M86 186 Q100 178 114 186" stroke={primary} strokeWidth="3" strokeLinecap="round" fill="none" />
+      <ellipse cx="100" cy="248" rx="52" ry="8" fill={glow} opacity="0.3" />
+    </svg>
+  );
+
+  // The Lancelots — one knight, a cloak split between two loyalties
+  if (role === "lancelot") return (
+    <svg viewBox="0 0 200 260" width="100%" height="100%" fill="none">
+      <circle cx="100" cy="72" r="44" fill={secondary} />
+      {/* Great helm with plume */}
+      <path d="M72 80 Q72 36 100 32 Q128 36 128 80Z" fill={secondary} stroke={primary} strokeWidth="2.5" />
+      <path d="M100 32 Q112 16 126 14" stroke={primary} strokeWidth="3" strokeLinecap="round" fill="none" />
+      <rect x="80" y="66" width="40" height="9" rx="3" fill="rgba(0,0,0,0.45)" stroke={primary} strokeWidth="1.5" />
+      <ellipse cx="90" cy="70.5" rx="4" ry="3" fill={primary} />
+      <ellipse cx="110" cy="70.5" rx="4" ry="3" fill={primary} />
+      {/* Body: left half lit, right half shadowed — loyalty in the balance */}
+      <path d="M72 106 Q86 120 100 118 L100 226 Q84 228 68 222Z" fill={secondary} stroke={primary} strokeWidth="1.5" />
+      <path d="M128 106 Q114 120 100 118 L100 226 Q116 228 132 222Z" fill="rgba(0,0,0,0.42)" stroke={primary} strokeWidth="1.5" />
+      {/* Dividing line straight down the middle */}
+      <line x1="100" y1="112" x2="100" y2="226" stroke={primary} strokeWidth="2" strokeDasharray="5 4" />
+      {/* Sword held point-down, neutral */}
+      <line x1="150" y1="86" x2="150" y2="216" stroke={primary} strokeWidth="3" strokeLinecap="round" />
+      <path d="M138 100 L162 100" stroke={primary} strokeWidth="4" strokeLinecap="round" />
+      <polygon points="144,216 156,216 150,234" fill={primary} />
+      <ellipse cx="100" cy="248" rx="50" ry="8" fill={glow} opacity="0.3" />
+    </svg>
+  );
+
 
   // Merlin / Zeus / Krishna / Ra / Shivaji — Wise, radiant divine guide with crown/halo
   if (role === "merlin") return (
@@ -602,9 +750,21 @@ export default function App() {
     morgana: true,
     mordred: false,
     oberon: false,
+    guinevere: false,
+    lovers: false,
+    lancelot: false,
+    lady: false,
+    excalibur: false,
+    plots: false,
   });
   const [localThemeId, setLocalThemeId] = useState<string>("medieval");
   const [activeTab, setActiveTab] = useState<"create" | "join">("create");
+  // Expansion interactions: which plot card is armed for targeting, who the
+  // leader is arming with Excalibur, and how the Assassin means to strike.
+  const [armedPlot, setArmedPlot] = useState<string | null>(null);
+  const [excaliburPick, setExcaliburPick] = useState<string | null>(null);
+  const [killMode, setKillMode] = useState<"merlin" | "lovers">("merlin");
+  const [loverPicks, setLoverPicks] = useState<string[]>([]);
   const [copiedLink, setCopiedLink] = useState(false);
 
   // Prefill join from ?code=ABCD invite links
@@ -635,8 +795,8 @@ export default function App() {
   );
 
   useEffect(() => {
-    if (room?.opts) setOpts(room.opts);
-  }, [room?.opts]);
+    if (room?.opts) setOpts({ ...opts, ...room.opts });
+  }, [room?.opts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Role names/lore always come from the room's themeId via the local THEMES
   // map — never from a joiner's default "india" selection on the home screen.
@@ -690,6 +850,13 @@ export default function App() {
     "--theme-scepter-bg-end": activeTheme.colors.ink,
   } as CSSProperties;
 
+  // Account + entitlement. Signing in is optional to play; it is what unlocks
+  // the paid roles and boards, and what the admin console checks.
+  const { signOut } = useAuthActions();
+  const viewer = useQuery(api.billing.viewer, {});
+  const premium = viewer?.premium === true;
+  const signedIn = viewer?.signedIn === true;
+
   const mCreate = useMutation(api.avalon.createRoom);
   const mJoin = useMutation(api.avalon.joinRoom);
   const mLeave = useMutation(api.avalon.leaveRoom);
@@ -702,6 +869,13 @@ export default function App() {
   const mCard = useMutation(api.avalon.playQuestCard);
   const mAssassinate = useMutation(api.avalon.assassinate);
   const mNewGame = useMutation(api.avalon.newGame);
+  const mExcalibur = useMutation(api.avalon.useExcalibur);
+  const mLady = useMutation(api.avalon.useLady);
+  const mDealPlot = useMutation(api.avalon.dealPlotCard);
+  const mPlayPlot = useMutation(api.avalon.playPlotCard);
+  const mPassKing = useMutation(api.avalon.passKingReturns);
+  const mDiscardPlot = useMutation(api.avalon.discardPlotCard);
+  const mSealQuest = useMutation(api.avalon.sealQuest);
 
   const wrap = (fn: () => Promise<unknown>) => async () => {
     try {
@@ -774,7 +948,9 @@ export default function App() {
         {code && room && room.phase === "reveal" && Reveal()}
         {code &&
           room &&
-          ["propose", "vote", "quest"].includes(room.phase) &&
+          ["plot", "propose", "vote", "kingReturns", "quest", "excalibur", "lady"].includes(
+            room.phase,
+          ) &&
           GameTable()}
         {code && room && room.phase === "assassin" && (
           <div style={{ maxWidth: 580, margin: "0 auto" }}>{Assassin()}</div>
@@ -787,8 +963,31 @@ export default function App() {
       {code && room && (room.lastVote || room.lastQuest) && (
         <RevealCeremony
           code={code}
-          lastVote={room.lastVote}
-          lastQuest={room.lastQuest}
+          lastVote={
+            room.lastVote
+              ? {
+                  ...room.lastVote,
+                  overturnedBy: room.lastVote.overturnedBy
+                    ? (players.find(
+                        (p) => p.playerId === room.lastVote!.overturnedBy,
+                      )?.name ?? "someone")
+                    : null,
+                }
+              : null
+          }
+          lastQuest={
+            room.lastQuest
+              ? {
+                  ...room.lastQuest,
+                  revealed: (room.lastQuest.revealed ?? []).map((r) => ({
+                    name:
+                      players.find((p) => p.playerId === r.playerId)?.name ??
+                      "someone",
+                    card: r.card,
+                  })),
+                }
+              : null
+          }
         />
       )}
 
@@ -1276,11 +1475,11 @@ export default function App() {
         {VoiceBar()}
         <div className="game-header" style={st.gameHeader}>
           <div style={st.phaseLabel}>
-            {room!.phase === "propose"
-              ? "Propose War Party"
-              : room!.phase === "vote"
-                ? "Vote on War Party"
-                : "Battle Quest"}
+            {room!.phase === "excalibur"
+              ? `${expName(activeTheme, "excalibur")} Is Drawn`
+              : room!.phase === "lady"
+                ? expName(activeTheme, "lady")
+                : (PHASE_LABEL[room!.phase] ?? "War Council")}
           </div>
           <div style={st.themeSubHeader}>
             <span
@@ -1301,6 +1500,7 @@ export default function App() {
         </div>
 
         <div style={{ gridColumn: "1 / -1" }}>
+          {ExpansionStrip()}
           {room!.lastVote && LastVoteBanner()}
           {room!.lastQuest && LastQuestBanner()}
           {VoteTrack()}
@@ -1406,39 +1606,93 @@ export default function App() {
             </div>
 
             <div style={st.consoleBody}>
+              {room!.phase === "plot" && PlotDealPanel()}
+              {room!.phase === "kingReturns" && KingReturnsPanel()}
+              {room!.phase === "excalibur" && ExcaliburPanel()}
+              {room!.phase === "lady" && LadyPanel()}
               {room!.phase === "propose" &&
                 (isLeader ? (
-                  <div style={{ textAlign: "center" }}>
-                    <p
-                      style={{
-                        margin: "0 0 12px",
-                        fontSize: 13.5,
-                        color: C.parch,
-                      }}
-                    >
-                      Tap warriors to form the party ({picked.length}/{size}).
-                      Three minutes to discuss, then one extra minute to lock it.
-                    </p>
-                    <button
-                      type="button"
-                      className="scepter-btn"
-                      style={{
-                        opacity: picked.length === size ? 1 : 0.5,
-                        pointerEvents:
-                          picked.length === size ? "auto" : "none",
-                      }}
-                      onClick={wrap(async () => {
-                        await mPropose({
-                          code: code!,
-                          playerId: pid,
-                          team: picked,
-                        });
-                        setPicked([]);
-                      })}
-                    >
-                      <Sparkles size={14} /> Put the party to the council
-                    </button>
-                  </div>
+                  (() => {
+                    const needsSword = room!.opts.excalibur === true;
+                    const swordable = picked.filter((id) => id !== pid);
+                    const swordOk =
+                      !needsSword ||
+                      (excaliburPick !== null && swordable.includes(excaliburPick));
+                    const ready = picked.length === size && swordOk;
+                    return (
+                      <div style={{ textAlign: "center" }}>
+                        <p
+                          style={{
+                            margin: "0 0 12px",
+                            fontSize: 13.5,
+                            color: C.parch,
+                          }}
+                        >
+                          Tap warriors to form the party ({picked.length}/{size}
+                          ). Three minutes to discuss, then one extra minute to
+                          lock it.
+                        </p>
+
+                        {needsSword && picked.length === size && (
+                          <div style={{ marginBottom: 12 }}>
+                            <div style={st.actionTitle}>
+                              <Sword size={14} /> Hand {expName(activeTheme, "excalibur")} to
+              one of them
+                            </div>
+                            <div style={st.seatGrid}>
+                              {swordable.map((id) => {
+                                const nm =
+                                  players.find((pl) => pl.playerId === id)
+                                    ?.name ?? id;
+                                const on = excaliburPick === id;
+                                return (
+                                  <button
+                                    key={id}
+                                    className="btn-ghost-hover hover-scale"
+                                    style={on ? { ...st.seat, ...st.seatSel } : st.seat}
+                                    onClick={() => setExcaliburPick(on ? null : id)}
+                                  >
+                                    <Sword
+                                      size={13}
+                                      color={on ? C.gold : C.parchDim}
+                                    />{" "}
+                                    {nm}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <p style={st.noteDim}>
+                              They alone may flip one mission card after the
+                              deeds are sealed. It cannot be you.
+                            </p>
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          className="scepter-btn"
+                          style={{
+                            opacity: ready ? 1 : 0.5,
+                            pointerEvents: ready ? "auto" : "none",
+                          }}
+                          onClick={wrap(async () => {
+                            await mPropose({
+                              code: code!,
+                              playerId: pid,
+                              team: picked,
+                              excaliburId: needsSword
+                                ? excaliburPick ?? undefined
+                                : undefined,
+                            });
+                            setPicked([]);
+                            setExcaliburPick(null);
+                          })}
+                        >
+                          <Sparkles size={14} /> Put the party to the council
+                        </button>
+                      </div>
+                    );
+                  })()
                 ) : (
                   <div
                     style={{
@@ -1459,6 +1713,10 @@ export default function App() {
 
               {room!.phase === "vote" && VotePanel()}
               {room!.phase === "quest" && QuestPanel(onTeam)}
+
+              {PlotHand()}
+              {SecretsPanel()}
+              {PlotLog()}
             </div>
 
             <div className="console-footer" style={st.consoleFooter}>
@@ -1487,7 +1745,7 @@ export default function App() {
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span>Rejection Count:</span>
                 <span style={{ fontWeight: 700, color: C.evil }}>
-                  {room!.rejectCount} / 5
+                  {room!.rejectCount} / {room!.maxRejects}
                 </span>
               </div>
             </div>
@@ -1783,6 +2041,7 @@ export default function App() {
           <ThemePickRow
             selectedId={localThemeId}
             onSelect={setLocalThemeId}
+            lockPremium={!premium}
           />
         </div>
       </div>
@@ -1807,9 +2066,37 @@ export default function App() {
   }
 
   function Lobby() {
-    const evilSlots = TEAM_COUNTS[Math.max(n, 5)][1] - 1;
+    const [goodTotal, evilTotal] = TEAM_COUNTS[Math.max(n, 5)];
+    // Merlin and the Assassin are fixed, so one seat per side is already spoken for.
+    const goodSlots = goodTotal - 1;
+    const evilSlots = evilTotal - 1;
+    const goodPicked =
+      (opts.percival ? 1 : 0) +
+      (opts.guinevere ? 1 : 0) +
+      (opts.lovers ? 2 : 0) +
+      (opts.lancelot ? 1 : 0);
     const evilPicked =
-      (opts.morgana ? 1 : 0) + (opts.mordred ? 1 : 0) + (opts.oberon ? 1 : 0);
+      (opts.morgana ? 1 : 0) +
+      (opts.mordred ? 1 : 0) +
+      (opts.oberon ? 1 : 0) +
+      (opts.lancelot ? 1 : 0);
+    const fitsGood = (cost: number) => goodPicked + cost <= goodSlots;
+    const fitsEvil = (cost: number) => evilPicked + cost <= evilSlots;
+    const setupErrors = validateSetup(Math.max(n, 5), opts);
+    // Paid options are locked unless the HOST's plan covers this room. The
+    // server enforces the same rule; this only keeps the UI honest.
+    const roomPremium = room!.premium.active;
+    // Locked only while OFF: an option left on by a lapsed plan must stay
+    // tappable so the host can clear it and start a free game.
+    const lockedOpt = (k: string) =>
+      !roomPremium &&
+      (PREMIUM_OPT_KEYS as string[]).includes(k) &&
+      !opts[k as keyof typeof opts];
+    const strandedOpts = roomPremium
+      ? []
+      : PREMIUM_OPT_KEYS.filter((k) => opts[k as keyof typeof opts]);
+    const canStart =
+      n >= 5 && setupErrors.length === 0 && strandedOpts.length === 0;
     const toggle = (k: keyof typeof opts) => {
       const next = { ...opts, [k]: !opts[k] };
       setOpts(next);
@@ -1828,6 +2115,13 @@ export default function App() {
       activeTheme.roles.find((r) => r.id === "mordred")?.name || "Mordred";
     const oberonName =
       activeTheme.roles.find((r) => r.id === "oberon")?.name || "Oberon";
+    const rn = (id: string, fallback: string) =>
+      activeTheme.roles.find((r) => r.id === id)?.name || fallback;
+    const guinevereName = rn("guinevere", "Guinevere");
+    const tristanName = rn("tristan", "Tristan");
+    const isoldeName = rn("isolde", "Isolde");
+    const lancelotGoodName = rn("lancelot_good", "Lancelot");
+    const lancelotEvilName = rn("lancelot_evil", "Lancelot (Fallen)");
 
     const handleThemeChange = (newThemeId: string) => {
       setLocalThemeId(newThemeId);
@@ -1871,6 +2165,7 @@ export default function App() {
             selectedId={activeTheme.id}
             onSelect={isHost ? handleThemeChange : undefined}
             disabled={!isHost}
+            lockPremium={!room!.premium.active}
           />
           {!isHost && (
             <p style={{ margin: "8px 0 0", fontSize: 12.5, color: C.parchDim }}>
@@ -1879,8 +2174,10 @@ export default function App() {
           )}
         </div>
 
+        {PremiumBar()}
+
         <h2 style={st.h2}>
-          <Users size={18} /> Warriors gathered ({n}/10)
+          <Users size={18} /> Warriors gathered ({n}/{room!.premium.seatCap})
         </h2>
         <div style={st.playerGrid}>
           {players.map((p) => (
@@ -1909,14 +2206,48 @@ export default function App() {
                 team="good"
                 desc={`Sees ${merlinName} & ${morganaName}`}
                 on={opts.percival}
+                disabled={!opts.percival && !fitsGood(1)}
                 onClick={() => toggle("percival")}
+              />
+              <RoleToggle
+                label={`${tristanName} & ${isoldeName}`}
+                team="good"
+                desc="The lovers know each other — 2 good seats"
+                on={opts.lovers}
+                disabled={!opts.lovers && !fitsGood(2)}
+                locked={lockedOpt("lovers")}
+                onClick={() => toggle("lovers")}
+              />
+              <RoleToggle
+                label={`${lancelotGoodName} / ${lancelotEvilName}`}
+                team="good"
+                desc="One good, one evil — loyalties may switch"
+                on={opts.lancelot}
+                disabled={!opts.lancelot && !(fitsGood(1) && fitsEvil(1))}
+                locked={lockedOpt("lancelot")}
+                onClick={() => toggle("lancelot")}
+              />
+              <RoleToggle
+                label={guinevereName}
+                team="good"
+                desc={
+                  opts.lancelot
+                    ? "Marks both Lancelots, not their sides"
+                    : "Needs the Lancelots in play"
+                }
+                on={opts.guinevere}
+                disabled={
+                  !opts.guinevere && (!opts.lancelot || !fitsGood(1))
+                }
+                locked={lockedOpt("guinevere")}
+                onClick={() => toggle("guinevere")}
               />
               <RoleToggle
                 label={morganaName}
                 team="evil"
                 desc={`Appears as ${merlinName}`}
                 on={opts.morgana}
-                disabled={!opts.morgana && evilPicked >= evilSlots}
+                disabled={!opts.morgana && !fitsEvil(1)}
                 onClick={() => toggle("morgana")}
               />
               <RoleToggle
@@ -1924,7 +2255,8 @@ export default function App() {
                 team="evil"
                 desc={`Veiled from ${merlinName}`}
                 on={opts.mordred}
-                disabled={!opts.mordred && evilPicked >= evilSlots}
+                disabled={!opts.mordred && !fitsEvil(1)}
+                locked={lockedOpt("mordred")}
                 onClick={() => toggle("mordred")}
               />
               <RoleToggle
@@ -1932,25 +2264,83 @@ export default function App() {
                 team="evil"
                 desc={`Lone, unknown ${activeTheme.evilTeamName}`}
                 on={opts.oberon}
-                disabled={!opts.oberon && evilPicked >= evilSlots}
+                disabled={!opts.oberon && !fitsEvil(1)}
+                locked={lockedOpt("oberon")}
                 onClick={() => toggle("oberon")}
               />
             </div>
             <p style={st.note}>
-              {merlinName} &amp; {assassinName} always take the field. Special
-              slots used: {evilPicked}/{evilSlots}.
+              {merlinName} &amp; {assassinName} always take the field. Seats
+              used: {goodPicked}/{goodSlots} good, {evilPicked}/{evilSlots}{" "}
+              evil.
             </p>
+
+            <h2 style={st.h2}>
+              <Sparkles size={18} /> Expansions
+            </h2>
+            <div className="opt-grid">
+              <RoleToggle
+                label={expName(activeTheme, "lady")}
+                team="gold"
+                desc={
+                  n < 7
+                    ? "Needs 7+ warriors"
+                    : "Inspect one loyalty after quests 2–4"
+                }
+                on={opts.lady}
+                disabled={!opts.lady && n < 7}
+                locked={lockedOpt("lady")}
+                onClick={() => toggle("lady")}
+              />
+              <RoleToggle
+                label={expName(activeTheme, "excalibur")}
+                team="gold"
+                desc="The leader arms one rider to flip a card"
+                on={opts.excalibur}
+                locked={lockedOpt("excalibur")}
+                onClick={() => toggle("excalibur")}
+              />
+              <RoleToggle
+                label={expName(activeTheme, "plots")}
+                team="gold"
+                desc={`${n <= 6 ? 1 : n <= 8 ? 2 : 3} dealt each round by the leader`}
+                on={opts.plots}
+                locked={lockedOpt("plots")}
+                onClick={() => toggle("plots")}
+              />
+            </div>
+
+            {strandedOpts.length > 0 && (
+              <div style={st.setupWarn}>
+                •{" "}
+                {strandedOpts
+                  .map((k) => PREMIUM_OPT_LABELS[k] ?? k)
+                  .join(", ")}{" "}
+                {strandedOpts.length === 1 ? "is" : "are"} premium and this room
+                has no active plan. Switch {strandedOpts.length === 1 ? "it" : "them"}{" "}
+                off to start a free game, or upgrade.
+              </div>
+            )}
+            {setupErrors.length > 0 && (
+              <div style={st.setupWarn}>
+                {setupErrors.map((e) => (
+                  <div key={e}>• {e}</div>
+                ))}
+              </div>
+            )}
             <div className="sticky-cta">
               <button
                 className="btn-gold-hover"
-                style={{ ...st.btnGold, opacity: n < 5 ? 0.5 : 1 }}
-                disabled={n < 5}
+                style={{ ...st.btnGold, opacity: canStart ? 1 : 0.5 }}
+                disabled={!canStart}
                 onClick={wrap(() => mStart({ code: code!, playerId: pid }))}
               >
                 <Swords size={16} />{" "}
                 {n < 5
                   ? `Need ${5 - n} more warrior${5 - n > 1 ? "s" : ""}`
-                  : "Cast the lots & begin the war"}
+                  : setupErrors.length > 0
+                    ? "Fix the roster to begin"
+                    : "Cast the lots & begin the war"}
               </button>
             </div>
           </>
@@ -1971,40 +2361,57 @@ export default function App() {
     desc,
     on,
     disabled,
+    locked,
     onClick,
   }: {
     label: string;
-    team: "good" | "evil";
+    team: "good" | "evil" | "gold";
     desc: string;
     on: boolean;
     disabled?: boolean;
+    /** Paid content the current room cannot use. Renders a lock and blocks the tap. */
+    locked?: boolean;
     onClick: () => void;
   }) {
+    const accent =
+      team === "good" ? C.good : team === "evil" ? C.evil : C.gold;
+    const tint =
+      team === "good"
+        ? "rgba(63,159,142,.14)"
+        : team === "evil"
+          ? "rgba(193,74,63,.14)"
+          : "rgba(226,177,60,.14)";
     return (
       <button
-        disabled={disabled}
+        disabled={disabled || locked}
         onClick={onClick}
+        title={locked ? "Premium — upgrade to unlock" : undefined}
         className="opt-btn-hover"
         style={{
           ...st.optBtn,
-          borderColor: on ? (team === "good" ? C.good : C.evil) : C.line,
-          background: on
-            ? team === "good"
-              ? "rgba(63,159,142,.14)"
-              : "rgba(193,74,63,.14)"
-            : C.panel,
-          opacity: disabled ? 0.4 : 1,
+          borderColor: on ? accent : locked ? C.goldDim : C.line,
+          background: on ? tint : C.panel,
+          opacity: disabled ? 0.4 : locked ? 0.62 : 1,
+          cursor: locked ? "not-allowed" : "pointer",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {team === "good" ? (
             <Sun size={14} color={C.good} />
-          ) : (
+          ) : team === "evil" ? (
             <Flame size={14} color={C.evil} />
+          ) : (
+            <Sparkles size={14} color={C.gold} />
           )}
           <strong style={{ color: C.parch }}>{label}</strong>
-          {on && (
-            <Check size={14} color={C.gold} style={{ marginLeft: "auto" }} />
+          {locked ? (
+            <span className="opt-lock">
+              <Lock size={11} /> Premium
+            </span>
+          ) : (
+            on && (
+              <Check size={14} color={C.gold} style={{ marginLeft: "auto" }} />
+            )
           )}
         </div>
         <span style={st.optDesc}>{desc}</span>
@@ -2061,6 +2468,7 @@ export default function App() {
             )}
           </div>
         </div>
+        {NightOrder()}
         {isHost ? (
           <button
             className="btn-gold-hover"
@@ -2078,17 +2486,67 @@ export default function App() {
     );
   }
 
+  /**
+   * The night resolves in a fixed order (evil, Guinevere, Merlin, Percival, the
+   * lovers). Showing the script — and where the player sits in it — keeps the
+   * digital reveal readable as the tabletop ceremony it stands in for.
+   */
+  function NightOrder() {
+    const mine = room!.me?.nightStep ?? 0;
+    const steps = (room!.nightOrder ?? []).filter((stp) => {
+      // Only list steps that can actually happen in this game's line-up.
+      if (stp.step === 2) return room!.opts.guinevere === true;
+      if (stp.step === 4) return room!.opts.percival === true;
+      if (stp.step === 5) return room!.opts.lovers === true;
+      return true;
+    });
+    return (
+      <div style={{ ...st.actionCard, marginTop: 16 }}>
+        <div style={st.actionTitle}>
+          <EyeOff size={14} /> How the night unfolded
+        </div>
+        {steps.map((stp) => {
+          const isMine = stp.step === mine;
+          return (
+            <div
+              key={stp.step}
+              style={{
+                ...st.logRow,
+                color: isMine ? C.gold : C.parchDim,
+                fontWeight: isMine ? 700 : 400,
+              }}
+            >
+              {stp.step}. {stp.label}
+              {isMine ? " ← your moment" : ""}
+            </div>
+          );
+        })}
+        {mine === 0 && (
+          <p style={st.noteDim}>
+            You slept through all of it — no vision is yours.
+          </p>
+        )}
+      </div>
+    );
+  }
+
   function Assassin() {
     const amAssassin = myRole === "assassin";
     const merlinName =
       activeTheme.roles.find((r) => r.id === "merlin")?.name || "Merlin";
     const assassinName =
       activeTheme.roles.find((r) => r.id === "assassin")?.name || "Assassin";
+    const tristanName =
+      activeTheme.roles.find((r) => r.id === "tristan")?.name || "Tristan";
+    const isoldeName =
+      activeTheme.roles.find((r) => r.id === "isolde")?.name || "Isolde";
+    const loversInPlay = room!.opts.lovers === true;
     return (
       <div className="panel-wrap" style={st.panelWrap}>
         {Header()}
         {VoiceBar()}
         {QuestTrackerCompact()}
+        {SecretsPanel()}
         <div
           className="role-card-cool role-card-shine glow-evil"
           style={{
@@ -2106,33 +2564,134 @@ export default function App() {
           <p style={st.roleDesc}>
             Yet {assassinName} may still turn the tide. If {merlinName} is
             named, the {activeTheme.evilTeamName} seize victory.
+            {loversInPlay
+              ? ` Or, if both ${tristanName} and ${isoldeName} are named together, their bond destroys them.`
+              : ""}
           </p>
         </div>
         {amAssassin ? (
           <div style={st.actionCard}>
-            <div style={st.actionTitle}>
-              Name the player you believe is {merlinName}
-            </div>
-            <div style={st.seatGrid}>
-              {players
-                .filter((p) => p.playerId !== pid)
-                .map((p) => (
+            {loversInPlay && (
+              <>
+                <div style={st.actionTitle}>Choose your strike</div>
+                <div className="vote-btns" style={{ ...st.voteBtns, marginBottom: 14 }}>
                   <button
-                    key={p.playerId}
-                    className="btn-ghost-hover hover-scale"
-                    style={st.seat}
-                    onClick={wrap(() =>
-                      mAssassinate({
-                        code: code!,
-                        playerId: pid,
-                        targetId: p.playerId,
-                      }),
-                    )}
+                    className="btn-ghost-hover"
+                    style={
+                      killMode === "merlin"
+                        ? { ...st.seat, ...st.seatSel }
+                        : st.seat
+                    }
+                    onClick={() => {
+                      setKillMode("merlin");
+                      setLoverPicks([]);
+                    }}
                   >
-                    <Eye size={13} color={C.gold} /> {p.name}
+                    Name {merlinName}
                   </button>
-                ))}
-            </div>
+                  <button
+                    className="btn-ghost-hover"
+                    style={
+                      killMode === "lovers"
+                        ? { ...st.seat, ...st.seatSel }
+                        : st.seat
+                    }
+                    onClick={() => {
+                      setKillMode("lovers");
+                      setLoverPicks([]);
+                    }}
+                  >
+                    Name the lovers
+                  </button>
+                </div>
+              </>
+            )}
+
+            {killMode === "lovers" && loversInPlay ? (
+              <>
+                <div style={st.actionTitle}>
+                  Name both {tristanName} and {isoldeName} ({loverPicks.length}
+                  /2)
+                </div>
+                <p style={st.noteDim}>
+                  Get both right and evil wins. Get either wrong and the
+                  {" "}{activeTheme.goodTeamName} carry the day.
+                </p>
+                <div style={st.seatGrid}>
+                  {players
+                    .filter((p) => p.playerId !== pid)
+                    .map((p) => {
+                      const on = loverPicks.includes(p.playerId);
+                      return (
+                        <button
+                          key={p.playerId}
+                          className="btn-ghost-hover hover-scale"
+                          style={on ? { ...st.seat, ...st.seatSel } : st.seat}
+                          onClick={() =>
+                            setLoverPicks((q) =>
+                              q.includes(p.playerId)
+                                ? q.filter((x) => x !== p.playerId)
+                                : q.length < 2
+                                  ? [...q, p.playerId]
+                                  : q,
+                            )
+                          }
+                        >
+                          <Eye size={13} color={on ? C.gold : C.parchDim} />{" "}
+                          {p.name}
+                        </button>
+                      );
+                    })}
+                </div>
+                <button
+                  className="btn-gold-hover"
+                  style={{
+                    ...st.btnGold,
+                    marginTop: 14,
+                    opacity: loverPicks.length === 2 ? 1 : 0.5,
+                  }}
+                  disabled={loverPicks.length !== 2}
+                  onClick={wrap(() =>
+                    mAssassinate({
+                      code: code!,
+                      playerId: pid,
+                      mode: "lovers",
+                      targetId: loverPicks[0],
+                      targetId2: loverPicks[1],
+                    }),
+                  )}
+                >
+                  <Flame size={16} /> Strike them both
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={st.actionTitle}>
+                  Name the player you believe is {merlinName}
+                </div>
+                <div style={st.seatGrid}>
+                  {players
+                    .filter((p) => p.playerId !== pid)
+                    .map((p) => (
+                      <button
+                        key={p.playerId}
+                        className="btn-ghost-hover hover-scale"
+                        style={st.seat}
+                        onClick={wrap(() =>
+                          mAssassinate({
+                            code: code!,
+                            playerId: pid,
+                            mode: "merlin",
+                            targetId: p.playerId,
+                          }),
+                        )}
+                      >
+                        <Eye size={13} color={C.gold} /> {p.name}
+                      </button>
+                    ))}
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <p style={st.waiting}>
@@ -2169,13 +2728,51 @@ export default function App() {
           <p style={st.endReason}>{room!.winReason}</p>
         </div>
         {QuestTrackerCompact()}
+        {room!.lancelot?.swapped && (
+          <p style={st.note}>
+            <RefreshCw size={13} /> The loyalty deck turned — the Lancelots
+            ended the game on the opposite sides to which they were dealt.
+          </p>
+        )}
+        {room!.lancelot && room!.lancelot.log.length > 0 && (
+          <p style={st.noteDim}>
+            {expName(activeTheme, "loyalty")} draws:{" "}
+            {room!.lancelot.log
+              .map((l) => {
+                const ex = (activeTheme as any).expansions?.loyalty;
+                const txt =
+                  l.card === "switch"
+                    ? (ex?.switchText ?? "switched")
+                    : (ex?.blankText ?? "no change");
+                return `Q${l.questIndex + 1}: ${txt}`;
+              })
+              .join(" · ")}
+          </p>
+        )}
+        {room!.lady?.last && (
+          <p style={st.noteDim}>
+            {expName(activeTheme, "lady")} last examined{" "}
+            {room!.lady.last.targetName} (asked by{" "}
+            {room!.lady.last.holderName}).
+          </p>
+        )}
+        {room!.excalibur?.last?.used && (
+          <p style={st.noteDim}>
+            {expName(activeTheme, "excalibur")} was turned on{" "}
+            {room!.excalibur.last.targetName} by{" "}
+            {room!.excalibur.last.holderName}.
+          </p>
+        )}
         <h2 style={st.h2}>
           <ScrollText size={18} /> The allegiances revealed
         </h2>
         <div style={st.revealGrid}>
           {players.map((p) => {
             const r = p.role ? getRoleMeta(p.role, activeTheme) : null;
-            const good = r?.team === "good";
+            // `p.team` is the side they FINISHED on, which differs from the
+            // role's own colour whenever a Lancelot switched.
+            const good = (p.team ?? r?.team) === "good";
+            const turned = p.team != null && r != null && p.team !== r.team;
             return (
               <div
                 key={p.playerId}
@@ -2201,8 +2798,10 @@ export default function App() {
                   }}
                 >
                   {r?.name}
+                  {turned ? " (turned)" : ""}
                 </span>
-                {room!.assassinGuess === p.playerId && (
+                {(room!.assassinGuess === p.playerId ||
+                  room!.assassinGuess2 === p.playerId) && (
                   <span style={st.daggerTag}>🏹 named</span>
                 )}
               </div>
@@ -2300,21 +2899,557 @@ export default function App() {
     );
   }
 
+  /* --------------------------- expansion panels ------------------------- */
+
+  /** Status chips: who holds what, and how the Lancelot loyalty deck is running. */
+  function ExpansionStrip() {
+    const chips: React.ReactNode[] = [];
+    const nameOf = (id?: string | null) =>
+      players.find((pl) => pl.playerId === id)?.name ?? "—";
+
+    if (room!.lady) {
+      chips.push(
+        <span key="lady" style={st.expChip}>
+          <Eye size={12} color={C.gold} /> {expName(activeTheme, "lady")}:{" "}
+          {nameOf(room!.lady.holderId)}
+        </span>,
+      );
+    }
+    if (room!.excalibur?.holderId) {
+      chips.push(
+        <span key="exc" style={st.expChip}>
+          <Sword size={12} color={C.gold} />{" "}
+          {expName(activeTheme, "excalibur")}: {nameOf(room!.excalibur.holderId)}
+        </span>,
+      );
+    }
+    if (room!.lancelot) {
+      chips.push(
+        <span key="lan" style={st.expChip}>
+          <RefreshCw size={12} color={C.gold} />{" "}
+          {expName(activeTheme, "loyalty")}:{" "}
+          {room!.lancelot.swapped ? "TURNED" : "as dealt"} ·{" "}
+          {room!.lancelot.remaining} card
+          {room!.lancelot.remaining === 1 ? "" : "s"} left
+        </span>,
+      );
+    }
+    if (room!.plots) {
+      const mine = room!.plots.myHand.length;
+      chips.push(
+        <span key="plot" style={st.expChip}>
+          <ScrollText size={12} color={C.gold} />{" "}
+          {expName(activeTheme, "plots")}: {mine} in hand ·{" "}
+          {room!.plots.deckRemaining} in deck
+        </span>,
+      );
+    }
+    if (chips.length === 0) return null;
+    return <div style={st.expStrip}>{chips}</div>;
+  }
+
+  /** Everything only I am allowed to know: Ambush peeks, Lady results, loyalty shown to me. */
+  function SecretsPanel() {
+    const secrets = room!.mySecrets ?? [];
+    if (secrets.length === 0) return null;
+    return (
+      <div style={{ ...st.actionCard, marginTop: 12 }}>
+        <div style={st.actionTitle}>
+          <EyeOff size={14} /> What you alone know
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {secrets.map((sec, i) => (
+            <div key={i} style={st.secretRow}>
+              <Eye size={13} color={C.gold} />
+              {sec.kind === "ambush" ? (
+                <span>
+                  Quest {sec.questIndex + 1} — <strong>{sec.subjectName}</strong>{" "}
+                  played{" "}
+                  <strong
+                    style={{ color: sec.card === "fail" ? C.evil : C.good }}
+                  >
+                    {sec.card === "fail" ? "Fail" : "Success"}
+                  </strong>
+                </span>
+              ) : (
+                <span>
+                  <strong>{sec.subjectName}</strong> is sworn to{" "}
+                  <strong
+                    style={{ color: sec.team === "evil" ? C.evil : C.good }}
+                  >
+                    {sec.team === "evil"
+                      ? activeTheme.evilTeamName
+                      : activeTheme.goodTeamName}
+                  </strong>
+                  {sec.kind === "lady" ? " (Lady of the Lake)" : ""}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  /** Public record of plot cards played. Ambushes are deliberately absent. */
+  function PlotLog() {
+    const log = room!.plots?.log ?? [];
+    if (log.length === 0) return null;
+    return (
+      <div style={{ ...st.actionCard, marginTop: 12 }}>
+        <div style={st.actionTitle}>
+          <ScrollText size={14} /> Plots played
+        </div>
+        {log.map((l, i) => (
+          <div key={i} style={st.logRow}>
+            Q{l.questIndex + 1} · <strong>{l.byName}</strong>{" "}
+            played{" "}
+            <span style={{ color: C.gold }}>
+              {plotName(activeTheme, l.card)}
+            </span>
+            {l.targetName ? ` on ${l.targetName}` : ""}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  /** Which players a given plot card may legally be aimed at. */
+  function plotTargets(card: string) {
+    const others = players.filter((pl) => pl.playerId !== pid);
+    const onParty = players.filter((pl) => room!.proposedTeam.includes(pl.playerId));
+    switch (card) {
+      case "ambush":
+        return onParty.filter((pl) => pl.playerId !== pid);
+      case "we_found_you":
+        return onParty;
+      case "restore_honor":
+        return others.filter(
+          (pl) => (room!.plots?.handCounts?.[pl.playerId] ?? 0) > 0,
+        );
+      case "show_true_nature":
+        return others;
+      case "are_you_the_one": {
+        const mySeat = room!.me?.seat ?? 0;
+        const left = players[(mySeat - 1 + n) % n];
+        const right = players[(mySeat + 1) % n];
+        return [left, right].filter(
+          (pl) => pl && pl.playerId !== pid,
+        );
+      }
+      default:
+        return [];
+    }
+  }
+
+  /** My plot-card hand, with the play/target flow. */
+  function PlotHand() {
+    const hand = room!.plots?.myHand ?? [];
+    if (hand.length === 0) return null;
+    const phase = room!.phase;
+
+    return (
+      <div style={{ ...st.actionCard, marginTop: 12 }}>
+        <div style={st.actionTitle}>
+          <ScrollText size={14} /> Your {expName(activeTheme, "plots")}
+        </div>
+        <div style={st.plotHandWrap}>
+          {hand.map((h) => {
+            const playable =
+              h.def.kind === "instant" ? phase === "plot" : phase === h.def.window;
+            const armed = armedPlot === h.card;
+            const targets = playable ? plotTargets(h.card) : [];
+            const blocked =
+              playable && h.def.needsTarget && targets.length === 0;
+            return (
+              <div key={h.id} style={{ ...st.plotCard, opacity: playable ? 1 : 0.55 }}>
+                <div style={st.plotCardName}>{plotName(activeTheme, h.card)}</div>
+                <div style={st.plotCardDesc}>{h.def.desc}</div>
+                {!playable && (
+                  <div style={{ ...st.plotCardDesc, color: C.parchDim }}>
+                    Not playable in this phase.
+                  </div>
+                )}
+                {blocked && (
+                  <>
+                    <div style={{ ...st.plotCardDesc, color: C.evil }}>
+                      No legal target right now.
+                    </div>
+                    {h.def.kind === "instant" && (
+                      <button
+                        className="btn-ghost-hover"
+                        style={{ ...st.seat, marginTop: 6 }}
+                        onClick={wrap(() =>
+                          mDiscardPlot({
+                            code: code!,
+                            playerId: pid,
+                            card: h.card,
+                          }),
+                        )}
+                      >
+                        <X size={13} /> Set it aside
+                      </button>
+                    )}
+                  </>
+                )}
+                {playable && !blocked && !h.def.needsTarget && (
+                  <button
+                    className="btn-ghost-hover"
+                    style={{ ...st.seat, marginTop: 6 }}
+                    onClick={wrap(async () => {
+                      await mPlayPlot({
+                        code: code!,
+                        playerId: pid,
+                        card: h.card as any,
+                      });
+                      setArmedPlot(null);
+                    })}
+                  >
+                    <Sparkles size={13} color={C.gold} /> Play
+                  </button>
+                )}
+                {playable && !blocked && h.def.needsTarget && (
+                  <>
+                    <button
+                      className="btn-ghost-hover"
+                      style={{ ...st.seat, marginTop: 6 }}
+                      onClick={() => setArmedPlot(armed ? null : h.card)}
+                    >
+                      <Sparkles size={13} color={C.gold} />{" "}
+                      {armed ? "Cancel" : "Play — choose a target"}
+                    </button>
+                    {armed && (
+                      <div style={{ ...st.seatGrid, marginTop: 8 }}>
+                        {targets.map((t) => (
+                          <button
+                            key={t.playerId}
+                            className="btn-ghost-hover hover-scale"
+                            style={st.seat}
+                            onClick={wrap(async () => {
+                              await mPlayPlot({
+                                code: code!,
+                                playerId: pid,
+                                card: h.card as any,
+                                targetId: t.playerId,
+                              });
+                              setArmedPlot(null);
+                            })}
+                          >
+                            {t.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  /** Leader hands out this round's plot cards, face down. */
+  function PlotDealPanel() {
+    const left = room!.plots?.toDeal ?? 0;
+    const pendingInstant = (room!.plots?.myHand ?? []).some(
+      (h) => h.def.kind === "instant",
+    );
+    if (!isLeader) {
+      return (
+        <div style={st.actionCard}>
+          <div style={st.actionTitle}>
+            {expName(activeTheme, "plots")} are being dealt
+          </div>
+          <div style={st.waitCard}>
+            <Loader2 size={16} style={{ ...st.spin, color: C.gold }} />{" "}
+            {leader?.name} is dealing {left} plot card{left === 1 ? "" : "s"}…
+          </div>
+          {pendingInstant && (
+            <p style={st.note}>
+              You hold a card that resolves now — play it below.
+            </p>
+          )}
+        </div>
+      );
+    }
+    return (
+      <div style={st.actionCard}>
+        <div style={st.actionTitle}>
+          Deal {left} plot card{left === 1 ? "" : "s"}
+        </div>
+        {left > 0 ? (
+          <>
+            <p style={st.note}>
+              Cards go out face down — you do not see what you are giving. You
+              cannot deal to yourself.
+            </p>
+            <div style={st.seatGrid}>
+              {players
+                .filter((pl) => pl.playerId !== pid)
+                .map((pl) => (
+                  <button
+                    key={pl.playerId}
+                    className="btn-ghost-hover hover-scale"
+                    style={st.seat}
+                    onClick={wrap(() =>
+                      mDealPlot({
+                        code: code!,
+                        playerId: pid,
+                        toId: pl.playerId,
+                      }),
+                    )}
+                  >
+                    <ScrollText size={13} color={C.gold} /> {pl.name}
+                    {(room!.plots?.handCounts?.[pl.playerId] ?? 0) > 0
+                      ? ` (${room!.plots!.handCounts[pl.playerId]})`
+                      : ""}
+                  </button>
+                ))}
+            </div>
+          </>
+        ) : (
+          <div style={st.waitCard}>
+            <Loader2 size={16} style={{ ...st.spin, color: C.gold }} /> Waiting
+            on instant plots to resolve…
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /** A window for King Returns holders to overturn the approved party. */
+  function KingReturnsPanel() {
+    const holders = room!.plots?.kingReturnsHolders ?? [];
+    const passed = room!.plots?.kingReturnsPassed ?? [];
+    const amHolder = holders.includes(pid);
+    const iPassed = passed.includes(pid);
+    return (
+      <div style={st.actionCard}>
+        <div style={st.actionTitle}>The party is approved — for now</div>
+        {amHolder && !iPassed ? (
+          <>
+            <p style={st.note}>
+              You hold <strong>{plotName(activeTheme, "king_returns")}</strong>.
+              Playing it overturns the
+              approved party and counts as a rejected vote.
+            </p>
+            <div className="vote-btns" style={st.voteBtns}>
+              <button
+                className="btn-reject-hover"
+                style={st.reject}
+                onClick={wrap(() =>
+                  mPlayPlot({
+                    code: code!,
+                    playerId: pid,
+                    card: "king_returns",
+                  }),
+                )}
+              >
+                <Crown size={18} /> Overturn it
+              </button>
+              <button
+                className="btn-approve-hover"
+                style={st.approve}
+                onClick={wrap(() => mPassKing({ code: code!, playerId: pid }))}
+              >
+                <Check size={18} /> Let them ride
+              </button>
+            </div>
+          </>
+        ) : (
+          <div style={st.waitCard}>
+            <Loader2 size={16} style={{ ...st.spin, color: C.gold }} /> Holding
+            for the King's word… ({passed.length}/{holders.length} stood down)
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /** The Excalibur holder may flip one companion's mission card. */
+  function ExcaliburPanel() {
+    const holderId = room!.excalibur?.holderId ?? null;
+    const armed =
+      room!.opts.excalibur === true &&
+      holderId != null &&
+      room!.proposedTeam.includes(holderId);
+    const amHolder = armed && holderId === pid;
+
+    // With no sword in play the window exists purely so an Ambush can land, so
+    // anyone may close it once they are done peeking.
+    if (!armed) {
+      return (
+        <div style={st.actionCard}>
+          <div style={st.actionTitle}>The deeds are sealed</div>
+          <p style={st.note}>
+            Every card is in but not yet turned over. Play an Ambush now if you
+            hold one.
+          </p>
+          <button
+            className="btn-gold-hover"
+            style={{ ...st.btnGold, marginTop: 8 }}
+            onClick={wrap(() => mSealQuest({ code: code!, playerId: pid }))}
+          >
+            <Sparkles size={16} /> Turn the cards over
+          </button>
+        </div>
+      );
+    }
+    if (!amHolder) {
+      const nm = players.find((pl) => pl.playerId === holderId)?.name ?? "someone";
+      return (
+        <div style={st.actionCard}>
+          <div style={st.actionTitle}>
+            {expName(activeTheme, "excalibur")} is drawn
+          </div>
+          <div style={st.waitCard}>
+            <Loader2 size={16} style={{ ...st.spin, color: C.gold }} /> {nm}{" "}
+            weighs the blade…
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div style={st.actionCard}>
+        <div style={st.actionTitle}>
+          {expName(activeTheme, "excalibur")} is yours to wield
+        </div>
+        <p style={st.note}>
+          You may turn one companion's mission card to its opposite. Everyone
+          will see <em>who</em> you struck — only the two of you will know what
+          the card was.
+        </p>
+        <div style={st.seatGrid}>
+          {players
+            .filter(
+              (pl) =>
+                room!.proposedTeam.includes(pl.playerId) && pl.playerId !== pid,
+            )
+            .map((pl) => (
+              <button
+                key={pl.playerId}
+                className="btn-ghost-hover hover-scale"
+                style={st.seat}
+                onClick={wrap(() =>
+                  mExcalibur({
+                    code: code!,
+                    playerId: pid,
+                    targetId: pl.playerId,
+                  }),
+                )}
+              >
+                <Sword size={13} color={C.gold} /> Flip {pl.name}
+              </button>
+            ))}
+        </div>
+        <button
+          className="btn-ghost-hover"
+          style={{ ...st.seat, marginTop: 10, width: "100%" }}
+          onClick={wrap(() => mExcalibur({ code: code!, playerId: pid }))}
+        >
+          <X size={13} /> Sheathe it — change nothing
+        </button>
+      </div>
+    );
+  }
+
+  /** The Lady of the Lake reveals one player's true allegiance to her holder. */
+  function LadyPanel() {
+    const holderId = room!.lady?.holderId ?? null;
+    const history = room!.lady?.history ?? [];
+    const amHolder = holderId === pid;
+    if (!amHolder) {
+      const nm = players.find((pl) => pl.playerId === holderId)?.name ?? "someone";
+      return (
+        <div style={st.actionCard}>
+          <div style={st.actionTitle}>{expName(activeTheme, "lady")}</div>
+          <div style={st.waitCard}>
+            <Loader2 size={16} style={{ ...st.spin, color: C.gold }} /> {nm} is
+            looking into the water…
+          </div>
+        </div>
+      );
+    }
+    const eligible = players.filter(
+      (pl) => pl.playerId !== pid && !history.includes(pl.playerId),
+    );
+    return (
+      <div style={st.actionCard}>
+        <div style={st.actionTitle}>Look into the water</div>
+        <p style={st.note}>
+          Choose one warrior: you alone learn their true allegiance.{" "}
+          {expName(activeTheme, "lady")} then passes to them — and anyone who
+          has held it can never be examined again.
+        </p>
+        <div style={st.seatGrid}>
+          {eligible.map((pl) => (
+            <button
+              key={pl.playerId}
+              className="btn-ghost-hover hover-scale"
+              style={st.seat}
+              onClick={wrap(() =>
+                mLady({ code: code!, playerId: pid, targetId: pl.playerId }),
+              )}
+            >
+              <Eye size={13} color={C.gold} /> {pl.name}
+            </button>
+          ))}
+        </div>
+        {eligible.length === 0 && (
+          <p style={st.noteDim}>
+            Everyone left has already held it — {expName(activeTheme, "lady")}{" "}
+            falls silent.
+          </p>
+        )}
+      </div>
+    );
+  }
+
   function VotePanel() {
     const voted = room!.voteProgress.iVoted;
-    const team = room!.proposedTeam.map(
-      (id) => players.find((p) => p.playerId === id)?.name,
-    );
+    const swordId = room!.excalibur?.holderId ?? null;
+    const calledOut = room!.plots?.calledOutIds ?? [];
+    const open = room!.voteProgress.openVotes ?? [];
+    const nameOf = (id: string) =>
+      players.find((p) => p.playerId === id)?.name ?? id;
     return (
       <div style={st.actionCard}>
         <div style={st.actionTitle}>Vote on the war party</div>
         <div style={st.teamPills}>
-          {team.map((t) => (
-            <span key={t} style={st.teamPill}>
-              <Sword size={12} color={C.gold} /> {t}
+          {room!.proposedTeam.map((id) => (
+            <span key={id} style={st.teamPill}>
+              <Sword size={12} color={C.gold} /> {nameOf(id)}
+              {swordId === id ? " ⚔" : ""}
+              {calledOut.includes(id) ? " 👁" : ""}
             </span>
           ))}
         </div>
+        {swordId && (
+          <p style={st.noteDim}>
+            ⚔ {nameOf(swordId)} carries Excalibur and may flip one card.
+          </p>
+        )}
+        {calledOut.length > 0 && (
+          <p style={st.noteDim}>
+            👁 called out by We Found You — their mission card will be shown.
+          </p>
+        )}
+        {open.length > 0 && (
+          <div style={{ ...st.expStrip, marginTop: 4 }}>
+            {open.map((o) => (
+              <span key={o.playerId} style={st.expChip}>
+                {o.choice === "approve" ? (
+                  <Check size={12} color={C.good} />
+                ) : (
+                  <X size={12} color={C.evil} />
+                )}
+                {nameOf(o.playerId)} (Charge)
+              </span>
+            ))}
+          </div>
+        )}
         {!voted ? (
           <div className="vote-btns" style={st.voteBtns}>
             <button
@@ -2348,10 +3483,21 @@ export default function App() {
 
   function QuestPanel(onTeam: boolean) {
     const played = room!.questProgress.iSubmitted;
-    const isEvil = myRole ? ROLE_TEAM[myRole] === "evil" : false;
+    // The server is the authority on what this role may play: the loyal are
+    // locked to Success, and a Lancelot is locked to their current allegiance.
+    const allowed = room!.me?.allowedCards ?? ["success"];
+    const canSucceed = allowed.includes("success");
+    const canFail = allowed.includes("fail");
+    const forced = allowed.length === 1;
+    const needed = room!.failsNeeded;
     return (
       <div style={st.actionCard}>
         <div style={st.actionTitle}>Quest {room!.questIndex + 1} rages</div>
+        {needed > 1 && (
+          <p style={st.noteDim}>
+            This mission needs <strong>{needed} Fail cards</strong> to fall.
+          </p>
+        )}
         {onTeam ? (
           !played ? (
             <>
@@ -2361,31 +3507,38 @@ export default function App() {
               <div className="vote-btns" style={st.voteBtns}>
                 <button
                   className="btn-approve-hover"
-                  style={st.approve}
+                  style={{
+                    ...st.approve,
+                    opacity: canSucceed ? 1 : 0.4,
+                    cursor: canSucceed ? "pointer" : "not-allowed",
+                  }}
+                  disabled={!canSucceed}
                   onClick={wrap(() =>
                     mCard({ code: code!, playerId: pid, card: "success" }),
                   )}
                 >
-                  <Check size={18} /> Success
+                  <Check size={18} /> Success {canSucceed ? "" : "🔒"}
                 </button>
                 <button
                   className="btn-reject-hover"
                   style={{
                     ...st.reject,
-                    opacity: isEvil ? 1 : 0.4,
-                    cursor: isEvil ? "pointer" : "not-allowed",
+                    opacity: canFail ? 1 : 0.4,
+                    cursor: canFail ? "pointer" : "not-allowed",
                   }}
-                  disabled={!isEvil}
+                  disabled={!canFail}
                   onClick={wrap(() =>
                     mCard({ code: code!, playerId: pid, card: "fail" }),
                   )}
                 >
-                  <X size={18} /> Fail {isEvil ? "" : "🔒"}
+                  <X size={18} /> Fail {canFail ? "" : "🔒"}
                 </button>
               </div>
-              {!isEvil && (
+              {forced && (
                 <p style={st.noteDim}>
-                  Those sworn to Good must fight for Success.
+                  {canFail
+                    ? "Your oath binds you — you can only sabotage this quest."
+                    : "Those sworn to Good must fight for Success."}
                 </p>
               )}
             </>
@@ -2412,8 +3565,9 @@ export default function App() {
         {QUEST_SIZES[Math.max(n, 5)].map((sz, i) => {
           const res = room!.questResults[i];
           const cur =
-            ["propose", "vote", "quest"].includes(room!.phase) &&
-            i === room!.questIndex;
+            ["plot", "propose", "vote", "kingReturns", "quest", "excalibur", "lady"].includes(
+              room!.phase,
+            ) && i === room!.questIndex;
           const dbl = i === DOUBLE_FAIL_QUEST && n >= 7;
           return (
             <div
@@ -2564,7 +3718,71 @@ export default function App() {
           <CrestIcon icon={activeTheme.crestIcon} size={20} color={C.gold} />
           <span style={st.headerTitle}>{activeTheme.name}</span>
         </div>
-        {me && <span style={st.headerName}>{me.name}</span>}
+        <div style={st.headerR}>
+          {premium && (
+            <span style={st.headerPremium} title="Premium active">
+              <BadgeCheck size={13} color={C.gold} /> Premium
+            </span>
+          )}
+          {viewer?.isAdmin && (
+            <a href="#/admin" style={st.headerLink} title="Admin console">
+              <Shield size={13} /> Admin
+            </a>
+          )}
+          {signedIn ? (
+            !premium && (
+              <a href="#/upgrade" style={st.headerLink}>
+                <Crown size={13} /> Upgrade
+              </a>
+            )
+          ) : (
+            <a href="#/upgrade" style={st.headerLink}>
+              <LogIn size={13} /> Sign in
+            </a>
+          )}
+          {me && <span style={st.headerName}>{me.name}</span>}
+        </div>
+      </div>
+    );
+  }
+
+  /**
+   * Banner above the lobby options explaining the room's premium standing.
+   * Only the host's plan matters, so guests are told whose it is.
+   */
+  function PremiumBar() {
+    const p = room!.premium;
+    if (p.active) {
+      return (
+        <div className="premium-bar">
+          <BadgeCheck size={15} color={C.gold} />
+          <span>
+            Premium unlocked{p.ownerEmail ? ` by ${p.ownerEmail}` : ""} — every
+            role and expansion is available. This plan seats {p.seatCap}.
+          </span>
+        </div>
+      );
+    }
+    return (
+      <div className="premium-bar">
+        <Lock size={15} color={C.gold} />
+        <span>
+          {isHost
+            ? signedIn
+              ? "Free tier — Mordred, Oberon, Guinevere, the lovers, the Lancelots, the expansions and the themed worlds are locked."
+              : "Free tier. Sign in and upgrade to unlock the premium roles, expansions and worlds."
+            : "Free tier — the host needs a plan to unlock the premium content."}
+        </span>
+        {isHost &&
+          (signedIn ? (
+            <a href="#/upgrade" className="premium-bar__cta">
+              <Crown size={13} /> Upgrade
+            </a>
+          ) : (
+            <a href="#/upgrade" className="premium-bar__cta">
+              <LogIn size={13} /> Sign in
+            </a>
+          ))}
       </div>
     );
   }
@@ -2846,6 +4064,52 @@ const st: Record<string, CSSProperties> = {
     fontWeight: 600,
   },
   headerName: { color: C.parchDim, fontSize: 13.5, fontWeight: 500 },
+  headerR: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+  },
+  headerPremium: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    fontSize: 10.5,
+    fontWeight: 800,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: C.gold,
+    border: `1px solid color-mix(in srgb, ${C.gold} 45%, transparent)`,
+    background: `color-mix(in srgb, ${C.gold} 12%, transparent)`,
+    borderRadius: 999,
+    padding: "3px 9px",
+  },
+  headerLink: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    fontSize: 12,
+    fontWeight: 700,
+    color: C.parch,
+    textDecoration: "none",
+    border: `1px solid color-mix(in srgb, ${C.line} 70%, transparent)`,
+    borderRadius: 999,
+    padding: "4px 11px",
+  },
+  headerLinkBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    fontSize: 12,
+    fontWeight: 700,
+    color: C.parch,
+    background: "transparent",
+    cursor: "pointer",
+    border: `1px solid color-mix(in srgb, ${C.line} 70%, transparent)`,
+    borderRadius: 999,
+    padding: "4px 11px",
+  },
 
   /* Lobby */
   codeBanner: {
@@ -2967,6 +4231,76 @@ const st: Record<string, CSSProperties> = {
     padding: 24,
     boxShadow: "0 15px 35px rgba(0,0,0,.5)",
     backdropFilter: "blur(8px)",
+  },
+  /* ------------------------- expansions & plot cards ------------------- */
+  setupWarn: {
+    border: `1.5px solid ${C.evil}`,
+    background: "rgba(193,74,63,.10)",
+    borderRadius: 12,
+    padding: "10px 14px",
+    margin: "12px 0 4px",
+    fontSize: 12.5,
+    lineHeight: 1.7,
+    color: C.parch,
+  },
+  expStrip: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+    margin: "0 0 12px",
+  },
+  expChip: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    border: `1px solid color-mix(in srgb, ${C.gold} 45%, transparent)`,
+    background: "rgba(226,177,60,.10)",
+    borderRadius: 999,
+    padding: "5px 11px",
+    fontSize: 11.5,
+    color: C.parch,
+    fontWeight: 600,
+  },
+  plotHandWrap: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    marginTop: 12,
+  },
+  plotCard: {
+    textAlign: "left",
+    border: `1.5px solid color-mix(in srgb, ${C.gold} 55%, transparent)`,
+    background: "linear-gradient(150deg, rgba(226,177,60,.12), rgba(0,0,0,.25))",
+    borderRadius: 12,
+    padding: "10px 12px",
+    color: C.parch,
+    cursor: "pointer",
+    display: "flex",
+    flexDirection: "column",
+    gap: 3,
+  },
+  plotCardName: {
+    fontFamily: serifDisplay,
+    fontSize: 14.5,
+    fontWeight: 700,
+    color: C.gold,
+  },
+  plotCardDesc: { fontSize: 11.5, lineHeight: 1.5, color: C.parchDim },
+  secretRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    border: `1px solid color-mix(in srgb, ${C.gold} 35%, transparent)`,
+    background: "rgba(0,0,0,.25)",
+    borderRadius: 10,
+    padding: "8px 11px",
+    fontSize: 12.5,
+    color: C.parch,
+  },
+  logRow: {
+    fontSize: 11.5,
+    color: C.parchDim,
+    lineHeight: 1.7,
   },
   roleTeam: {
     fontSize: 10.5,

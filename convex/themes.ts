@@ -1,5 +1,10 @@
 export interface ThemeRoleConfig {
-  id: string; // e.g. "merlin", "percival", "servant", "assassin", "morgana", "mordred", "oberon", "minion"
+  /**
+   * Engine role id. Good: "merlin", "percival", "guinevere", "tristan", "isolde",
+   * "lancelot_good", "servant". Evil: "assassin", "morgana", "mordred", "oberon",
+   * "lancelot_evil", "minion".
+   */
+  id: string;
   name: string;
   team: "good" | "evil";
   desc: string;
@@ -13,6 +18,20 @@ export interface ThemeRoleConfig {
     };
     targetRole?: string;
   }>;
+}
+
+/**
+ * Per-world names for the expansions. Anything omitted falls back to the
+ * original Avalon wording, which is what the medieval theme wants anyway.
+ */
+export interface ThemeExpansions {
+  lady?: { name: string; verb?: string };
+  excalibur?: { name: string };
+  loyalty?: { name: string; switchText?: string; blankText?: string };
+  plots?: {
+    name: string;
+    cards?: Record<string, string>;
+  };
 }
 
 export interface ThemeConfig {
@@ -39,11 +58,15 @@ export interface ThemeConfig {
     evilDk: string;
   };
   roles: ThemeRoleConfig[];
+  expansions?: ThemeExpansions;
   winReasons: {
     fiveRejections: string;
     threeFails: string;
     assassinHit: string;
     assassinMiss: string;
+    /** Only needed when the lovers (Tristan/Isolde) can be in play. */
+    loversHit?: string;
+    loversMiss?: string;
   };
 }
 
@@ -196,7 +219,95 @@ export const THEMES: Record<string, ThemeConfig> = {
           },
         ],
       },
+      {
+        id: "guinevere",
+        name: "Kunti",
+        team: "good",
+        desc:
+          "Mother of the Pandavas. You alone know the two whose birth and banner disagree \u2014 Yuyutsu and Karna \u2014 yet not which of them now fights for dharma.",
+        knowledgeLabel:
+          "The two of divided birth (you cannot tell who serves dharma now):",
+        abilities: [
+          {
+            type: "reveal",
+            target: { roles: ["lancelot_good", "lancelot_evil"] },
+          },
+        ],
+      },
+      {
+        id: "tristan",
+        name: "Abhimanyu",
+        team: "good",
+        desc:
+          "Son of Arjuna, fearless in the chakravyuha. You and Uttara know each other\u0027s hearts \u2014 but if Ashwatthama names you both, your love destroys you.",
+        knowledgeLabel:
+          "Your beloved, Uttara:",
+        abilities: [
+          {
+            type: "reveal",
+            target: { roles: ["isolde"] },
+          },
+        ],
+      },
+      {
+        id: "isolde",
+        name: "Uttara",
+        team: "good",
+        desc:
+          "Princess of Matsya. You and Abhimanyu know each other\u0027s hearts \u2014 but if Ashwatthama names you both, your love destroys you.",
+        knowledgeLabel:
+          "Your beloved, Abhimanyu:",
+        abilities: [
+          {
+            type: "reveal",
+            target: { roles: ["tristan"] },
+          },
+        ],
+      },
+      {
+        id: "lancelot_good",
+        name: "Yuyutsu",
+        team: "good",
+        desc:
+          "Kaurava by birth, Pandava by choice. You may only aid the battles you ride on \u2014 never sabotage them. Yet a turn of fate may drag you back to adharma.",
+        knowledgeLabel:
+          "You fight for dharma \u2014 for now. You know no one; Kunti sees you.",
+        abilities: [],
+      },
+      {
+        id: "lancelot_evil",
+        name: "Karna",
+        team: "evil",
+        desc:
+          "Pandava by blood, Kaurava by oath. You must sabotage every battle you ride on \u2014 you cannot choose otherwise. Yet a turn of fate may return you to dharma.",
+        knowledgeLabel:
+          "You fight for adharma \u2014 for now. You know no other Kaurava, and they do not know you \u2014 but Krishna and Kunti see you.",
+        abilities: [],
+      },
     ],
+    expansions: {
+      lady: { name: "Yaksha Prashna", verb: "question" },
+      excalibur: { name: "Senapati Mudra" },
+      loyalty: {
+        name: "Paksha Parivartan",
+        switchText: "The banner turns",
+        blankText: "The vow holds",
+      },
+      plots: {
+        name: "Niti Patra",
+        cards: {
+          lead_to_victory: "Senapatitva",
+          ambush: "Guptachar",
+          king_returns: "Rajajna",
+          we_found_you: "Satya Pariksha",
+          restore_honor: "Dyuta",
+          show_strength: "Senapati Pratigya",
+          show_true_nature: "Vishwaroopa Darshan",
+          are_you_the_one: "Prashna",
+          charge: "Shankhanaad",
+        },
+      },
+    },
     winReasons: {
       fiveRejections:
         "Five war parties rejected in a row — the council collapses into chaos. Adharma triumphs.",
@@ -206,6 +317,10 @@ export const THEMES: Record<string, ThemeConfig> = {
         "Ashwatthama's strike finds Krishna! Against all dharma, adharma seizes victory.",
       assassinMiss:
         "Ashwatthama strikes the wrong warrior — Krishna lives. Dharma prevails upon Kurukshetra!",
+      loversHit:
+        "Ashwatthama names Abhimanyu and Uttara \u2014 the lovers fall together. Adharma triumphs.",
+      loversMiss:
+        "Ashwatthama names the wrong pair \u2014 the lovers live. Dharma prevails upon Kurukshetra!",
     },
   },
   medieval: {
@@ -316,7 +431,79 @@ export const THEMES: Record<string, ThemeConfig> = {
           },
         ],
       },
+      {
+        id: "guinevere",
+        name: "Guinevere",
+        team: "good",
+        desc:
+          "The Queen of Camelot. You alone know which two knights are the Lancelots \u2014 but not which of them is loyal and which has fallen.",
+        knowledgeLabel:
+          "The two Lancelots (you cannot tell which is loyal):",
+        abilities: [
+          {
+            type: "reveal",
+            target: { roles: ["lancelot_good", "lancelot_evil"] },
+          },
+        ],
+      },
+      {
+        id: "tristan",
+        name: "Tristan",
+        team: "good",
+        desc:
+          "The knight of Lyonesse. You and Isolde know one another \u2014 but if the Assassin names you both, your love undoes you.",
+        knowledgeLabel:
+          "Your beloved, Isolde:",
+        abilities: [
+          {
+            type: "reveal",
+            target: { roles: ["isolde"] },
+          },
+        ],
+      },
+      {
+        id: "isolde",
+        name: "Isolde",
+        team: "good",
+        desc:
+          "The princess of Ireland. You and Tristan know one another \u2014 but if the Assassin names you both, your love undoes you.",
+        knowledgeLabel:
+          "Your beloved, Tristan:",
+        abilities: [
+          {
+            type: "reveal",
+            target: { roles: ["tristan"] },
+          },
+        ],
+      },
+      {
+        id: "lancelot_good",
+        name: "Lancelot the Loyal",
+        team: "good",
+        desc:
+          "The first knight of the Round Table. You may only succeed the quests you ride on \u2014 never fail them. But a change of loyalty may yet turn you.",
+        knowledgeLabel:
+          "You ride for Arthur \u2014 for now. You know no one; only Guinevere marks you.",
+        abilities: [],
+      },
+      {
+        id: "lancelot_evil",
+        name: "Lancelot the Fallen",
+        team: "evil",
+        desc:
+          "The first knight, corrupted. You must fail every quest you ride on \u2014 you have no other choice. But a change of loyalty may yet redeem you.",
+        knowledgeLabel:
+          "You ride for Mordred \u2014 for now. You know no other minion, and they do not know you \u2014 but Merlin and Guinevere see you.",
+        abilities: [],
+      },
     ],
+    expansions: {
+      loyalty: {
+        name: "Loyalty Cards",
+        switchText: "Allegiance switches",
+        blankText: "No change",
+      },
+    },
     winReasons: {
       fiveRejections:
         "Five quest parties rejected in a row — the round table collapses into chaos. Evil triumphs.",
@@ -326,6 +513,10 @@ export const THEMES: Record<string, ThemeConfig> = {
         "The Assassin's strike finds Merlin! Against all odds, Mordred seizes victory.",
       assassinMiss:
         "The Assassin strikes the wrong knight — Merlin lives. Arthur's kingdom prevails!",
+      loversHit:
+        "The Assassin names Tristan and Isolde \u2014 the lovers fall together. Evil triumphs.",
+      loversMiss:
+        "The Assassin names the wrong pair \u2014 the lovers live. Arthur\u0027s kingdom prevails!",
     },
   },
   egyptian: {
@@ -436,7 +627,82 @@ export const THEMES: Record<string, ThemeConfig> = {
           },
         ],
       },
+      {
+        id: "guinevere",
+        name: "Isis",
+        team: "good",
+        desc:
+          "Mistress of hidden names. You alone know which two bear the shifting mark \u2014 Khonsu and Sekhmet \u2014 but not which now serves Ma\u0027at.",
+        knowledgeLabel:
+          "The two of the shifting mark (you cannot tell who serves Ma\u0027at):",
+        abilities: [
+          {
+            type: "reveal",
+            target: { roles: ["lancelot_good", "lancelot_evil"] },
+          },
+        ],
+      },
+      {
+        id: "tristan",
+        name: "Geb",
+        team: "good",
+        desc:
+          "God of the earth. You and Nut know one another across the horizon \u2014 but if Set names you both, your union dooms you.",
+        knowledgeLabel:
+          "Your beloved, Nut:",
+        abilities: [
+          {
+            type: "reveal",
+            target: { roles: ["isolde"] },
+          },
+        ],
+      },
+      {
+        id: "isolde",
+        name: "Nut",
+        team: "good",
+        desc:
+          "Goddess of the sky. You and Geb know one another across the horizon \u2014 but if Set names you both, your union dooms you.",
+        knowledgeLabel:
+          "Your beloved, Geb:",
+        abilities: [
+          {
+            type: "reveal",
+            target: { roles: ["tristan"] },
+          },
+        ],
+      },
+      {
+        id: "lancelot_good",
+        name: "Khonsu",
+        team: "good",
+        desc:
+          "Wanderer of the night sky. You may only uphold the tasks you join \u2014 never sabotage them. Yet the moon turns, and so may you.",
+        knowledgeLabel:
+          "You serve Ma\u0027at \u2014 for now. You know no one; only Isis marks you.",
+        abilities: [],
+      },
+      {
+        id: "lancelot_evil",
+        name: "Sekhmet",
+        team: "evil",
+        desc:
+          "The lioness of wrath. You must sabotage every task you join \u2014 you cannot choose otherwise. Yet the moon turns, and so may you.",
+        knowledgeLabel:
+          "You serve Chaos \u2014 for now. You know no other agent, and they do not know you \u2014 but Ra and Isis see you.",
+        abilities: [],
+      },
     ],
+    expansions: {
+      lady: { name: "Mirror of the Nile", verb: "scry" },
+      excalibur: { name: "Crook of Osiris" },
+      loyalty: {
+        name: "Turning of the Moon",
+        switchText: "The moon turns",
+        blankText: "The moon holds",
+      },
+      plots: { name: "Temple Decrees" },
+    },
     winReasons: {
       fiveRejections:
         "Five delegations rejected — the Pharaoh's court collapses. Chaos triumphs.",
@@ -446,6 +712,10 @@ export const THEMES: Record<string, ThemeConfig> = {
         "Set's storm strikes down Ra! Egypt is plunged into eternal darkness.",
       assassinMiss:
         "Set strikes the wrong god — Ra rises anew. Ma'at reigns forever!",
+      loversHit:
+        "Set names Geb and Nut \u2014 earth and sky are torn apart. Chaos triumphs.",
+      loversMiss:
+        "Set names the wrong pair \u2014 earth and sky endure. Ma\u0027at reigns forever!",
     },
   },
   greek: {
@@ -558,7 +828,82 @@ export const THEMES: Record<string, ThemeConfig> = {
           },
         ],
       },
+      {
+        id: "guinevere",
+        name: "Hera",
+        team: "good",
+        desc:
+          "Queen of Olympus, who misses nothing. You alone know which two walk between worlds \u2014 Persephone and Charon \u2014 but not which now stands with Olympus.",
+        knowledgeLabel:
+          "The two who walk between worlds (you cannot tell who stands with Olympus):",
+        abilities: [
+          {
+            type: "reveal",
+            target: { roles: ["lancelot_good", "lancelot_evil"] },
+          },
+        ],
+      },
+      {
+        id: "tristan",
+        name: "Eros",
+        team: "good",
+        desc:
+          "God of desire. You and Psyche know one another \u2014 but if Hades names you both, your love destroys you.",
+        knowledgeLabel:
+          "Your beloved, Psyche:",
+        abilities: [
+          {
+            type: "reveal",
+            target: { roles: ["isolde"] },
+          },
+        ],
+      },
+      {
+        id: "isolde",
+        name: "Psyche",
+        team: "good",
+        desc:
+          "Bride of Eros. You and Eros know one another \u2014 but if Hades names you both, your love destroys you.",
+        knowledgeLabel:
+          "Your beloved, Eros:",
+        abilities: [
+          {
+            type: "reveal",
+            target: { roles: ["tristan"] },
+          },
+        ],
+      },
+      {
+        id: "lancelot_good",
+        name: "Persephone",
+        team: "good",
+        desc:
+          "Queen of the Underworld, daughter of Olympus. You may only see your quests succeed \u2014 never fail them. Yet the seasons turn, and so may you.",
+        knowledgeLabel:
+          "You stand with Olympus \u2014 for now. You know no one; only Hera marks you.",
+        abilities: [],
+      },
+      {
+        id: "lancelot_evil",
+        name: "Charon",
+        team: "evil",
+        desc:
+          "Ferryman of the dead. You must fail every quest you join \u2014 you cannot choose otherwise. Yet the seasons turn, and so may you.",
+        knowledgeLabel:
+          "You serve Tartarus \u2014 for now. You know no other agent, and they do not know you \u2014 but Zeus and Hera see you.",
+        abilities: [],
+      },
     ],
+    expansions: {
+      lady: { name: "Oracle of Delphi", verb: "consult" },
+      excalibur: { name: "Aegis of Zeus" },
+      loyalty: {
+        name: "Turning of the Seasons",
+        switchText: "The season turns",
+        blankText: "The season holds",
+      },
+      plots: { name: "Whims of the Fates" },
+    },
     winReasons: {
       fiveRejections:
         "Five councils rejected in a row — the gods scatter in discord. Tartarus triumphs.",
@@ -568,6 +913,10 @@ export const THEMES: Record<string, ThemeConfig> = {
         "Hades strikes down Zeus with a helm of darkness! Olympus falls to the Underworld.",
       assassinMiss:
         "Hades strikes the wrong god — Zeus's thunderbolt prevails! Olympus is saved.",
+      loversHit:
+        "Hades names Eros and Psyche \u2014 the lovers fall together. Tartarus triumphs.",
+      loversMiss:
+        "Hades names the wrong pair \u2014 the lovers live. Olympus is saved!",
     },
   },
   maratha: {
@@ -684,7 +1033,82 @@ export const THEMES: Record<string, ThemeConfig> = {
           },
         ],
       },
+      {
+        id: "guinevere",
+        name: "Jijabai",
+        team: "good",
+        desc:
+          "The Rajmata, who raised a kingdom. You alone know which two have crossed the lines \u2014 Netaji Palkar and Krishnaji Bhaskar \u2014 but not which now stands for Swarajya.",
+        knowledgeLabel:
+          "The two who have crossed the lines (you cannot tell who stands for Swarajya):",
+        abilities: [
+          {
+            type: "reveal",
+            target: { roles: ["lancelot_good", "lancelot_evil"] },
+          },
+        ],
+      },
+      {
+        id: "tristan",
+        name: "Sambhaji",
+        team: "good",
+        desc:
+          "The eldest prince. You and Yesubai know one another \u2014 but if Siddi Johar names you both, your bond destroys you.",
+        knowledgeLabel:
+          "Your beloved, Yesubai:",
+        abilities: [
+          {
+            type: "reveal",
+            target: { roles: ["isolde"] },
+          },
+        ],
+      },
+      {
+        id: "isolde",
+        name: "Yesubai",
+        team: "good",
+        desc:
+          "The princess of Raigad. You and Sambhaji know one another \u2014 but if Siddi Johar names you both, your bond destroys you.",
+        knowledgeLabel:
+          "Your beloved, Sambhaji:",
+        abilities: [
+          {
+            type: "reveal",
+            target: { roles: ["tristan"] },
+          },
+        ],
+      },
+      {
+        id: "lancelot_good",
+        name: "Netaji Palkar",
+        team: "good",
+        desc:
+          "The Prati-Shivaji, once lost to the Mughals and returned. You may only strengthen the missions you join \u2014 never sabotage them. Yet loyalty can turn again.",
+        knowledgeLabel:
+          "You stand for Swarajya \u2014 for now. You know no one; only Jijabai marks you.",
+        abilities: [],
+      },
+      {
+        id: "lancelot_evil",
+        name: "Krishnaji Bhaskar",
+        team: "evil",
+        desc:
+          "The envoy who came with a hidden blade. You must sabotage every mission you join \u2014 you cannot choose otherwise. Yet loyalty can turn again.",
+        knowledgeLabel:
+          "You serve the Empire \u2014 for now. You know no other loyalist, and they do not know you \u2014 but Shivaji Maharaj and Jijabai see you.",
+        abilities: [],
+      },
     ],
+    expansions: {
+      lady: { name: "Gupt Batmidar", verb: "sound out" },
+      excalibur: { name: "Bhavani Talwar" },
+      loyalty: {
+        name: "Nishan Palat",
+        switchText: "The banner turns",
+        blankText: "The oath holds",
+      },
+      plots: { name: "Rajniti Patra" },
+    },
     winReasons: {
       fiveRejections:
         "Five war councils rejected in a row — the commanders fall into infighting. Swarajya fails.",
@@ -694,6 +1118,10 @@ export const THEMES: Record<string, ThemeConfig> = {
         "Siddi Johar's siege captures Shivaji Maharaj! Swarajya is crushed.",
       assassinMiss:
         "Siddi Johar strikes the wrong commander — Maharaj escapes. Swarajya reigns supreme!",
+      loversHit:
+        "Siddi Johar names Sambhaji and Yesubai \u2014 the royal line is broken. Swarajya fails.",
+      loversMiss:
+        "Siddi Johar names the wrong pair \u2014 the line endures. Swarajya reigns supreme!",
     },
   },
 };

@@ -1,0 +1,400 @@
+/* ============================================================================
+   Verdict — Council Seal design system
+   Drop into src/ and import once (e.g. in main.tsx, AFTER styles.css so these
+   tokens win). No gradients, no glow, no shadows: depth comes from 1px rules,
+   contrast and spacing.
+   ========================================================================== */
+
+:root {
+  /* --- surface ---------------------------------------------------------- */
+  --vd-bg:            #131110; /* the board */
+  --vd-bg-raised:     #191612; /* idle token face */
+  --vd-bg-token:      #1b1814; /* leader token face */
+  --vd-bg-plate:      #161311; /* modal / overlay plate */
+
+  /* --- rules: three weights, used consistently -------------------------- */
+  --vd-rule-structure: #221e19; /* column dividers */
+  --vd-rule-container: #2b2620; /* panel borders, section rules */
+  --vd-rule-control:   #342f26; /* control borders, segmented groups */
+  --vd-rule-strong:    #4c4234; /* emphasised container (role card, plate) */
+  --vd-rule-engraved:  #453c2f; /* engraved marks on the seal */
+
+  /* --- ink -------------------------------------------------------------- */
+  --vd-ink:        #efe7d5; /* primary text */
+  --vd-ink-soft:   #a89e90; /* body / chronicle */
+  --vd-ink-muted:  #8b8170; /* labels */
+  --vd-ink-dim:    #6d6458; /* tertiary, disabled */
+  --vd-ink-faint:  #5f574b; /* inscriptions */
+
+  /* --- materials -------------------------------------------------------- */
+  --vd-brass:       #c2a55f; /* aged brass: rules, ticks, state. NEVER a glow */
+  --vd-brass-edge:  #b39a5c; /* brass border on parchment */
+  --vd-parchment:   #e9e1cf; /* primary action + active tokens */
+  --vd-parchment-2: #e0d7c4; /* sigil ink on dark */
+  --vd-red:         #9e3b28; /* rejection / fail / evil */
+  --vd-red-ink:     #b5442e; /* red text (passes contrast on --vd-bg) */
+  --vd-red-rule:    #4a2620;
+  --vd-green:       #5b7f6e; /* voice-connected dot only */
+
+  /* --- type ------------------------------------------------------------- */
+  --vd-display: "Cinzel", Georgia, serif;      /* headings, numerals */
+  --vd-voice: "EB Garamond", Georgia, serif;   /* the game's voice, italic */
+  --vd-ui: "Manrope", system-ui, sans-serif;   /* labels, data */
+
+  /* --- space (4px base) ------------------------------------------------- */
+  --vd-1: 4px;  --vd-2: 8px;  --vd-3: 12px; --vd-4: 16px;
+  --vd-5: 20px; --vd-6: 24px; --vd-8: 32px; --vd-10: 40px;
+}
+
+/* Fonts. Self-host in production; this is the quick path. */
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Manrope:wght@400;500;600;700&display=swap");
+
+/* ============================================================================
+   Board
+   ========================================================================== */
+
+.vd-board {
+  position: relative;
+  min-height: 100dvh;
+  background: var(--vd-bg);
+  color: var(--vd-ink);
+  font-family: var(--vd-ui);
+}
+
+/* Paper grain. Fixed 140px tile at 5% — must never be noticeable at a glance. */
+.vd-board::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%27140%27%20height=%27140%27%3E%3Cfilter%20id=%27n%27%3E%3CfeTurbulence%20type=%27fractalNoise%27%20baseFrequency=%270.85%27%20numOctaves=%273%27/%3E%3C/filter%3E%3Crect%20width=%27140%27%20height=%27140%27%20filter=%27url%28%23n%29%27/%3E%3C/svg%3E");
+}
+
+/* Emblem watermark. Sits behind content, above the grain. */
+.vd-watermark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  opacity: 0.05;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.vd-content { position: relative; }
+
+/* ============================================================================
+   Typography
+   ========================================================================== */
+
+.vd-label {                       /* every piece of metadata in the UI */
+  font: 700 8.5px/1 var(--vd-ui);
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--vd-ink-muted);
+}
+.vd-label--dim { color: var(--vd-ink-dim); }
+.vd-label--brass { color: var(--vd-brass); }
+
+.vd-h1 { font: 500 27px/1.1 var(--vd-display); color: var(--vd-ink); margin: 0; }
+.vd-h2 { font: 500 24px/1.12 var(--vd-display); color: var(--vd-ink); margin: 0; }
+.vd-numeral { font: 500 1em/1 var(--vd-display); }
+
+.vd-voice {                        /* the narrator */
+  font: italic 400 15px/1.55 var(--vd-voice);
+  color: var(--vd-ink-soft);
+  margin: 0;
+  text-wrap: pretty;
+}
+
+.vd-clock {
+  font: 500 52px/1 var(--vd-display);
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--vd-ink);
+}
+@media (max-width: 720px) { .vd-clock { font-size: 38px; } }
+
+/* ============================================================================
+   Rules, panels, corner studs
+   ========================================================================== */
+
+.vd-rule { height: 1px; background: var(--vd-rule-container); border: 0; }
+.vd-rule--brass { background: var(--vd-brass); opacity: 0.5; }
+
+.vd-panel { border: 1px solid var(--vd-rule-container); padding: var(--vd-3) 13px; }
+.vd-panel--strong { border-color: var(--vd-rule-strong); }
+.vd-panel--danger { border-color: var(--vd-red-rule); }
+
+/* Brass studs at the corners. Reserved for objects with rank: the role card,
+   the quest plate, the verdict plate. Never on ordinary panels. */
+.vd-studded { position: relative; }
+.vd-studded::before,
+.vd-studded::after,
+.vd-studded > .vd-stud-b::before,
+.vd-studded > .vd-stud-b::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: var(--vd-brass);
+}
+.vd-studded::before { top: -2px; left: -2px; }
+.vd-studded::after { top: -2px; right: -2px; }
+.vd-studded > .vd-stud-b { position: absolute; inset: 0; pointer-events: none; }
+.vd-studded > .vd-stud-b::before { bottom: -2px; left: -2px; }
+.vd-studded > .vd-stud-b::after { bottom: -2px; right: -2px; }
+
+/* ============================================================================
+   Controls
+   ========================================================================== */
+
+.vd-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vd-3);
+  width: 100%;
+  min-height: 56px;               /* never below 44px: phone in hand */
+  padding: 0 var(--vd-5);
+  border: 1px solid var(--vd-rule-control);
+  background: none;
+  color: var(--vd-ink-muted);
+  font: 500 15px/1 var(--vd-display);
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+.vd-btn:disabled { color: var(--vd-ink-dim); cursor: not-allowed; }
+
+/* Primary = a parchment control with an inset keyline. One per screen. */
+.vd-btn--primary {
+  position: relative;
+  background: var(--vd-parchment);
+  border-color: var(--vd-brass-edge);
+  color: #171410;
+}
+.vd-btn--primary::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 1px solid rgba(23, 20, 16, 0.14);
+  pointer-events: none;
+}
+.vd-btn--primary:hover { background: #f2ebda; }
+.vd-btn--primary:active { background: #ded5c2; }
+.vd-btn--danger { border-color: var(--vd-red); color: var(--vd-red-ink); }
+.vd-btn--danger:hover { background: rgba(158, 59, 40, 0.08); }
+.vd-btn__meta { font: 600 10.5px/1 var(--vd-ui); letter-spacing: 0.08em; color: var(--vd-ink-dim); }
+.vd-btn--primary .vd-btn__meta { color: #6d6458; }
+.vd-btn:focus-visible { outline: 2px solid var(--vd-brass); outline-offset: 2px; }
+
+/* Segmented group — quest ladder, choices. Shared 1px rules, no gaps. */
+.vd-seg { display: flex; border: 1px solid var(--vd-rule-control); }
+.vd-seg > * {
+  flex: 1;
+  padding: 11px 0;
+  text-align: center;
+  border-left: 1px solid var(--vd-rule-control);
+}
+.vd-seg > *:first-child { border-left: 0; }
+.vd-seg > .is-active { background: var(--vd-brass); color: #171410; }
+
+/* Tick fuse — the clock, the vote counter, cards-in. Flat, no animation. */
+.vd-fuse { display: flex; gap: 4px; }
+.vd-fuse > i { flex: 1; height: 5px; background: #2c2721; }
+.vd-fuse > i.is-lit { background: var(--vd-brass); }
+.vd-fuse > i.is-spent { background: var(--vd-red); }
+
+/* Rejection track */
+.vd-track { display: flex; gap: 4px; }
+.vd-track > i { flex: 1; height: 4px; background: #2c2721; }
+.vd-track > i.is-used { background: var(--vd-red); }
+
+/* ============================================================================
+   The council seal
+   ========================================================================== */
+
+.vd-seal { position: relative; aspect-ratio: 1; width: 100%; max-width: 392px; margin-inline: auto; }
+
+.vd-seal__ring,
+.vd-seal__ring-inner {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.vd-seal__ring { inset: 8.7%; border: 1px solid var(--vd-rule-engraved); }
+.vd-seal__ring-inner { inset: 12.5%; border: 1px solid #272219; }
+
+/* Engraved marks + brass cardinal ticks. Each mark is a rotated wrapper so the
+   bar lands on the ring; keeps the whole seal in one stacking context. */
+.vd-seal__mark { position: absolute; inset: 0; pointer-events: none; }
+.vd-seal__mark > i {
+  position: absolute;
+  left: 50%;
+  top: 8.7%;
+  width: 1px;
+  height: 10px;
+  background: var(--vd-rule-engraved);
+}
+.vd-seal__mark--brass > i { top: 8%; height: 18px; background: var(--vd-brass); }
+
+.vd-seal__emblem {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  width: 34%;
+  opacity: 0.32;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/* --- seats --------------------------------------------------------------- */
+
+.vd-seat {
+  position: absolute;
+  translate: -50% -50%;
+  width: 88px;
+  text-align: center;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+}
+.vd-seat__disc {
+  position: relative;
+  width: 62px;
+  height: 62px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: var(--vd-bg-raised);
+  border: 1px solid #3a342b;
+  display: grid;
+  place-items: center;
+}
+.vd-seat__name { margin-top: 10px; font: 600 11.5px/1 var(--vd-ui); color: var(--vd-ink-muted); }
+.vd-seat__state { margin-top: 4px; font: 700 8px/1 var(--vd-ui); letter-spacing: 0.16em; color: var(--vd-brass); }
+
+/* leader: brass rim + a brass bar beneath the disc */
+.vd-seat.is-leader .vd-seat__disc { background: var(--vd-bg-token); border-color: var(--vd-brass); }
+.vd-seat.is-leader .vd-seat__disc::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 1px solid var(--vd-rule-engraved);
+}
+.vd-seat.is-leader .vd-seat__name { color: var(--vd-ink); }
+
+/* named / riding: the piece is lifted off the board — parchment, brass stud */
+.vd-seat.is-named .vd-seat__disc {
+  background: var(--vd-parchment);
+  border-color: var(--vd-brass-edge);
+}
+.vd-seat.is-named .vd-seat__disc::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 1px solid rgba(23, 20, 16, 0.18);
+}
+.vd-seat.is-named .vd-seat__stud {
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  translate: -50% 0;
+  width: 9px;
+  height: 9px;
+  background: var(--vd-brass);
+}
+.vd-seat.is-named .vd-seat__name { color: var(--vd-ink); }
+
+.vd-seat.is-voted .vd-seat__disc { border-color: var(--vd-brass); }
+.vd-seat:disabled { cursor: default; }
+.vd-seat:focus-visible .vd-seat__disc { outline: 2px solid var(--vd-brass); outline-offset: 3px; }
+
+@media (max-width: 720px) {
+  .vd-seat { width: 62px; }
+  .vd-seat__disc { width: 44px; height: 44px; }
+  .vd-seat__name { margin-top: 6px; font-size: 9.5px; }
+  .vd-seat__state { font-size: 7px; }
+}
+
+/* ============================================================================
+   Chronicle (the ledger)
+   ========================================================================== */
+
+.vd-chron__entry { display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid #272219; }
+.vd-chron__entry:last-child { border-bottom: 0; }
+.vd-chron__n { width: 26px; font: 500 20px/1 var(--vd-display); color: var(--vd-rule-engraved); }
+.vd-chron__text { margin: 0; font: 400 14.5px/1.5 var(--vd-voice); color: var(--vd-ink-soft); }
+.vd-chron__outcome {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: var(--vd-2);
+  padding: 4px 8px;
+  border: 1px solid var(--vd-red-rule);
+  font: 700 8px/1 var(--vd-ui);
+  letter-spacing: 0.18em;
+  color: var(--vd-red-ink);
+}
+.vd-chron__outcome--held { border-color: var(--vd-rule-strong); color: var(--vd-brass); }
+
+/* ============================================================================
+   Overlay plate (verdict, quest result)
+   ========================================================================== */
+
+.vd-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--vd-6);
+  background: rgba(10, 9, 8, 0.82);
+  z-index: 40;
+}
+.vd-plate {
+  position: relative;
+  width: min(420px, 100%);
+  padding: 26px 22px 24px;
+  background: var(--vd-bg-plate);
+  border: 1px solid var(--vd-rule-strong);
+}
+.vd-plate--danger { border-color: var(--vd-red-rule); }
+.vd-plate--danger.vd-studded::before,
+.vd-plate--danger.vd-studded::after,
+.vd-plate--danger.vd-studded > .vd-stud-b::before,
+.vd-plate--danger.vd-studded > .vd-stud-b::after { background: var(--vd-red); }
+
+/* ============================================================================
+   Layout
+   ========================================================================== */
+
+.vd-table-layout {
+  display: grid;
+  grid-template-columns: 288px 1fr 274px;
+  min-height: 0;
+}
+.vd-table-layout > :first-child { padding-right: 30px; border-right: 1px solid var(--vd-rule-structure); }
+.vd-table-layout > :last-child { padding-left: 30px; border-left: 1px solid var(--vd-rule-structure); }
+
+@media (max-width: 1100px) {
+  .vd-table-layout { grid-template-columns: 1fr; gap: var(--vd-6); }
+  .vd-table-layout > :first-child,
+  .vd-table-layout > :last-child { padding: 0; border: 0; }
+}
+
+/* Mobile: the action sits in the thumb zone, above the safe area. */
+.vd-actionbar {
+  position: sticky;
+  bottom: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--vd-bg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .vd-btn { transition: background-color 120ms linear; }
+}

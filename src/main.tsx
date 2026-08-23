@@ -7,6 +7,8 @@ import RulesPage from "./RulesPage";
 import AdminPage from "./AdminPage";
 import UpgradePage from "./UpgradePage";
 import "./styles.css";
+// After styles.css so the Council Seal tokens win on gameplay screens.
+import "./seal.css";
 
 const url = import.meta.env.VITE_CONVEX_URL as string;
 if (!url) {

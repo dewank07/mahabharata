@@ -15,6 +15,7 @@ import {
   nightStep, NIGHT_ORDER,
   premiumBlockReason, premiumOptsUsed, isPremiumTheme, seatCap,
   stripPremiumOpts, PREMIUM_OPT_KEYS, PREMIUM_OPT_LABELS,
+  ROOM_CAPACITY, splitSeating, compactSeats, swapSeats,
   Role, QuestCard, Opts,
 } from "./logic";
 import {
@@ -48,6 +49,32 @@ async function playersOf(ctx: MutationCtx | QueryCtx, roomId: Id<"rooms">) {
 function requireRoom<T>(r: T | null): T {
   if (!r) throw new Error("Room not found.");
   return r;
+}
+
+/**
+ * The room roster split into the players at the table and the watchers behind
+ * them. Everything that is *the game* — the leader rotation, quest sizes, vote
+ * completion, roles — runs on `seated`. `playersOf` remains the full roster and
+ * is what voice presence and the watcher queue are built from.
+ */
+async function seatingOf(ctx: MutationCtx | QueryCtx, room: Doc<"rooms">) {
+  const all = await playersOf(ctx, room._id);
+  const ent = await roomEntitlement(ctx, room);
+  const split = splitSeating(all, seatCap(ent.premium, ent.seats));
+  return { all, ...split };
+}
+
+/** The players in the game. Throws nothing — a short room is simply short. */
+async function seatedOf(ctx: MutationCtx | QueryCtx, room: Doc<"rooms">) {
+  return (await seatingOf(ctx, room)).seated;
+}
+
+/** Keep seats dense so `splitSeating` and every positional index stay valid. */
+async function recompactSeats(ctx: MutationCtx, roomId: Id<"rooms">) {
+  const all = await playersOf(ctx, roomId);
+  for (const { player, seat } of compactSeats(all)) {
+    await ctx.db.patch(player._id, { seat });
+  }
 }
 
 function themeOf(room: Doc<"rooms">): ThemeConfig {
@@ -201,7 +228,7 @@ async function beginRound(
 ) {
   const room = await ctx.db.get(roomId);
   if (!room) return;
-  const players = await playersOf(ctx, roomId);
+  const seated = await seatedOf(ctx, room);
   const opts = normalizeOpts(room.opts);
   const merged: RoomPatch = { ...patch, questIndex };
 
@@ -219,7 +246,7 @@ async function beginRound(
 
   if (opts.plots) {
     const deck = [...(room.plotDeck ?? [])];
-    const toDeal = deck.splice(0, Math.min(plotCardsPerRound(players.length), deck.length));
+    const toDeal = deck.splice(0, Math.min(plotCardsPerRound(seated.length), deck.length));
     if (toDeal.length > 0) {
       await enterTimedPhase(ctx, roomId, "plot", PLOT_DEAL_MS, {
         ...merged,
@@ -333,8 +360,8 @@ async function resolveVotes(
 async function finishQuest(ctx: MutationCtx, roomId: Id<"rooms">) {
   const room = await ctx.db.get(roomId);
   if (!room) return;
-  const players = await playersOf(ctx, roomId);
-  const n = players.length;
+  const seated = await seatedOf(ctx, room);
+  const n = seated.length;
   const opts = normalizeOpts(room.opts);
 
   const cards = await ctx.db
@@ -397,7 +424,7 @@ async function finishQuest(ctx: MutationCtx, roomId: Id<"rooms">) {
   // The Lady of the Lake speaks between quests 2–4, before the next round opens.
   const ladyHasTarget =
     room.ladyHolder != null &&
-    players.some(
+    seated.some(
       (pl) =>
         pl.playerId !== room.ladyHolder &&
         !(room.ladyHistory ?? []).includes(pl.playerId),
@@ -563,14 +590,10 @@ export const joinRoom = mutation({
     }
 
     if (room.phase !== "lobby") throw new Error("That game has already started.");
-    const roomEnt = await roomEntitlement(ctx, room);
-    const cap = seatCap(roomEnt.premium, roomEnt.seats);
-    if (players.length >= cap) {
-      throw new Error(
-        roomEnt.premium && cap < MAX_PLAYERS
-          ? `Room is full — this plan covers ${cap} players.`
-          : `Room is full (${cap} max).`,
-      );
+    // Past the seat cap a newcomer becomes a watcher rather than being refused;
+    // only the abuse ceiling actually rejects.
+    if (players.length >= ROOM_CAPACITY) {
+      throw new Error(`This room is full (${ROOM_CAPACITY} people).`);
     }
     await ctx.db.insert("players", {
       roomId: room._id, playerId, name: trimmed, seat: players.length,
@@ -583,9 +606,20 @@ export const leaveRoom = mutation({
   args: { code: v.string(), playerId: v.string() },
   handler: async (ctx, { code, playerId }) => {
     const room = await roomByCode(ctx, code);
-    if (!room || room.phase !== "lobby") return;
+    if (!room) return;
     const players = await playersOf(ctx, room._id);
     const me = players.find((p) => p.playerId === playerId);
+
+    // Mid-game, only a watcher may slip out: removing a seated player would
+    // orphan their role, votes and quest card.
+    if (room.phase !== "lobby") {
+      const { watching } = await seatingOf(ctx, room);
+      if (!me || !watching.some((w) => w.playerId === playerId)) return;
+      await ctx.db.delete(me._id);
+      await recompactSeats(ctx, room._id);
+      return;
+    }
+
     if (me) await ctx.db.delete(me._id);
 
     const rest = players.filter((p) => p.playerId !== playerId);
@@ -593,12 +627,40 @@ export const leaveRoom = mutation({
       await ctx.db.delete(room._id);
       return;
     }
-    // reindex seats and reassign host if needed
+    // Reindex seats to stay dense — this is also what promotes the first
+    // watcher into a freed seat, with no extra bookkeeping.
     for (let i = 0; i < rest.length; i++) {
       if (rest[i].seat !== i) await ctx.db.patch(rest[i]._id, { seat: i });
     }
     if (room.hostId === playerId) {
       await ctx.db.patch(room._id, { hostId: rest[0].playerId });
+    }
+  },
+});
+
+/** Host pulls a specific watcher to the table, swapping them with a seated player. */
+export const swapSeat = mutation({
+  args: {
+    code: v.string(),
+    playerId: v.string(),
+    watcherId: v.string(),
+    seatedId: v.string(),
+  },
+  handler: async (ctx, { code, playerId, watcherId, seatedId }) => {
+    const room = requireRoom(await roomByCode(ctx, code));
+    if (room.hostId !== playerId) throw new Error("Only the host can seat watchers.");
+    if (room.phase !== "lobby") throw new Error("Seats are fixed once the game starts.");
+    const { all, seated, watching } = await seatingOf(ctx, room);
+    if (!watching.some((w) => w.playerId === watcherId)) {
+      throw new Error("That player is already at the table.");
+    }
+    if (!seated.some((p) => p.playerId === seatedId)) {
+      throw new Error("That player is not at the table.");
+    }
+    const moves = swapSeats(all, watcherId, seatedId);
+    if (!moves) throw new Error("Could not swap those two.");
+    for (const { player, seat } of moves) {
+      await ctx.db.patch(player._id, { seat });
     }
   },
 });
@@ -653,8 +715,10 @@ export const startGame = mutation({
   handler: async (ctx, { code, playerId }) => {
     const room = requireRoom(await roomByCode(ctx, code));
     if (room.hostId !== playerId) throw new Error("Only the host can start.");
-    const players = await playersOf(ctx, room._id);
-    const n = players.length;
+    // Only the seated play. Watchers keep their place in the queue and are
+    // dealt nothing — the game is sized to the table, not to the room.
+    const { all, seated } = await seatingOf(ctx, room);
+    const n = seated.length;
     if (n < MIN_PLAYERS) throw new Error(`Need at least ${MIN_PLAYERS} players.`);
 
     const opts = normalizeOpts(room.opts);
@@ -668,20 +732,19 @@ export const startGame = mutation({
       const blocked = premiumBlockReason(room.themeId, opts);
       if (blocked) throw new Error(`${blocked} The host needs an active plan.`);
     }
-    const cap = seatCap(roomEnt.premium, roomEnt.seats);
-    if (n > cap) {
-      throw new Error(`This plan covers ${cap} players, but ${n} are seated.`);
-    }
 
     await clearSubmissions(ctx, room._id);
-    const roles = buildRoles(players.map((p) => p.playerId), opts);
-    for (const p of players) await ctx.db.patch(p._id, { role: roles[p.playerId] });
+    const roles = buildRoles(seated.map((p) => p.playerId), opts);
+    for (const p of all) {
+      // Watchers must never carry a role, including a stale one from last game.
+      await ctx.db.patch(p._id, { role: roles[p.playerId] });
+    }
 
     const leaderIndex = Math.floor(Math.random() * n);
     // The Lady of the Lake starts with the player to the first leader's right —
     // i.e. the one who will be leader last — and never returns to a past holder.
     const ladyOn = opts.lady && n >= LADY_MIN_PLAYERS;
-    const ladyStart = players[(leaderIndex - 1 + n) % n].playerId;
+    const ladyStart = seated[(leaderIndex - 1 + n) % n].playerId;
 
     await ctx.db.patch(room._id, {
       phase: "reveal",
@@ -724,12 +787,12 @@ export const forceProposeIfNeeded = internalMutation({
   handler: async (ctx, { roomId, roundId }) => {
     const room = await ctx.db.get(roomId);
     if (!room || room.phase !== "propose" || room.roundId !== roundId) return;
-    const players = await playersOf(ctx, roomId);
-    if (players.length === 0) return;
-    const size = QUEST_SIZES[players.length]?.[room.questIndex];
+    const seated = await seatedOf(ctx, room);
+    if (seated.length === 0) return;
+    const size = QUEST_SIZES[seated.length]?.[room.questIndex];
     if (!size) return;
-    const leader = players[room.leaderIndex] ?? players[0];
-    const rest = players.filter((p) => p.playerId !== leader.playerId);
+    const leader = seated[room.leaderIndex] ?? seated[0];
+    const rest = seated.filter((p) => p.playerId !== leader.playerId);
     const team = [leader.playerId, ...rest.map((p) => p.playerId)].slice(0, size);
     const opts = normalizeOpts(room.opts);
     // Excalibur must go to a party member other than the leader.
@@ -760,17 +823,17 @@ export const autoAdvance = internalMutation({
     if (room.phase !== phase || room.roundId !== roundId || room.questIndex !== questIndex) {
       return;
     }
-    const players = await playersOf(ctx, roomId);
+    const seated = await seatedOf(ctx, room);
 
     if (phase === "plot") {
       // Deal whatever is left at random, then bin any instant nobody played.
       const toDeal = [...(room.plotToDeal ?? [])];
-      const leader = players[room.leaderIndex] ?? players[0];
-      const eligible = players.filter((p) => p.playerId !== leader.playerId);
+      const leader = seated[room.leaderIndex] ?? seated[0];
+      const eligible = seated.filter((p) => p.playerId !== leader.playerId);
       for (const card of toDeal) {
         if (eligible.length === 0) break;
         const to = eligible[Math.floor(Math.random() * eligible.length)].playerId;
-        const handled = await resolveAutoInstant(ctx, room, players, card as PlotCardId, to);
+        const handled = await resolveAutoInstant(ctx, room, seated, card as PlotCardId, to);
         if (!handled) {
           await ctx.db.insert("plotHands", {
             roomId, playerId: to, card, dealtQuest: room.questIndex,
@@ -807,7 +870,7 @@ export const autoAdvance = internalMutation({
     // lady: keep the token moving rather than letting it die on the vine.
     const holder = room.ladyHolder;
     const history = room.ladyHistory ?? [];
-    const target = players.find(
+    const target = seated.find(
       (p) => p.playerId !== holder && !history.includes(p.playerId),
     );
     if (holder && target && target.role) {
@@ -837,12 +900,13 @@ export const proposeTeam = mutation({
   handler: async (ctx, { code, playerId, team, excaliburId }) => {
     const room = requireRoom(await roomByCode(ctx, code));
     if (room.phase !== "propose") throw new Error("Not the proposal phase.");
-    const players = await playersOf(ctx, room._id);
-    const leader = players[room.leaderIndex];
+    const seated = await seatedOf(ctx, room);
+    const leader = seated[room.leaderIndex];
     if (leader.playerId !== playerId) throw new Error("Only the leader proposes.");
-    const size = QUEST_SIZES[players.length][room.questIndex];
+    const size = QUEST_SIZES[seated.length][room.questIndex];
     if (team.length !== size) throw new Error(`Party must be ${size} knights.`);
-    const ids = new Set(players.map((p) => p.playerId));
+    // Watchers are not in the game, so they can never ride.
+    const ids = new Set(seated.map((p) => p.playerId));
     if (team.some((id) => !ids.has(id))) throw new Error("Party must be seated warriors.");
     if (new Set(team).size !== team.length) throw new Error("Party cannot repeat a warrior.");
 
@@ -876,8 +940,10 @@ export const castVote = mutation({
   handler: async (ctx, { code, playerId, choice }) => {
     const room = requireRoom(await roomByCode(ctx, code));
     if (room.phase !== "vote") throw new Error("Not voting right now.");
-    const players = await playersOf(ctx, room._id);
-    if (!players.some((p) => p.playerId === playerId)) throw new Error("Not in this room.");
+    const seated = await seatedOf(ctx, room);
+    if (!seated.some((p) => p.playerId === playerId)) {
+      throw new Error("Watchers do not vote.");
+    }
 
     const existing = (
       await ctx.db.query("votes")
@@ -895,7 +961,7 @@ export const castVote = mutation({
       .withIndex("by_room_round", (q) =>
         q.eq("roomId", room._id).eq("roundId", room.roundId))
       .collect();
-    if (votes.length >= players.length) await resolveVotes(ctx, room, players);
+    if (votes.length >= seated.length) await resolveVotes(ctx, room, seated);
   },
 });
 
@@ -908,8 +974,9 @@ export const playQuestCard = mutation({
     const room = requireRoom(await roomByCode(ctx, code));
     if (room.phase !== "quest") throw new Error("No quest underway.");
     if (!room.proposedTeam.includes(playerId)) throw new Error("You are not on this quest.");
-    const players = await playersOf(ctx, room._id);
-    const me = players.find((p) => p.playerId === playerId)!;
+    const seated = await seatedOf(ctx, room);
+    const me = seated.find((p) => p.playerId === playerId);
+    if (!me) throw new Error("Watchers do not ride.");
     // Server enforces the secrecy rules: the loyal may only succeed, and the
     // Lancelots are locked to their current allegiance's card.
     const finalCard = clampQuestCard(
@@ -996,8 +1063,8 @@ export const useLady = mutation({
     if (history.includes(targetId)) {
       throw new Error("That warrior has already held the Lady — they cannot be examined.");
     }
-    const players = await playersOf(ctx, room._id);
-    const target = players.find((p) => p.playerId === targetId);
+    const seated = await seatedOf(ctx, room);
+    const target = seated.find((p) => p.playerId === targetId);
     if (!target || !target.role) throw new Error("No such warrior.");
 
     await ctx.db.insert("secrets", {
@@ -1025,17 +1092,19 @@ export const dealPlotCard = mutation({
   handler: async (ctx, { code, playerId, toId }) => {
     const room = requireRoom(await roomByCode(ctx, code));
     if (room.phase !== "plot") throw new Error("Not the plotting phase.");
-    const players = await playersOf(ctx, room._id);
-    const leader = players[room.leaderIndex] ?? players[0];
+    const seated = await seatedOf(ctx, room);
+    const leader = seated[room.leaderIndex] ?? seated[0];
     if (leader.playerId !== playerId) throw new Error("Only the leader deals plot cards.");
     if (toId === playerId) throw new Error("You cannot deal a plot card to yourself.");
-    if (!players.some((p) => p.playerId === toId)) throw new Error("No such warrior.");
+    if (!seated.some((p) => p.playerId === toId)) {
+      throw new Error("Plot cards only go to warriors at the table.");
+    }
 
     const queue = [...(room.plotToDeal ?? [])];
     const card = queue.shift();
     if (!card) throw new Error("No plot cards left to deal.");
 
-    const handled = await resolveAutoInstant(ctx, room, players, card as PlotCardId, toId);
+    const handled = await resolveAutoInstant(ctx, room, seated, card as PlotCardId, toId);
     if (!handled) {
       await ctx.db.insert("plotHands", {
         roomId: room._id, playerId: toId, card, dealtQuest: room.questIndex,
@@ -1059,9 +1128,9 @@ export const playPlotCard = mutation({
   },
   handler: async (ctx, { code, playerId, card, targetId }) => {
     const room = requireRoom(await roomByCode(ctx, code));
-    const players = await playersOf(ctx, room._id);
-    const me = players.find((p) => p.playerId === playerId);
-    if (!me) throw new Error("Not in this room.");
+    const seated = await seatedOf(ctx, room);
+    const me = seated.find((p) => p.playerId === playerId);
+    if (!me) throw new Error("Watchers hold no plot cards.");
 
     const def = PLOT_CARDS[card as PlotCardId];
     const hand = await handOf(ctx, room._id, playerId);
@@ -1082,7 +1151,7 @@ export const playPlotCard = mutation({
     }
     if (def.needsTarget && !targetId) throw new Error("Choose a target.");
 
-    const target = targetId ? players.find((p) => p.playerId === targetId) : undefined;
+    const target = targetId ? seated.find((p) => p.playerId === targetId) : undefined;
     if (targetId && !target) throw new Error("No such warrior.");
     const swapped = room.lancelotSwapped ?? false;
     const logPublic = async (tid?: string) => {
@@ -1153,7 +1222,7 @@ export const playPlotCard = mutation({
         }
         await ctx.db.delete(held._id);
         await logPublic();
-        await applyRejection(ctx, room, players, {
+        await applyRejection(ctx, room, seated, {
           ...room.lastVote,
           approved: false,
           overturnedBy: playerId,
@@ -1188,9 +1257,10 @@ export const playPlotCard = mutation({
       }
 
       case "are_you_the_one": {
-        const n = players.length;
-        const left = players[(me.seat - 1 + n) % n].playerId;
-        const right = players[(me.seat + 1) % n].playerId;
+        // Neighbours are around the TABLE, so seated-only and seat === index.
+        const n = seated.length;
+        const left = seated[(me.seat - 1 + n) % n].playerId;
+        const right = seated[(me.seat + 1) % n].playerId;
         if (targetId !== left && targetId !== right) {
           throw new Error("You may only question a warrior seated beside you.");
         }
@@ -1242,9 +1312,9 @@ export const sealQuest = mutation({
     if (swordArmed(room)) {
       throw new Error("The Excalibur bearer has yet to decide.");
     }
-    const players = await playersOf(ctx, room._id);
-    if (!players.some((p) => p.playerId === playerId)) {
-      throw new Error("Not in this room.");
+    const seated = await seatedOf(ctx, room);
+    if (!seated.some((p) => p.playerId === playerId)) {
+      throw new Error("Not at this table.");
     }
     await finishQuest(ctx, room._id);
   },
@@ -1284,20 +1354,20 @@ export const assassinate = mutation({
   handler: async (ctx, { code, playerId, targetId, mode, targetId2 }) => {
     const room = requireRoom(await roomByCode(ctx, code));
     if (room.phase !== "assassin") throw new Error("Not the assassin phase.");
-    const players = await playersOf(ctx, room._id);
-    const me = players.find((p) => p.playerId === playerId);
+    const seated = await seatedOf(ctx, room);
+    const me = seated.find((p) => p.playerId === playerId);
     if (!me || me.role !== "assassin") throw new Error("Only the Assassin may strike.");
     const theme = themeOf(room);
     const resolvedMode = mode ?? "merlin";
 
     if (resolvedMode === "lovers") {
-      const loversInPlay = players.some((p) => p.role === "tristan")
-        && players.some((p) => p.role === "isolde");
+      const loversInPlay = seated.some((p) => p.role === "tristan")
+        && seated.some((p) => p.role === "isolde");
       if (!loversInPlay) throw new Error("The lovers are not in this game.");
       if (!targetId2) throw new Error("Name both lovers.");
       if (targetId === targetId2) throw new Error("Name two different warriors.");
       const roles = [targetId, targetId2].map(
-        (id) => players.find((p) => p.playerId === id)?.role,
+        (id) => seated.find((p) => p.playerId === id)?.role,
       );
       const hit = roles.includes("tristan") && roles.includes("isolde");
       await ctx.db.patch(room._id, {
@@ -1312,7 +1382,7 @@ export const assassinate = mutation({
       return;
     }
 
-    const target = players.find((p) => p.playerId === targetId);
+    const target = seated.find((p) => p.playerId === targetId);
     const foundMerlin = target?.role === "merlin";
     await ctx.db.patch(room._id, {
       phase: "end",
@@ -1424,12 +1494,19 @@ export const getRoom = query({
     const room = await roomByCode(ctx, code);
     if (!room) return null;
 
+    // `players` is everyone in the room; `seated` is everyone in the GAME.
+    // Every rules-derived number below is sized to the table, not the room.
+    const roomEnt0 = await roomEntitlement(ctx, room);
+    const cap = seatCap(roomEnt0.premium, roomEnt0.seats);
     const players = await playersOf(ctx, room._id);
+    const { seated, watching, overflowing } = splitSeating(players, cap);
+    const seatedIds = new Set(seated.map((p) => p.playerId));
     const me = players.find((p) => p.playerId === playerId) ?? null;
+    const iAmWatching = me != null && !seatedIds.has(me.playerId);
     const ended = room.phase === "end";
     const opts = normalizeOpts(room.opts);
     const swapped = room.lancelotSwapped ?? false;
-    const n = players.length;
+    const n = seated.length;
 
     const votes = await ctx.db.query("votes")
       .withIndex("by_room_round", (q) =>
@@ -1445,13 +1522,12 @@ export const getRoom = query({
 
     // Paywall state. `room` follows the HOST's plan; `caller` is about me, so the
     // lobby can offer the right prompt (sign in / upgrade / already covered).
-    const roomEnt = await roomEntitlement(ctx, room);
+    const roomEnt = roomEnt0;
     const callerEnt = await callerEntitlement(ctx);
-    const cap = seatCap(roomEnt.premium, roomEnt.seats);
 
     let known: string[] = [];
     if (me?.role) {
-      const others = players
+      const others = seated
         .filter((p) => p.playerId !== playerId && p.role)
         .map((p) => ({ name: p.name, role: p.role as Role }));
       known = knownNames(me.role as Role, others, theme);
@@ -1618,7 +1694,11 @@ export const getRoom = query({
         team: s.team ?? null,
       })),
 
-      players: players.map((p) => ({
+      /**
+       * The table. Ten at most — this is what the seal renders and what every
+       * rule applies to.
+       */
+      players: seated.map((p) => ({
         playerId: p.playerId,
         name: p.name,
         seat: p.seat,
@@ -1628,6 +1708,25 @@ export const getRoom = query({
         // Final allegiance matters at the reveal when a Lancelot has switched.
         team: ended && p.role ? currentTeam(p.role as Role, swapped) : null,
       })),
+      /**
+       * Everyone the table cannot fit, in a stable queue. They see the board and
+       * hear voice, and never hold a role.
+       */
+      watchers: watching.map((p) => ({
+        playerId: p.playerId,
+        name: p.name,
+        seat: p.seat,
+        isHost: p.playerId === room.hostId,
+        inVoice: p.inVoice ?? false,
+      })),
+      seating: {
+        cap,
+        seatedCount: seated.length,
+        watcherCount: watching.length,
+        overflowing,
+        roomCapacity: ROOM_CAPACITY,
+        iAmWatching,
+      },
       me: me
         ? {
             playerId: me.playerId,
@@ -1640,12 +1739,13 @@ export const getRoom = query({
               ? allowedQuestCards(me.role as Role, swapped)
               : (["success"] as QuestCard[]),
             nightStep: me.role ? nightStep(me.role as Role) : 0,
+            isWatcher: iAmWatching,
             known,
           }
         : null,
       voteProgress: {
         voted: votes.length,
-        total: players.length,
+        total: seated.length,
         iVoted: votes.some((x) => x.playerId === playerId),
         openVotes,
       },

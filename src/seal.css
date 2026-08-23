@@ -398,3 +398,173 @@
 @media (prefers-reduced-motion: no-preference) {
   .vd-btn { transition: background-color 120ms linear; }
 }
+
+/* ============================================================================
+   Shell — topbar, voice controls, action line
+   Added for the app; same rules as everything above: 1px borders, flat fills,
+   brass for state, radius 0, no shadows.
+   ========================================================================== */
+
+.vd-shell { display: flex; flex-direction: column; min-height: 100dvh; padding: 22px 36px 0; }
+@media (max-width: 720px) { .vd-shell { padding: 14px 16px 0; } }
+
+.vd-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--vd-4); flex-wrap: wrap;
+  padding-bottom: 15px; border-bottom: 1px solid var(--vd-rule-container);
+}
+.vd-topbar__left { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.vd-topbar__emblem { mix-blend-mode: screen; opacity: 0.8; }
+.vd-topbar__brand { font: 500 15px/1 var(--vd-display); letter-spacing: 0.24em; }
+.vd-topbar__theme {
+  margin-left: 10px; padding-left: 12px;
+  border-left: 1px solid var(--vd-rule-container);
+  font: italic 400 14px/1 var(--vd-voice); color: var(--vd-ink-muted);
+}
+.vd-topbar__right { display: flex; align-items: center; gap: var(--vd-4); flex-wrap: wrap; }
+
+.vd-voicechip { display: inline-flex; align-items: center; gap: 7px; font: 700 8.5px/1 var(--vd-ui); letter-spacing: 0.26em; text-transform: uppercase; color: var(--vd-ink-dim); }
+.vd-voicechip > i { width: 6px; height: 6px; background: var(--vd-rule-control); }
+.vd-voicechip > i.is-on { background: var(--vd-green); }
+
+.vd-voicebtns { display: inline-flex; gap: 6px; }
+.vd-iconbtn {
+  display: inline-grid; place-items: center; width: 30px; height: 30px;
+  border: 1px solid var(--vd-rule-control); background: transparent;
+  color: var(--vd-ink-muted); cursor: pointer;
+}
+.vd-iconbtn:hover { color: var(--vd-ink); border-color: var(--vd-rule-strong); }
+
+.vd-errline { margin-top: var(--vd-4); font: 400 13px/1.5 var(--vd-ui); color: var(--vd-red-ink); }
+
+.vd-actionline { display: flex; align-items: baseline; justify-content: space-between; margin: 0 0 11px; }
+
+/* Table body: the three columns, with the centre column stacking its own rows. */
+.vd-table { flex: 1; padding: 26px 0 30px; gap: var(--vd-6); }
+.vd-centre { display: flex; flex-direction: column; align-items: center; gap: var(--vd-5); padding: 0 30px; }
+.vd-centre > .vd-seal { width: 100%; max-width: 470px; }
+.vd-centre__wide { width: 100%; max-width: 470px; }
+@media (max-width: 1100px) { .vd-centre { padding: 0; order: -1; } }
+
+.vd-stack { display: flex; flex-direction: column; gap: var(--vd-4); }
+.vd-stack--tight { gap: var(--vd-2); }
+.vd-row { display: flex; align-items: center; gap: var(--vd-3); flex-wrap: wrap; }
+
+/* ============================================================================
+   Plates: a bordered row/tile used for names, candidates, allegiances
+   ========================================================================== */
+
+.vd-tile {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 13px; border: 1px solid var(--vd-rule-container);
+  background: var(--vd-bg-raised); color: var(--vd-ink);
+  font: 600 13px/1 var(--vd-ui); text-align: left; width: 100%;
+}
+.vd-tile--parchment { background: var(--vd-parchment); border-color: var(--vd-brass-edge); color: #171410; }
+.vd-tile--evil { background: rgba(158, 59, 40, 0.07); border-color: var(--vd-red-rule); }
+.vd-tile--brass { border-color: var(--vd-brass); }
+.vd-tile--btn { cursor: pointer; }
+.vd-tile--btn:hover:not(:disabled) { border-color: var(--vd-rule-strong); }
+.vd-tile:disabled { opacity: 0.5; cursor: default; }
+.vd-tile__meta { margin-left: auto; font: 700 8.5px/1 var(--vd-ui); letter-spacing: 0.2em; text-transform: uppercase; color: var(--vd-ink-dim); }
+.vd-tile__seat { font: 500 13px/1 var(--vd-display); color: var(--vd-rule-engraved); min-width: 18px; }
+
+.vd-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--vd-2); }
+.vd-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--vd-2); }
+.vd-grid5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--vd-2); }
+@media (max-width: 720px) {
+  .vd-grid3 { grid-template-columns: 1fr 1fr; }
+  .vd-grid5 { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* ============================================================================
+   The role card (night) — studded, parchment faces, brass for good / red evil
+   ========================================================================== */
+
+.vd-role {
+  padding: 22px 20px 20px; background: var(--vd-bg-plate);
+  border: 1px solid var(--vd-rule-strong);
+}
+.vd-role--evil { border-color: var(--vd-red-rule); }
+.vd-role--evil.vd-studded::before, .vd-role--evil.vd-studded::after,
+.vd-role--evil.vd-studded > .vd-stud-b::before, .vd-role--evil.vd-studded > .vd-stud-b::after {
+  background: var(--vd-red);
+}
+.vd-role__side { font: 700 8.5px/1 var(--vd-ui); letter-spacing: 0.26em; text-transform: uppercase; color: var(--vd-ink-muted); }
+.vd-role__name { margin: 9px 0 12px; font: 500 34px/1.05 var(--vd-display); color: var(--vd-ink); }
+.vd-role__hidden { margin: 9px 0 12px; font: 500 34px/1.05 var(--vd-display); color: var(--vd-rule-engraved); }
+
+/* Press-and-hold, never a tap toggle: the phone is held in a room of people. */
+.vd-hold {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; min-height: 56px; margin-top: var(--vd-4);
+  border: 1px solid var(--vd-brass); background: transparent;
+  color: var(--vd-ink); font: 700 8.5px/1 var(--vd-ui);
+  letter-spacing: 0.26em; text-transform: uppercase; cursor: pointer;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.vd-hold.is-holding { background: var(--vd-parchment); border-color: var(--vd-brass-edge); color: #171410; }
+
+/* The night script: NIGHT_ORDER with your own step struck in brass. */
+.vd-script__row {
+  display: flex; gap: 12px; align-items: baseline;
+  padding: 10px 11px; border-bottom: 1px solid var(--vd-rule-structure);
+}
+.vd-script__row.is-mine { background: rgba(194, 165, 95, 0.07); }
+.vd-script__n { font: 500 15px/1 var(--vd-display); color: var(--vd-rule-engraved); min-width: 16px; }
+.vd-script__row.is-mine .vd-script__n { color: var(--vd-brass); }
+.vd-script__text { font: italic 400 14px/1.5 var(--vd-voice); color: var(--vd-ink-dim); }
+.vd-script__row.is-mine .vd-script__text { color: var(--vd-ink-soft); }
+.vd-script__you { margin-left: auto; font: 700 7.5px/1 var(--vd-ui); letter-spacing: 0.2em; color: var(--vd-brass); }
+
+/* ============================================================================
+   Quest: the two card choices, and the anonymous result
+   ========================================================================== */
+
+.vd-cards { display: flex; gap: var(--vd-3); width: 100%; }
+.vd-card {
+  flex: 1; min-height: 150px; padding: 18px 16px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  border: 1px solid var(--vd-rule-control); background: var(--vd-bg-raised);
+  color: var(--vd-ink); cursor: pointer; text-align: left;
+}
+.vd-card--success { background: var(--vd-parchment); border-color: var(--vd-brass-edge); color: #171410; }
+.vd-card--fail { background: transparent; border-color: var(--vd-red-rule); color: var(--vd-red-ink); }
+.vd-card:disabled { opacity: 0.4; cursor: not-allowed; }
+.vd-card__name { font: 500 22px/1 var(--vd-display); }
+.vd-card__note { font: italic 400 12.5px/1.45 var(--vd-voice); opacity: 0.85; }
+
+/* Result: card backs, never hands. Failed slots filled red. */
+.vd-backs { display: flex; gap: var(--vd-2); justify-content: center; }
+.vd-back { width: 40px; height: 56px; border: 1px solid var(--vd-rule-strong); background: var(--vd-bg-raised); }
+.vd-back.is-fail { background: var(--vd-red); border-color: var(--vd-red); }
+
+/* ============================================================================
+   Watchers (the queue behind the table)
+   ========================================================================== */
+
+.vd-watchers { display: flex; flex-direction: column; gap: var(--vd-1); }
+.vd-watcher {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 11px; border: 1px solid var(--vd-rule-structure);
+  font: 600 12.5px/1 var(--vd-ui); color: var(--vd-ink-soft);
+}
+.vd-watcher__q { font: 500 12px/1 var(--vd-display); color: var(--vd-rule-engraved); min-width: 16px; }
+.vd-watcher__seat {
+  margin-left: auto; padding: 5px 9px;
+  border: 1px solid var(--vd-rule-control); background: transparent;
+  color: var(--vd-brass); font: 700 7.5px/1 var(--vd-ui);
+  letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer;
+}
+.vd-watcher__seat:disabled { opacity: 0.4; cursor: default; }
+
+/* Plot strip: hand, private intel and log, under whichever board is up. */
+.vd-plotstrip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--vd-5);
+  padding: 24px 0 34px;
+  margin-top: var(--vd-4);
+  border-top: 1px solid var(--vd-rule-container);
+}
+.vd-plotstrip:empty { display: none; }

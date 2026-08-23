@@ -198,10 +198,88 @@ export function premiumBlockReason(
   return null;
 }
 
-/** How many players a room may seat, given its premium standing. */
+/* ------------------------------ seating -------------------------------- */
+
+/**
+ * How many players a room may SEAT, given its premium standing. Avalon has no
+ * team split or mission matrix above ten, so this is the ceiling on the game
+ * itself — not on how many people may be in the room. See `splitSeating`.
+ */
 export function seatCap(premium: boolean, seats: number): number {
   if (!premium) return MAX_PLAYERS;
   return Math.max(MIN_PLAYERS, Math.min(MAX_PLAYERS, seats));
+}
+
+/**
+ * Hard ceiling on total room size. Joins past the seat cap become watchers
+ * rather than errors, so something has to stop a room growing without bound.
+ */
+export const ROOM_CAPACITY = 40;
+
+export type SeatedPlayer = { playerId: string; seat: number };
+
+export type Seating<T extends SeatedPlayer> = {
+  /** The players actually in the game — at most `cap` of them. */
+  seated: T[];
+  /** Everyone else, in a stable queue: they watch and never receive a role. */
+  watching: T[];
+  /** True when the room is holding more people than the table can take. */
+  overflowing: boolean;
+  cap: number;
+};
+
+/**
+ * Split a roster into the players at the table and the watchers behind them.
+ *
+ * Seats are kept DENSE (0..n-1) everywhere else in the codebase — `leaveRoom`
+ * reindexes on every departure — so "watcher" is simply `seat >= cap`. That is
+ * what makes promotion free: compacting seats after someone leaves slides the
+ * first watcher into the game with no extra bookkeeping.
+ */
+export function splitSeating<T extends SeatedPlayer>(
+  players: T[],
+  cap: number,
+): Seating<T> {
+  const ordered = [...players].sort((a, b) => a.seat - b.seat);
+  return {
+    seated: ordered.slice(0, cap),
+    watching: ordered.slice(cap),
+    overflowing: ordered.length > cap,
+    cap,
+  };
+}
+
+/**
+ * Renumber a roster to dense seats in its current order. Returns only the
+ * players whose seat actually moved, so a caller can patch the minimum.
+ */
+export function compactSeats<T extends SeatedPlayer>(
+  players: T[],
+): Array<{ player: T; seat: number }> {
+  const ordered = [...players].sort((a, b) => a.seat - b.seat);
+  const moved: Array<{ player: T; seat: number }> = [];
+  ordered.forEach((p, i) => {
+    if (p.seat !== i) moved.push({ player: p, seat: i });
+  });
+  return moved;
+}
+
+/**
+ * Exchange two players' seats. Used by the host to pull a specific watcher to
+ * the table; density is preserved because it is a straight swap.
+ */
+export function swapSeats<T extends SeatedPlayer>(
+  players: T[],
+  aId: string,
+  bId: string,
+): Array<{ player: T; seat: number }> | null {
+  const a = players.find((p) => p.playerId === aId);
+  const b = players.find((p) => p.playerId === bId);
+  if (!a || !b || a.playerId === b.playerId) return null;
+  return [
+    { player: a, seat: b.seat },
+    { player: b, seat: a.seat },
+  ];
 }
 
 /** How many good/evil slots the optional roles consume. */

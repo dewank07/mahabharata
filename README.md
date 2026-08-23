@@ -66,12 +66,34 @@ reaching the admin console.
 | Roles | Merlin, Assassin, Percival, Morgana, servants, minions | + Mordred, Oberon, Guinevere, the lovers, both Lancelots |
 | Expansions | — | Lady of the Lake, Excalibur, Plot cards |
 | Worlds | Medieval | + Mahabharata, Maratha, Greek, Egyptian |
-| Players | 5–10 | up to the plan's seat count |
+| Players seated | 5–10 | up to the plan's seat count |
 
 A room's tier follows **the host's** plan. Seats are keyed on email, so a member
 gets premium in any room they host or join once they sign in with that Google
-account. A premium room is capped at the plan's seat count, which is what stops
-one 7-seat plan covering a 10-player table.
+account. The plan's seat count caps how many people are *seated* — which is what
+stops one 7-seat plan covering a 10-player table.
+
+> Note the current inversion: a free room seats the full ten, while a 7-seat plan
+> seats seven. `npx convex env set SUBSCRIPTION_SEATS 10` removes it, after which
+> a plan's seat count only governs who gets premium *content*.
+
+## The table, and the room
+
+Avalon defines no team split or mission matrix above ten players, so a **game** is
+always 5–10. A **room** is not: anyone past the seat cap joins as a *watcher*
+rather than being turned away.
+
+- The first N by `seat` are seated; everyone after is a watcher in a stable queue.
+- Watchers see the board and hear voice, and are never dealt a role. Every game
+  action refuses them server-side — vote, quest card, party membership, plot cards.
+- Seats are kept dense (`0..n-1`), so when a seated player leaves, compaction
+  promotes the queue head automatically. There is no separate promote step.
+- The host can pull a specific watcher to the table (`swapSeat`), which is a
+  straight exchange of two `seat` values and so preserves density.
+- Hard ceiling is `ROOM_CAPACITY` (40) — joins are otherwise unbounded.
+
+`convex/logic.ts` holds the pure primitives (`splitSeating`, `compactSeats`,
+`swapSeats`, `seatCap`) and both the client and the server import them.
 
 > The free/paid split lives in one place — `PREMIUM_OPT_KEYS` and
 > `FREE_THEME_IDS` in `convex/logic.ts`. Note this currently puts the
@@ -92,6 +114,40 @@ The buyer can rename the covered emails at any time from `#/upgrade`.
 Payment requests (approve with a custom duration, or reject with a note), all
 subscriptions (edit seats, +30 days, revoke, reactivate, delete), the user list
 with tier, and a direct grant form for comps or payments taken offline.
+
+## The Council Seal (game UI)
+
+The gameplay surface is the **Council Seal** system: flat blackened surfaces with
+paper grain, aged brass for rank and state, parchment for anything you can act on.
+No gradients, glow or shadows. The design lives in `design/` — open
+`design/Verdict Council Seal Flow.dc.html` in a browser for the annotated spec,
+and `design/COUNCIL_SEAL.md` for the tokens and per-screen rules.
+
+`src/seal.css` is the whole system (imported after `styles.css` so its tokens
+win). `src/table/` has one screen per phase, all sharing `TableShell` and the
+`CouncilSeal` ring:
+
+```
+src/table/
+  index.tsx           phase router + the actions the screens can call
+  TableShell.tsx      board, grain, watermark, topbar, voice controls
+  Parts.tsx           quest column, chronicle, room -> seat-ring mapping
+  LobbyScreen.tsx     seats, watcher queue, verbatim setup errors
+  NightScreen.tsx     role card (press-and-hold) + the NIGHT_ORDER script
+  ProposeScreen.tsx   clock fuse, seal, NAMED line, Excalibur assignment
+  VoteScreen.tsx      hidden votes + the verdict / King Returns plates
+  QuestScreen.tsx     card choice, Excalibur window, anonymous result
+  LadyScreen.tsx      eligible targets, past holders disabled
+  AssassinScreen.tsx  candidates + the lovers mode switch
+  ReckoningScreen.tsx winReason, quest board, allegiances in seat order
+  PlotHand.tsx        the deal, your hand, your private intel, the public log
+```
+
+Two consequences worth knowing. **Themes are now name-and-lore packs** — role
+names, win reasons and taglines still come from `convex/themes.ts`, but the board
+palette is fixed, so per-theme colours no longer apply to gameplay screens. And
+seats show **heraldic sigils** (`src/sigils.tsx`, derived from `playerId`) rather
+than avatars; voice audio and the camera toggle live in the topbar.
 
 ## Google sign-in setup
 

@@ -53,11 +53,33 @@ function seatPosition(i: number, n: number) {
 const MARKS = [30, 60, 120, 150, 210, 240, 300, 330];
 const CARDINALS = [90, 180, 270];
 
+/**
+ * Seats sit on a circle, so the space each one gets is the circumference over
+ * `n`. Past ten the ring has to grow and the discs shrink or they collide: at
+ * radius 42% the arc per seat is ~2.64·W/n, which must stay above the seat's
+ * own width. These three bands keep that true all the way to twenty.
+ */
+function ringMetrics(n: number) {
+  if (n <= 10) return { seal: 392, seat: 88, disc: 62, name: 11.5 };
+  if (n <= 13) return { seal: 470, seat: 74, disc: 52, name: 10.5 };
+  if (n <= 16) return { seal: 530, seat: 68, disc: 46, name: 10 };
+  return { seal: 580, seat: 62, disc: 40, name: 9.5 };
+}
+
 export function CouncilSeal({ seats, emblemSrc, onSelect, isDisabled, className }: Props) {
   const n = seats.length;
+  const m = ringMetrics(n);
 
   return (
-    <div className={`vd-seal ${className ?? ""}`}>
+    <div
+      className={`vd-seal ${className ?? ""}`}
+      style={{
+        maxWidth: m.seal,
+        ["--vd-seat-w" as string]: `${m.seat}px`,
+        ["--vd-seat-disc" as string]: `${m.disc}px`,
+        ["--vd-seat-name" as string]: `${m.name}px`,
+      }}
+    >
       <div className="vd-seal__ring" />
       <div className="vd-seal__ring-inner" />
 

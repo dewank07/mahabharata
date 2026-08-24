@@ -206,6 +206,7 @@
    ========================================================================== */
 
 .vd-seal { position: relative; aspect-ratio: 1; width: 100%; max-width: 392px; margin-inline: auto; }
+/* Seat metrics come from CouncilSeal so one ring serves 5–20 seats. */
 
 .vd-seal__ring,
 .vd-seal__ring-inner {
@@ -245,7 +246,7 @@
 .vd-seat {
   position: absolute;
   translate: -50% -50%;
-  width: 88px;
+  width: var(--vd-seat-w, 88px);
   /* The children are spans; without a column flow the name and its state run
      together on one line ("DewankHost"). */
   display: flex;
@@ -260,8 +261,8 @@
 }
 .vd-seat__disc {
   position: relative;
-  width: 62px;
-  height: 62px;
+  width: var(--vd-seat-disc, 62px);
+  height: var(--vd-seat-disc, 62px);
   margin: 0 auto;
   border-radius: 50%;
   background: var(--vd-bg-raised);
@@ -269,7 +270,7 @@
   display: grid;
   place-items: center;
 }
-.vd-seat__name { margin-top: 10px; font: 600 11.5px/1 var(--vd-ui); color: var(--vd-ink-muted); }
+.vd-seat__name { margin-top: 10px; font: 600 var(--vd-seat-name, 11.5px)/1.15 var(--vd-ui); color: var(--vd-ink-muted); }
 .vd-seat__state { margin-top: 4px; font: 700 8px/1 var(--vd-ui); letter-spacing: 0.16em; color: var(--vd-brass); }
 
 /* leader: brass rim + a brass bar beneath the disc */
@@ -310,10 +311,14 @@
 .vd-seat:disabled { cursor: default; }
 .vd-seat:focus-visible .vd-seat__disc { outline: 2px solid var(--vd-brass); outline-offset: 3px; }
 
+/* Phones: scale whatever the ring chose, so a 20-seat table still fits. */
 @media (max-width: 720px) {
-  .vd-seat { width: 62px; }
-  .vd-seat__disc { width: 44px; height: 44px; }
-  .vd-seat__name { margin-top: 6px; font-size: 9.5px; }
+  .vd-seat { width: calc(var(--vd-seat-w, 88px) * 0.7); }
+  .vd-seat__disc {
+    width: calc(var(--vd-seat-disc, 62px) * 0.71);
+    height: calc(var(--vd-seat-disc, 62px) * 0.71);
+  }
+  .vd-seat__name { margin-top: 6px; font-size: calc(var(--vd-seat-name, 11.5px) * 0.85); }
   .vd-seat__state { font-size: 7px; }
 }
 

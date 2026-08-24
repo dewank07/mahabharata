@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { Flame } from "lucide-react";
 import { QuestLadder } from "../TableParts";
-import { QUEST_SIZES, DOUBLE_FAIL_QUEST } from "../../convex/logic";
+import { QUEST_SIZES, doubleFailQuests } from "../../convex/logic";
 import { ChronicleColumn } from "./Parts";
 import { ActionLine } from "./TableShell";
 import type { TableProps } from "./types";
@@ -50,7 +50,7 @@ export function AssassinScreen({
           sizes={QUEST_SIZES[n] ?? []}
           questIndex={room.questIndex}
           results={room.questResults}
-          doubleFailIndex={n >= 7 ? DOUBLE_FAIL_QUEST : undefined}
+          doubleFail={doubleFailQuests(n)}
         />
       </div>
 

@@ -7,14 +7,14 @@ import { useMemo } from "react";
 import { CouncilSeal, type Seat, type SeatState } from "../CouncilSeal";
 import { QuestLadder, RejectionTrack, Chronicle, type ChronicleEntry } from "../TableParts";
 import { dealSigils } from "../sigils";
-import { QUEST_SIZES, DOUBLE_FAIL_QUEST } from "../../convex/logic";
+import { QUEST_SIZES, doubleFailQuests } from "../../convex/logic";
 import { type Room, ROMAN, partySize } from "./types";
 
 /** Quest numeral + ladder + rejection track + the oath. */
 export function QuestColumn({ room }: { room: Room }) {
   const n = room.players.length;
   const sizes = QUEST_SIZES[n] ?? [];
-  const doubleFail = n >= 7 ? DOUBLE_FAIL_QUEST : undefined;
+  const doubleFail = doubleFailQuests(n);
 
   return (
     <div className="vd-stack">
@@ -34,7 +34,7 @@ export function QuestColumn({ room }: { room: Room }) {
         sizes={sizes}
         questIndex={room.questIndex}
         results={room.questResults}
-        doubleFailIndex={doubleFail}
+        doubleFail={doubleFail}
       />
 
       <RejectionTrack used={room.rejectCount} max={room.maxRejects} />

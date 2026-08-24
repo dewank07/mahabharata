@@ -1,6 +1,6 @@
 # Dharmayuddha — The War of Kurukshetra
 
-A multiplayer online social-deduction game for 5–10 players, themed on the
+A multiplayer online social-deduction game for 5–20 players, themed on the
 **Mahabharata**: the **Pandavas (Dharma)** against the **Kauravas (Adharma)**.
 Convene a war council, get a 4-letter code, share it, and play through war-party
 proposals, council votes, the battles of Kurukshetra, and Ashwatthama's final
@@ -66,7 +66,7 @@ reaching the admin console.
 | Roles | Merlin, Assassin, Percival, Morgana, servants, minions | + Mordred, Oberon, Guinevere, the lovers, both Lancelots |
 | Expansions | — | Lady of the Lake, Excalibur, Plot cards |
 | Worlds | Medieval | + Mahabharata, Maratha, Greek, Egyptian |
-| Players seated | 5–10 | up to the plan's seat count |
+| Players seated | 5–20 | up to the plan's seat count |
 
 A room's tier follows **the host's** plan. Seats are keyed on email, so a member
 gets premium in any room they host or join once they sign in with that Google
@@ -79,9 +79,8 @@ stops one 7-seat plan covering a 10-player table.
 
 ## The table, and the room
 
-Avalon defines no team split or mission matrix above ten players, so a **game** is
-always 5–10. A **room** is not: anyone past the seat cap joins as a *watcher*
-rather than being turned away.
+A **game** seats 5–20 (see *Beyond ten* below). A **room** is unbounded: anyone
+past the seat cap joins as a *watcher* rather than being turned away.
 
 - The first N by `seat` are seated; everyone after is a watcher in a stable queue.
 - Watchers see the board and hear voice, and are never dealt a role. Every game
@@ -114,6 +113,30 @@ The buyer can rename the covered emails at any time from `#/upgrade`.
 Payment requests (approve with a custom duration, or reject with a note), all
 subscriptions (edit seats, +30 days, revoke, reactivate, delete), the user list
 with tier, and a direct grant form for comps or payments taken offline.
+
+## Beyond ten — a house rule
+
+Avalon is printed for 5–10 players and defines no team split or mission sizes
+above that. This engine goes to **20**, and rather than invent numbers both are
+extrapolated from the printed table's own arithmetic:
+
+| | Rule | Why |
+|---|---|---|
+| Evil count | `ceil(n / 3)` | Reproduces every official row exactly — 5→2, 6→2, 7→3, 8→3, 9→3, 10→4 — so it simply keeps going above ten. Good takes the rest. |
+| Mission sizes | flat `3 4 4 5 5` at 8–10, then `+1` per further three players | Continues the printed table's own plateau. 11 rides 4/5/5/6/6; 20 rides 7/8/8/9/9. |
+| Two-fail quests | the 4th at 7+, **and the 3rd above ten** | Parties grow with the head count, so a lone saboteur would otherwise be aboard nearly every mission. |
+
+The 5–10 rows are literals in `convex/logic.ts` and are never computed; the
+formulas are asserted against them in the test suite, so a future edit cannot
+quietly change the printed game.
+
+The seal scales with the table: past ten the ring widens and the seat discs
+shrink in three bands, keeping the arc per seat above the seat's own width all
+the way to twenty.
+
+> Worth knowing before you seat twenty: the game is still **five quests** long,
+> so at the largest sizes many players never ride. Extending the quest count is
+> the obvious follow-up if that turns out to matter.
 
 ## The Council Seal (game UI)
 

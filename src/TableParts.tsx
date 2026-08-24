@@ -61,12 +61,13 @@ export function QuestLadder({
   sizes,
   questIndex,
   results,
-  doubleFailIndex,
+  doubleFail = [],
 }: {
   sizes: number[];                                  // QUEST_SIZES[playerCount]
   questIndex: number;
   results: (("success" | "fail") | null)[];
-  doubleFailIndex?: number;                         // 3 at 7+ players
+  /** Quests needing two fails: Q4 at 7+, and Q3 as well above ten. */
+  doubleFail?: number[];
 }) {
   return (
     <div>
@@ -89,18 +90,20 @@ export function QuestLadder({
               }}>
                 {size}
               </div>
-              {i === doubleFailIndex && (
+              {doubleFail.includes(i) && (
                 <span style={{ position: "absolute", top: 4, right: 4, width: 5, height: 5, background: "var(--vd-red)" }} />
               )}
             </div>
           );
         })}
       </div>
-      {doubleFailIndex !== undefined && (
+      {doubleFail.length > 0 && (
         <div style={{ marginTop: 9, display: "flex", alignItems: "center", gap: 7 }}>
           <span style={{ width: 5, height: 5, background: "var(--vd-red)" }} />
           <span style={{ font: "400 12px/1.4 var(--vd-voice)", color: "var(--vd-ink-dim)" }}>
-            the fourth quest needs two fails
+            {doubleFail.length === 1
+              ? `the ${ROMAN[doubleFail[0]]} quest needs two fails`
+              : `quests ${doubleFail.map((i) => ROMAN[i]).join(" and ")} need two fails`}
           </span>
         </div>
       )}

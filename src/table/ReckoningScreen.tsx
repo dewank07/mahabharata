@@ -8,7 +8,7 @@
 
 import { RefreshCw } from "lucide-react";
 import { QuestLadder } from "../TableParts";
-import { QUEST_SIZES, DOUBLE_FAIL_QUEST } from "../../convex/logic";
+import { QUEST_SIZES, doubleFailQuests } from "../../convex/logic";
 import { Studded } from "./TableShell";
 import { type TableProps, nameOf } from "./types";
 
@@ -42,7 +42,7 @@ export function ReckoningScreen({
           sizes={QUEST_SIZES[n] ?? []}
           questIndex={-1}
           results={room.questResults}
-          doubleFailIndex={n >= 7 ? DOUBLE_FAIL_QUEST : undefined}
+          doubleFail={doubleFailQuests(n)}
         />
 
         {room.lancelot?.swapped && (

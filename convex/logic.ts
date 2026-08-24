@@ -65,24 +65,89 @@ export function currentTeam(role: Role, lancelotSwapped: boolean): Team {
 
 /* ------------------------------ setup matrix ---------------------------- */
 
-export const TEAM_COUNTS: Record<number, [number, number]> = {
+/**
+ * Avalon's printed matrix, 5–10 players. These rows are the source of truth and
+ * are never computed.
+ */
+const OFFICIAL_TEAMS: Record<number, [number, number]> = {
   5: [3, 2], 6: [4, 2], 7: [4, 3], 8: [5, 3], 9: [6, 3], 10: [6, 4],
 };
 
-export const QUEST_SIZES: Record<number, number[]> = {
+const OFFICIAL_QUESTS: Record<number, number[]> = {
   5: [2, 3, 2, 3, 3], 6: [2, 3, 4, 3, 4], 7: [2, 3, 3, 4, 4],
   8: [3, 4, 4, 5, 5], 9: [3, 4, 4, 5, 5], 10: [3, 4, 4, 5, 5],
 };
 
-/** The 4th quest (0-indexed 3) needs 2 fails — only at 7+ players. */
-export const DOUBLE_FAIL_QUEST = 3;
+/* ---------------------------------------------------------------------------
+   Above ten players the game is a HOUSE RULE — the wiki defines no split and no
+   mission sizes there. Rather than invent numbers, both are extrapolated from
+   the printed table's own arithmetic:
 
-export function failsNeeded(playerCount: number, questIndex: number): number {
-  return questIndex === DOUBLE_FAIL_QUEST && playerCount >= 7 ? 2 : 1;
+     evil = ceil(n / 3)   reproduces all six official rows exactly
+                          (5→2, 6→2, 7→3, 8→3, 9→3, 10→4)
+
+     mission sizes are flat at [3,4,4,5,5] across 8–10, so each further three
+     players adds one to every mission.
+
+   `test-seating` asserts both formulas still reproduce the official rows, so a
+   future edit cannot quietly break 5–10.
+   ------------------------------------------------------------------------- */
+
+/** Evil seats at a given head count. Matches the printed table for 5–10. */
+export function evilCount(playerCount: number): number {
+  return Math.ceil(playerCount / 3);
+}
+
+const QUEST_BASE = [3, 4, 4, 5, 5];
+
+export function questSizesFor(playerCount: number): number[] {
+  const official = OFFICIAL_QUESTS[playerCount];
+  if (official) return official;
+  const step = Math.floor((playerCount - 8) / 3);
+  return QUEST_BASE.map((v) => v + step);
 }
 
 export const MIN_PLAYERS = 5;
-export const MAX_PLAYERS = 10;
+/** Ceiling on players IN A GAME. Beyond it, arrivals become watchers. */
+export const MAX_PLAYERS = 20;
+
+function buildMatrix() {
+  const teams: Record<number, [number, number]> = {};
+  const quests: Record<number, number[]> = {};
+  for (let n = MIN_PLAYERS; n <= MAX_PLAYERS; n++) {
+    const official = OFFICIAL_TEAMS[n];
+    const evil = official ? official[1] : evilCount(n);
+    teams[n] = [n - evil, evil];
+    quests[n] = questSizesFor(n);
+  }
+  return { teams, quests };
+}
+
+const MATRIX = buildMatrix();
+
+export const TEAM_COUNTS: Record<number, [number, number]> = MATRIX.teams;
+export const QUEST_SIZES: Record<number, number[]> = MATRIX.quests;
+
+/** Kept for the 4th-quest marker; see `doubleFailQuests` for the full set. */
+export const DOUBLE_FAIL_QUEST = 3;
+
+/**
+ * Which quests (0-indexed) need two fails to sink.
+ *
+ * Avalon: the 4th, at 7+ players. HOUSE RULE above ten: the 3rd as well, because
+ * parties grow with the head count and a lone saboteur would otherwise be aboard
+ * nearly every mission.
+ */
+export function doubleFailQuests(playerCount: number): number[] {
+  const out: number[] = [];
+  if (playerCount >= 11) out.push(2);
+  if (playerCount >= 7) out.push(3);
+  return out;
+}
+
+export function failsNeeded(playerCount: number, questIndex: number): number {
+  return doubleFailQuests(playerCount).includes(questIndex) ? 2 : 1;
+}
 export const MAX_REJECTS = 5;
 
 /** Leader clock: discuss, then extra time to lock the war party. */

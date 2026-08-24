@@ -15,7 +15,8 @@ import {
 } from "lucide-react";
 import { THEMES, THEME_LIST, type ThemeConfig } from "../convex/themes";
 import {
-  DOUBLE_FAIL_QUEST,
+  doubleFailQuests,
+  MAX_PLAYERS,
   QUEST_SIZES,
   TEAM_COUNTS,
   MAX_REJECTS,
@@ -220,8 +221,9 @@ export default function RulesPage() {
           </div>
         </div>
         <p className="rules-note">
-          Quest {DOUBLE_FAIL_QUEST + 1} (the fourth) needs <strong>two Fail cards</strong> to
-          fail when there are 7 or more players. With 5–6 players, a single Fail still ruins it.
+          The fourth quest needs <strong>two Fail cards</strong> to fail once there
+          are 7 or more players; with 5–6, a single Fail still ruins it. Above ten
+          the third quest needs two as well — see <em>Beyond ten</em> below.
         </p>
       </section>
 
@@ -238,7 +240,7 @@ export default function RulesPage() {
         <div className="rules-size-picker">
           <span>Warriors at the table</span>
           <div className="rules-size-picker__btns">
-            {[5, 6, 7, 8, 9, 10].map((n) => (
+            {Array.from({ length: MAX_PLAYERS - 4 }, (_, i) => i + 5).map((n) => (
               <button
                 key={n}
                 type="button"
@@ -265,17 +267,60 @@ export default function RulesPage() {
           {quests.map((size, i) => (
             <div
               key={i}
-              className={`rules-gem ${i === DOUBLE_FAIL_QUEST && players >= 7 ? "rules-gem--double" : ""}`}
+              className={`rules-gem ${doubleFailQuests(players).includes(i) ? "rules-gem--double" : ""}`}
             >
               <span>Q{i + 1}</span>
               <strong>{size}</strong>
               <em>on party</em>
-              {i === DOUBLE_FAIL_QUEST && players >= 7 && (
-                <b>2 fails to sink</b>
-              )}
+              {doubleFailQuests(players).includes(i) && <b>2 fails to sink</b>}
             </div>
           ))}
         </div>
+      </section>
+
+      <section id="beyond-ten" className="rules-section">
+        <h2>Beyond ten — a house rule</h2>
+        <p>
+          Avalon is printed for 5–10 players and defines no team split or mission
+          sizes above that. This table goes to <strong>{MAX_PLAYERS}</strong>, and
+          rather than invent numbers both are extrapolated from the printed
+          table's own arithmetic.
+        </p>
+        <div className="rules-callouts">
+          <article>
+            <Flame size={18} />
+            <h3>Evil count</h3>
+            <p>
+              <code>ceil(n / 3)</code>. That reproduces every official row exactly
+              — 5&rarr;2, 6&rarr;2, 7&rarr;3, 8&rarr;3, 9&rarr;3, 10&rarr;4 — so
+              above ten it simply keeps going. Good takes the rest.
+            </p>
+          </article>
+          <article>
+            <Users size={18} />
+            <h3>Mission sizes</h3>
+            <p>
+              Flat at <code>3&nbsp;4&nbsp;4&nbsp;5&nbsp;5</code> across 8–10
+              players, so every further three players adds one to each mission.
+              Eleven rides 4/5/5/6/6; twenty rides 7/8/8/9/9.
+            </p>
+          </article>
+          <article>
+            <Shield size={18} />
+            <h3>Two-fail quests</h3>
+            <p>
+              The third quest joins the fourth in needing two Fails above ten.
+              Parties grow with the head count, so a lone saboteur would otherwise
+              be aboard nearly every mission.
+            </p>
+          </article>
+        </div>
+        <p className="rules-note">
+          Everything at 5–10 players is unchanged and always takes the printed
+          values. Note that the game is still five quests long: at the largest
+          sizes many players never ride, which is worth knowing before you seat
+          twenty.
+        </p>
       </section>
 
       <section id="sight" className="rules-section">

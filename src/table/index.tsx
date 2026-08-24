@@ -19,6 +19,9 @@ import type { TableProps } from "./types";
 
 export type TableActions = {
   start: () => Promise<unknown>;
+  setOpts: (opts: TableProps["room"]["opts"]) => Promise<unknown>;
+  changeTheme: (themeId: string) => Promise<unknown>;
+  leave: () => void;
   swapSeat: (watcherId: string, seatedId: string) => Promise<unknown>;
   begin: () => Promise<unknown>;
   propose: (team: string[], excaliburId?: string) => Promise<unknown>;
@@ -37,13 +40,27 @@ export type TableActions = {
 };
 
 export function Table(props: TableProps & { actions: TableActions }) {
-  const { room, pid, theme, voice, emblemSrc, act, error, actions } = props;
-  const base = { room, pid, theme, emblemSrc, act };
+  const { room, pid, theme, voice, emblemSrc, account, worlds, act, error, actions } = props;
+  const base = { room, pid, theme, emblemSrc, voice, account, worlds, act };
 
   return (
-    <TableShell room={room} theme={theme} voice={voice} emblemSrc={emblemSrc} error={error}>
+    <TableShell
+      room={room}
+      theme={theme}
+      voice={voice}
+      emblemSrc={emblemSrc}
+      account={account}
+      error={error}
+    >
       {room.phase === "lobby" && (
-        <LobbyScreen {...base} onStart={actions.start} onSwapSeat={actions.swapSeat} />
+        <LobbyScreen
+          {...base}
+          onStart={actions.start}
+          onSwapSeat={actions.swapSeat}
+          onSetOpts={actions.setOpts}
+          onChangeTheme={actions.changeTheme}
+          onLeave={actions.leave}
+        />
       )}
 
       {room.phase === "reveal" && <NightScreen {...base} onBegin={actions.begin} />}

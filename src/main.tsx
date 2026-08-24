@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useState, type CSSProperties } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { ConvexReactClient } from "convex/react";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
@@ -21,27 +21,6 @@ if (!url) {
 
 const convex = new ConvexReactClient(url);
 
-function RoyalVoid() {
-  return (
-    <div className="royal-void" aria-hidden>
-      <div className="royal-void__lintel" />
-      <div className="royal-void__corona" />
-      <div className="royal-void__ring" />
-      <span className="royal-void__mote royal-void__mote--a" />
-      <span className="royal-void__mote royal-void__mote--b" />
-      <span className="royal-void__mote royal-void__mote--c" />
-      <span className="royal-void__mote royal-void__mote--d" />
-      <div className="royal-void__vignette" />
-    </div>
-  );
-}
-
-/** Palette used by the pages that sit outside a game room. */
-const PLAIN_THEME = {
-  "--theme-ink": "#051424",
-  "--theme-gold": "#f2ca50",
-  "--theme-parch": "#d4e4fa",
-} as CSSProperties;
 
 function Router() {
   const [hash, setHash] = useState(window.location.hash);
@@ -59,16 +38,25 @@ function Router() {
         ? "upgrade"
         : "game";
 
+  // Everything outside a game room sits on the same board as the table, so the
+  // whole app reads as one surface.
+  if (route !== "game") {
+    return (
+      <div className="app-root">
+        <div className="vd-board">
+          <div className="vd-content">
+            {route === "rules" && <RulesPage />}
+            {route === "admin" && <AdminPage />}
+            {route === "upgrade" && <UpgradePage />}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div
-      className="app-root"
-      style={route === "game" ? undefined : PLAIN_THEME}
-    >
-      <RoyalVoid />
-      {route === "rules" && <RulesPage />}
-      {route === "admin" && <AdminPage />}
-      {route === "upgrade" && <UpgradePage />}
-      {route === "game" && <App />}
+    <div className="app-root">
+      <App />
     </div>
   );
 }

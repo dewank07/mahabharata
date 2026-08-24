@@ -95,6 +95,8 @@ export function SeatRing({
   emblemSrc,
   stateFor,
   noteFor,
+  streamFor,
+  speakingFor,
   onSelect,
   isDisabled,
 }: {
@@ -102,6 +104,9 @@ export function SeatRing({
   emblemSrc: string;
   stateFor: (p: Room["players"][number]) => SeatState;
   noteFor?: (p: Room["players"][number]) => string | undefined;
+  /** Live camera feed for a seat, when that player has their camera on. */
+  streamFor?: (p: Room["players"][number]) => MediaStream | null;
+  speakingFor?: (p: Room["players"][number]) => boolean;
   onSelect?: (playerId: string) => void;
   isDisabled?: (seat: Seat) => boolean;
 }) {
@@ -116,6 +121,9 @@ export function SeatRing({
     sigil: sigils[p.playerId] ?? 0,
     state: stateFor(p),
     note: noteFor?.(p),
+    stream: streamFor?.(p) ?? null,
+    mirrored: p.playerId === room.me?.playerId,
+    speaking: speakingFor?.(p) ?? false,
   }));
 
   return (

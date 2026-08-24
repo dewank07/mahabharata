@@ -256,6 +256,11 @@
   position: absolute;
   translate: -50% -50%;
   width: 88px;
+  /* The children are spans; without a column flow the name and its state run
+     together on one line ("DewankHost"). */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
   background: none;
   border: 0;
@@ -568,3 +573,197 @@
   border-top: 1px solid var(--vd-rule-container);
 }
 .vd-plotstrip:empty { display: none; }
+
+/* ============================================================================
+   Lobby configuration: option toggles, world picker, invite line
+   ========================================================================== */
+
+.vd-opts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--vd-2); }
+@media (max-width: 720px) { .vd-opts { grid-template-columns: 1fr; } }
+
+.vd-opt {
+  display: flex; flex-direction: column; gap: 4px; align-items: flex-start;
+  padding: 10px 12px; text-align: left; cursor: pointer;
+  border: 1px solid var(--vd-rule-control); background: transparent;
+  color: var(--vd-ink-soft); min-height: 56px;
+}
+.vd-opt:hover:not(:disabled) { border-color: var(--vd-rule-strong); }
+.vd-opt.is-on { border-color: var(--vd-brass); background: rgba(194, 165, 95, 0.07); color: var(--vd-ink); }
+.vd-opt:disabled { opacity: 0.42; cursor: not-allowed; }
+.vd-opt__top { display: flex; align-items: center; gap: 7px; width: 100%; }
+.vd-opt__name { font: 600 12.5px/1 var(--vd-ui); color: inherit; }
+.vd-opt__desc { font: italic 400 11.5px/1.4 var(--vd-voice); color: var(--vd-ink-dim); }
+.vd-opt__lock { margin-left: auto; font: 700 7.5px/1 var(--vd-ui); letter-spacing: 0.18em; text-transform: uppercase; color: var(--vd-brass); }
+.vd-opt__tick { margin-left: auto; }
+/* good / evil / expansion get a 2px inner edge rather than a fill */
+.vd-opt--good.is-on { box-shadow: inset 2px 0 0 var(--vd-brass); }
+.vd-opt--evil.is-on { box-shadow: inset 2px 0 0 var(--vd-red); }
+
+.vd-worlds { display: grid; grid-template-columns: 1fr 1fr; gap: var(--vd-2); }
+.vd-world {
+  display: flex; align-items: center; gap: 9px; padding: 10px 12px;
+  border: 1px solid var(--vd-rule-control); background: transparent;
+  color: var(--vd-ink-soft); cursor: pointer; text-align: left;
+}
+.vd-world.is-on { border-color: var(--vd-brass); background: rgba(194, 165, 95, 0.07); color: var(--vd-ink); }
+.vd-world:disabled { opacity: 0.45; cursor: not-allowed; }
+.vd-world__name { font: 600 12.5px/1 var(--vd-ui); }
+.vd-world__sub { display: block; margin-top: 3px; font: italic 400 11px/1.3 var(--vd-voice); color: var(--vd-ink-dim); }
+
+.vd-invite {
+  display: flex; align-items: center; gap: var(--vd-3); flex-wrap: wrap;
+  padding: 12px 14px; border: 1px solid var(--vd-rule-strong);
+}
+.vd-invite__code {
+  font: 500 26px/1 var(--vd-display); letter-spacing: 0.2em; color: var(--vd-brass);
+}
+.vd-invite__btn {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 12px; min-height: 40px;
+  border: 1px solid var(--vd-rule-control); background: transparent;
+  color: var(--vd-ink-soft); font: 700 8px/1 var(--vd-ui);
+  letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer;
+}
+.vd-invite__btn:hover { color: var(--vd-ink); border-color: var(--vd-brass); }
+
+.vd-textbtn {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 5px;
+  font: 700 8px/1 var(--vd-ui); letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--vd-ink-dim);
+}
+.vd-textbtn:hover { color: var(--vd-red-ink); }
+
+/* Topbar account controls */
+.vd-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border: 1px solid var(--vd-rule-control);
+  font: 700 8px/1 var(--vd-ui); letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--vd-ink-muted); text-decoration: none; background: transparent; cursor: pointer;
+}
+.vd-pill:hover { color: var(--vd-ink); border-color: var(--vd-rule-strong); }
+.vd-pill--brass { border-color: var(--vd-brass); color: var(--vd-brass); }
+
+/* Live video inside a seat disc — keeps the camera feature in the design. */
+.vd-seat__video {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; border-radius: 50%;
+}
+
+/* Someone is talking: the disc takes a brass rim. No glow, no animation. */
+.vd-seat.is-speaking .vd-seat__disc { border-color: var(--vd-brass); }
+
+/* ============================================================================
+   The gate (create / join) and the shared field control
+   ========================================================================== */
+
+.vd-gate {
+  max-width: 460px;
+  margin-inline: auto;
+  padding: 56px 20px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--vd-6);
+}
+.vd-gate__head { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.vd-gate__brand { margin: 0; font: 500 30px/1 var(--vd-display); letter-spacing: 0.26em; color: var(--vd-ink); }
+.vd-gate__tag { max-width: 380px; }
+.vd-gate__card { padding: 22px 20px; background: var(--vd-bg-plate); border: 1px solid var(--vd-rule-strong); }
+.vd-gate__card .vd-seg { margin-bottom: var(--vd-5); }
+.vd-gate__hint { margin: 12px 0 16px; font-size: 13.5px; }
+.vd-gate__worlds { }
+.vd-gate__foot { display: flex; gap: var(--vd-2); justify-content: center; flex-wrap: wrap; }
+
+.vd-field__label {
+  display: block; margin: 0 0 7px;
+  font: 700 8.5px/1 var(--vd-ui); letter-spacing: 0.26em;
+  text-transform: uppercase; color: var(--vd-ink-muted);
+}
+.vd-field {
+  width: 100%; min-height: 52px; padding: 0 14px; margin-bottom: var(--vd-4);
+  border: 1px solid var(--vd-rule-control); background: var(--vd-bg-raised);
+  color: var(--vd-ink); font: 600 16px/1 var(--vd-ui); /* 16px avoids iOS zoom */
+}
+.vd-field:focus-visible { outline: 2px solid var(--vd-brass); outline-offset: 2px; }
+.vd-field::placeholder { color: var(--vd-ink-dim); font-weight: 400; }
+.vd-field--code {
+  font: 500 26px/1 var(--vd-display); letter-spacing: 0.34em;
+  text-transform: uppercase; text-align: center;
+}
+
+/* ============================================================================
+   Rules / admin / upgrade — remapped onto the Council Seal palette.
+
+   Those pages were authored against the older indigo-and-gold theme variables.
+   Rather than rewrite their markup, remap the variables they read and flatten
+   the two things the language forbids: rounded corners and shadows.
+   ========================================================================== */
+
+.rules-page {
+  --theme-ink: var(--vd-bg);
+  --theme-gold: var(--vd-brass);
+  --theme-gold-dim: var(--vd-brass-edge);
+  --theme-parch: var(--vd-ink);
+  --theme-parch-dim: var(--vd-ink-muted);
+  --theme-good: var(--vd-brass);
+  --theme-evil: var(--vd-red-ink);
+  --theme-line: var(--vd-rule-control);
+  color: var(--vd-ink);
+  font-family: var(--vd-ui);
+}
+
+/* Radius 0 and no shadows, everywhere on these pages. */
+.rules-page *,
+.rules-page *::before,
+.rules-page *::after {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+/* The one exception the language allows: sigil / token discs. */
+.rules-page .vd-seat__disc { border-radius: 50% !important; }
+
+.rules-page h1 { font-family: var(--vd-display); font-weight: 500; letter-spacing: 0.02em; }
+.rules-page h2 { font-family: var(--vd-display); font-weight: 500; }
+.rules-page .rules-lede,
+.rules-page .rules-note,
+.rules-page .rules-section > p { font-family: var(--vd-voice); font-style: italic; }
+.rules-page .rules-kicker { font-family: var(--vd-ui); letter-spacing: 0.26em; }
+
+.rules-page .rules-section { border-top: 1px solid var(--vd-rule-container); }
+.rules-page .rules-hero { border-bottom: 1px solid var(--vd-rule-container); padding-bottom: 24px; }
+
+/* Panels, cards and chips all become 1px containers on the board. */
+.rules-page .rules-callouts > article,
+.rules-page .rules-win__card,
+.rules-page .rules-role,
+.rules-page .rules-map,
+.rules-page .rules-sight__row,
+.rules-page .admin-order,
+.rules-page .admin-tile,
+.rules-page .billing-status,
+.rules-page .billing-plan,
+.rules-page .vd-panel {
+  background: var(--vd-bg-raised);
+  border: 1px solid var(--vd-rule-container);
+}
+.rules-page .rules-win__card--good { border-color: var(--vd-rule-strong); }
+.rules-page .rules-win__card--evil { border-color: var(--vd-red-rule); background: rgba(158, 59, 40, 0.07); }
+.rules-page .rules-chip,
+.rules-page .rules-pill,
+.rules-page .billing-badge,
+.rules-page .rules-theme-btn { border: 1px solid var(--vd-rule-control); background: transparent; }
+.rules-page .rules-theme-btn.is-on,
+.rules-page .rules-size-picker__btns button.is-on { background: var(--vd-brass); color: #171410; }
+.rules-page .billing-qr__frame { background: #fff; border: 2px solid var(--vd-brass); }
+
+/* The board is full-bleed: the old .app-root padding framed it in theme colour. */
+.app-root { padding: 0; min-height: 100dvh; }
+body { background: var(--vd-bg); }
+
+/* Safe-area insets belong to the board's own containers now. */
+.vd-shell { padding-left: max(36px, env(safe-area-inset-left)); padding-right: max(36px, env(safe-area-inset-right)); }
+@media (max-width: 720px) {
+  .vd-shell { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+}
+.vd-center { display: grid; place-items: center; min-height: 100dvh; }

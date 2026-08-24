@@ -4,16 +4,20 @@
    ========================================================================== */
 
 import type { ReactNode } from "react";
-import { Mic, MicOff, PhoneCall, PhoneOff, Video, VideoOff } from "lucide-react";
-import type { Room, Voice } from "./types";
+import {
+  BadgeCheck, Crown, LogIn, Mic, MicOff, PhoneCall, PhoneOff, ScrollText,
+  Shield, Video, VideoOff,
+} from "lucide-react";
+import type { Account, Room, Voice } from "./types";
 
 export function TableShell({
-  room, theme, voice, emblemSrc, error, children,
+  room, theme, voice, emblemSrc, account, error, children,
 }: {
   room: Room;
   theme: { name: string };
   voice: Voice;
   emblemSrc: string;
+  account: Account;
   error?: string;
   children: ReactNode;
 }) {
@@ -33,6 +37,32 @@ export function TableShell({
 
           <div className="vd-topbar__right">
             <span className="vd-label vd-label--dim">Room {room.code}</span>
+
+            {/* Account, rules and admin stay reachable from the board. */}
+            {account.premium && (
+              <span className="vd-pill vd-pill--brass" title="Premium active">
+                <BadgeCheck size={11} /> Premium
+              </span>
+            )}
+            <a className="vd-pill" href="#/rules" title="The rules">
+              <ScrollText size={11} /> Rules
+            </a>
+            {account.isAdmin && (
+              <a className="vd-pill" href="#/admin" title="Admin console">
+                <Shield size={11} /> Admin
+              </a>
+            )}
+            {account.signedIn ? (
+              !account.premium && (
+                <a className="vd-pill" href="#/upgrade">
+                  <Crown size={11} /> Upgrade
+                </a>
+              )
+            ) : (
+              <button className="vd-pill" onClick={account.signIn}>
+                <LogIn size={11} /> Sign in
+              </button>
+            )}
             {room.seating.overflowing && (
               <span className="vd-label vd-label--brass">
                 {room.seating.seatedCount} seated · {room.seating.watcherCount} watching

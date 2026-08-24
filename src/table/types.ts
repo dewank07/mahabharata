@@ -19,6 +19,23 @@ export type Watcher = Room["watchers"][number];
 
 export type Voice = ReturnType<typeof useVoice>;
 
+/** The signed-in account, or the free/anonymous state. */
+export type Account = {
+  signedIn: boolean;
+  isAdmin: boolean;
+  premium: boolean;
+  email: string | null;
+  signIn: () => void;
+};
+
+/** A selectable world. Themes now supply names and lore, not colours. */
+export type World = {
+  id: string;
+  name: string;
+  goodTeamName: string;
+  evilTeamName: string;
+};
+
 /** Everything every screen needs. Screens stay presentational; App owns the actions. */
 export type TableProps = {
   room: Room;
@@ -28,10 +45,20 @@ export type TableProps = {
   theme: { name: string; goodTeamName: string; evilTeamName: string };
   voice: Voice;
   emblemSrc: string;
+  account: Account;
+  worlds: World[];
   /** Wraps a mutation so errors surface in one place. */
   act: (fn: () => Promise<unknown>) => () => void;
   error: string;
 };
+
+/** Live camera stream for a seat, if that player has their camera on. */
+export function streamFor(voice: Voice, pid: string, playerId: string) {
+  if (playerId === pid) return voice.camOn ? voice.localStream : null;
+  const s = voice.remoteStreams[playerId];
+  const live = s?.getVideoTracks().some((t) => t.readyState === "live");
+  return live ? s : null;
+}
 
 export const ROMAN = ["I", "II", "III", "IV", "V"];
 

@@ -350,7 +350,6 @@ export default function App() {
   function Home() {
     return (
       <div className="vd-board">
-        <img className="vd-watermark" src={emblemSrc} alt="" width={560} height={560} aria-hidden />
         <div className="vd-content vd-gate">
           <header className="vd-gate__head">
             <img src={emblemSrc} alt="" width={30} height={30} className="vd-topbar__emblem" />

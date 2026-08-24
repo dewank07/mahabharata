@@ -26,7 +26,6 @@ export function TableShell({
 
   return (
     <div className="vd-board">
-      <img className="vd-watermark" src={emblemSrc} alt="" width={620} height={620} aria-hidden />
       <div className="vd-content vd-shell">
         <header className="vd-topbar">
           <div className="vd-topbar__left">

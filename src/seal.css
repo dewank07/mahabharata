@@ -46,8 +46,7 @@
   --vd-5: 20px; --vd-6: 24px; --vd-8: 32px; --vd-10: 40px;
 }
 
-/* Fonts. Self-host in production; this is the quick path. */
-@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Manrope:wght@400;500;600;700&display=swap");
+/* Cinzel, EB Garamond and Manrope are linked from index.html. */
 
 /* ============================================================================
    Board
@@ -368,6 +367,112 @@
 .vd-plate--danger.vd-studded::after,
 .vd-plate--danger.vd-studded > .vd-stud-b::before,
 .vd-plate--danger.vd-studded > .vd-stud-b::after { background: var(--vd-red); }
+
+/* ============================================================================
+   The unveiling (vote verdict, quest deeds)
+   Sits on the overlay plate above. The tally borrows the segmented group's
+   shared 1px rules; the outcome is struck like a chronicle outcome.
+   ========================================================================== */
+
+/* Floats over the whole app, topbar included, so it outranks the plate above. */
+.vd-overlay--unveil { z-index: 80; }
+
+.vd-unveil { text-align: center; }
+.vd-unveil__eyebrow { display: block; letter-spacing: 0.32em; }
+.vd-unveil__title { margin-top: 13px; font-size: 30px; }
+.vd-unveil__note { margin-top: var(--vd-4); }
+
+/* The tally: two sides, one shared rule between them, numerals in Cinzel. */
+.vd-tally {
+  display: flex;
+  margin-top: var(--vd-5);
+  border: 1px solid var(--vd-rule-control);
+}
+.vd-tally__side {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--vd-2);
+  padding: var(--vd-4) 0 15px;
+  border-left: 1px solid var(--vd-rule-control);
+}
+.vd-tally__side:first-child { border-left: 0; }
+.vd-tally__side .vd-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--vd-ink-muted);
+}
+.vd-tally__n {
+  font: 500 44px/1 var(--vd-display);
+  font-variant-numeric: tabular-nums;
+  color: var(--vd-brass);
+}
+.vd-tally__side--no .vd-label { color: var(--vd-ink-dim); }
+.vd-tally__side--no .vd-tally__n { color: var(--vd-red-ink); }
+
+/* The outcome. Brass when it holds, red when it falls. Never a fill. */
+.vd-stamp {
+  display: inline-block;
+  margin-top: var(--vd-5);
+  padding: 11px 18px;
+  border: 1px solid var(--vd-brass);
+  font: 500 15px/1 var(--vd-display);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--vd-brass);
+}
+.vd-stamp--fallen { border-color: var(--vd-red); color: var(--vd-red-ink); }
+
+/* Quest cards: backs matching .vd-back, turned over to parchment or red. */
+.vd-unveil__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--vd-2);
+  margin-top: var(--vd-5);
+}
+.vd-unveil__card { width: 56px; height: 80px; perspective: 900px; }
+.vd-unveil__card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+}
+.vd-unveil__face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border: 1px solid var(--vd-rule-strong);
+  background: var(--vd-bg-raised);
+  font: 700 8px/1 var(--vd-ui);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+/* The back carries the engraved keyline the seal uses for unread things. */
+.vd-unveil__face--back::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border: 1px solid var(--vd-rule-engraved);
+}
+.vd-unveil__face--front { transform: rotateY(180deg); }
+.vd-unveil__face--front.is-success {
+  background: var(--vd-parchment);
+  border-color: var(--vd-brass-edge);
+  color: #171410;
+}
+.vd-unveil__face--front.is-fail {
+  background: var(--vd-red);
+  border-color: var(--vd-red);
+  color: var(--vd-ink);
+}
+
+.vd-unveil__skip { margin-top: var(--vd-6); }
 
 /* ============================================================================
    Layout

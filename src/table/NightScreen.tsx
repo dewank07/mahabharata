@@ -8,6 +8,7 @@
    ========================================================================== */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { PointerEvent } from "react";
 import { Eye, EyeOff, Sword } from "lucide-react";
 import { Studded } from "./TableShell";
 import { NamePlate } from "./Parts";
@@ -25,17 +26,38 @@ function useHold(delay = HOLD_MS) {
     timer.current = null;
   }, []);
 
-  const start = useCallback(() => {
-    clear();
-    timer.current = window.setTimeout(() => setHeld(true), delay);
-  }, [clear, delay]);
-
   const end = useCallback(() => {
     clear();
     setHeld(false);
   }, [clear]);
 
-  useEffect(() => () => clear(), [clear]);
+  const start = useCallback(
+    (e: PointerEvent<HTMLElement>) => {
+      clear();
+      // The reveal grows the card, sliding the button out from under a pointer
+      // that never moved. Capture keeps every later event aimed at the button,
+      // so the reveal can't cancel itself the moment it lands.
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        /* capture is a convenience; the window listeners below still end it */
+      }
+      timer.current = window.setTimeout(() => setHeld(true), delay);
+    },
+    [clear, delay],
+  );
+
+  // Letting go anywhere hides the card, even if the finger drifted off it.
+  useEffect(() => {
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+    return () => {
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+      clear();
+    };
+  }, [end, clear]);
+
   return { held, start, end };
 }
 
@@ -121,9 +143,9 @@ export function NightScreen({
 
               <button
                 className={`vd-hold ${held ? "is-holding" : ""}`}
+                type="button"
                 onPointerDown={start}
                 onPointerUp={end}
-                onPointerLeave={end}
                 onPointerCancel={end}
                 onContextMenu={(e) => e.preventDefault()}
               >

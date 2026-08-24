@@ -1,3 +1,11 @@
+/* ============================================================================
+   The unveiling — the verdict of a council, and the deeds of a quest.
+
+   Dressed in the Council Seal language: the overlay plate, brass studs, a
+   shared-rule tally, and an outcome struck in brass or red. Radius 0, flat
+   fills, no shadows and no glow — the drama is all in the timeline.
+   ========================================================================== */
+
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
 import { Check, X } from "lucide-react";
@@ -28,6 +36,8 @@ function shuffle<T>(arr: T[]): T[] {
   }
   return a;
 }
+
+const ROMAN = ["I", "II", "III", "IV", "V"];
 
 function seenKey(kind: string, id: string) {
   return `kurukshetra.unveil.${kind}.${id}`;
@@ -74,22 +84,36 @@ export function RevealCeremony({
 
   if (!mode) return null;
 
+  // A rejected party or a fallen quest turns the plate's rules and studs red.
+  const fallen =
+    mode === "vote"
+      ? vote != null && (!vote.approved || vote.overturnedBy != null)
+      : quest != null && !quest.success;
+
   return (
     <div
-      className="ceremony"
+      className="vd-overlay vd-overlay--unveil"
       onClick={() => setMode(null)}
       role="dialog"
       aria-modal="true"
     >
-      <div className="ceremony__panel" onClick={(e) => e.stopPropagation()}>
+      <div
+        className={`vd-plate vd-studded ${fallen ? "vd-plate--danger" : ""}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span className="vd-stud-b" aria-hidden />
         {mode === "vote" && vote && (
           <VoteUnveil vote={vote} onDone={() => setMode(null)} />
         )}
         {mode === "quest" && quest && (
           <QuestUnveil quest={quest} onDone={() => setMode(null)} />
         )}
-        <button type="button" className="ceremony__skip" onClick={() => setMode(null)}>
-          Continue
+        <button
+          type="button"
+          className="vd-btn vd-btn--primary vd-unveil__skip"
+          onClick={() => setMode(null)}
+        >
+          <span>Continue</span>
         </button>
       </div>
     </div>
@@ -106,46 +130,52 @@ function VoteUnveil({ vote, onDone }: { vote: LastVote; onDone: () => void }) {
   useLayoutEffect(() => {
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
-      tl.from(".ceremony__title", { y: 16, opacity: 0, duration: 0.35 })
+      // The system is flat and engraved: things rise and settle, they never
+      // pop or spin in.
+      tl.from(".vd-unveil__title", { y: 16, opacity: 0, duration: 0.35 })
         .from(
-          ".ceremony-count",
-          { scale: 0.6, opacity: 0, stagger: 0.12, duration: 0.45 },
+          ".vd-tally__side",
+          { y: 12, opacity: 0, stagger: 0.12, duration: 0.45 },
           "-=0.1",
         )
-        .from(
-          ".ceremony-stamp",
-          { scale: 1.6, opacity: 0, rotate: -8, duration: 0.45 },
-          "+=0.15",
-        )
+        .from(".vd-stamp", { y: 10, opacity: 0, duration: 0.4 }, "+=0.15")
         .to({}, { duration: 1.4 })
         .add(() => done.current());
     }, root);
     return () => ctx.revert();
   }, []);
 
+  const held = vote.approved && !vote.overturnedBy;
+
   return (
-    <div ref={root} className="ceremony__body">
-      <h2 className="ceremony__title">The council has spoken</h2>
-      <div className="ceremony-counts">
-        <div className="ceremony-count ceremony-count--yes">
-          <Check size={22} />
-          <strong>{yes}</strong>
-          <span>Support</span>
+    <div ref={root} className="vd-unveil">
+      <div className="vd-label vd-unveil__eyebrow">The vote is counted</div>
+      <h2 className="vd-h1 vd-unveil__title">The council has spoken</h2>
+
+      <div className="vd-tally">
+        <div className="vd-tally__side">
+          <span className="vd-label">
+            <Check size={11} strokeWidth={2.5} /> Support
+          </span>
+          <strong className="vd-tally__n">{yes}</strong>
         </div>
-        <div className="ceremony-count ceremony-count--no">
-          <X size={22} />
-          <strong>{no}</strong>
-          <span>Oppose</span>
+        <div className="vd-tally__side vd-tally__side--no">
+          <span className="vd-label">
+            <X size={11} strokeWidth={2.5} /> Oppose
+          </span>
+          <strong className="vd-tally__n">{no}</strong>
         </div>
       </div>
-      <div className={`ceremony-stamp ${vote.approved ? "is-yes" : "is-no"}`}>
+
+      <div className={`vd-stamp ${held ? "" : "vd-stamp--fallen"}`}>
         {vote.overturnedBy
           ? "The King returns — party overturned"
           : vote.approved
             ? "Party rides"
             : "Party turned away"}
       </div>
-      <p className="ceremony__hint">
+
+      <p className="vd-voice vd-unveil__note">
         {vote.overturnedBy
           ? `The council said yes (${yes}–${no}), but ${vote.overturnedBy} played King Returns. It counts as a rejection.`
           : `Majority support is required. A tie is a rejection (${yes}–${no}).`}
@@ -169,11 +199,11 @@ function QuestUnveil({ quest, onDone }: { quest: LastQuest; onDone: () => void }
 
   useLayoutEffect(() => {
     const ctx = gsap.context(() => {
-      const inners = gsap.utils.toArray<HTMLElement>(".unveil-card__inner");
+      const inners = gsap.utils.toArray<HTMLElement>(".vd-unveil__card-inner");
       gsap.set(inners, { rotateY: 0 });
       const tl = gsap.timeline({ defaults: { ease: "power2.inOut" } });
-      tl.from(".ceremony__title", { y: 14, opacity: 0, duration: 0.3 })
-        .from(".unveil-card", {
+      tl.from(".vd-unveil__title", { y: 14, opacity: 0, duration: 0.3 })
+        .from(".vd-unveil__card", {
           y: 28,
           opacity: 0,
           rotate: 6,
@@ -189,7 +219,7 @@ function QuestUnveil({ quest, onDone }: { quest: LastQuest; onDone: () => void }
           },
           "+=0.25",
         )
-        .from(".ceremony-stamp", { scale: 1.5, opacity: 0, duration: 0.4 }, "+=0.1")
+        .from(".vd-stamp", { y: 10, opacity: 0, duration: 0.4 }, "+=0.1")
         .to({}, { duration: 1.5 })
         .add(() => done.current());
     }, root);
@@ -197,34 +227,38 @@ function QuestUnveil({ quest, onDone }: { quest: LastQuest; onDone: () => void }
   }, []);
 
   return (
-    <div ref={root} className="ceremony__body">
-      <h2 className="ceremony__title">Quest {quest.questIndex + 1} — the deeds</h2>
-      <p className="ceremony__hint">
+    <div ref={root} className="vd-unveil">
+      <div className="vd-label vd-unveil__eyebrow">
+        Quest {ROMAN[quest.questIndex] ?? quest.questIndex + 1}
+      </div>
+      <h2 className="vd-h1 vd-unveil__title">The deeds are turned over</h2>
+      <p className="vd-voice vd-unveil__note">
         Cards are anonymous. You see how many Fails were played, not who played them.
       </p>
-      <div className="unveil-row">
+
+      <div className="vd-unveil__row">
         {cards.map((kind, i) => (
-          <div key={i} className="unveil-card">
-            <div className="unveil-card__inner">
-              <div className="unveil-card__face unveil-card__face--back">?</div>
-              <div
-                className={`unveil-card__face unveil-card__face--front is-${kind}`}
-              >
+          <div key={i} className="vd-unveil__card">
+            <div className="vd-unveil__card-inner">
+              <div className="vd-unveil__face vd-unveil__face--back" aria-hidden />
+              <div className={`vd-unveil__face vd-unveil__face--front is-${kind}`}>
                 {kind === "fail" ? "Fail" : "Success"}
               </div>
             </div>
           </div>
         ))}
       </div>
+
       {(quest.revealed ?? []).length > 0 && (
-        <p className="ceremony__hint">
+        <p className="vd-voice vd-unveil__note">
           Called out by We Found You:{" "}
           {(quest.revealed ?? [])
             .map((r) => `${r.name} played ${r.card === "fail" ? "Fail" : "Success"}`)
             .join(" · ")}
         </p>
       )}
-      <div className={`ceremony-stamp ${quest.success ? "is-yes" : "is-no"}`}>
+
+      <div className={`vd-stamp ${quest.success ? "" : "vd-stamp--fallen"}`}>
         {quest.success
           ? `Quest holds — ${quest.fails} fail${quest.fails === 1 ? "" : "s"}`
           : `Quest falls — ${quest.fails} fail${quest.fails === 1 ? "" : "s"}`}

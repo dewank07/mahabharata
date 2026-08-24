@@ -302,7 +302,7 @@ export default function RulesPage() {
             <p>
               Flat at <code>3&nbsp;4&nbsp;4&nbsp;5&nbsp;5</code> across 8–10
               players, so every further three players adds one to each mission.
-              Eleven rides 4/5/5/6/6; twenty rides 7/8/8/9/9.
+              Eleven rides 4/5/5/6/6; eighteen rides 6/7/7/8/8.
             </p>
           </article>
           <article>
@@ -319,7 +319,7 @@ export default function RulesPage() {
           Everything at 5–10 players is unchanged and always takes the printed
           values. Note that the game is still five quests long: at the largest
           sizes many players never ride, which is worth knowing before you seat
-          twenty.
+          eighteen.
         </p>
       </section>
 

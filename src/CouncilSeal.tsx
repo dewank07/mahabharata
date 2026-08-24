@@ -20,16 +20,6 @@ export type Seat = {
   state: SeatState;
   /** Shown under the name in brass. Keep to two words. */
   note?: string;
-  /**
-   * Live camera feed. When present it fills the disc in place of the sigil, so
-   * video survives the redesign without adding a tile grid the board has no
-   * room for. Camera off falls back to the heraldic mark.
-   */
-  stream?: MediaStream | null;
-  /** Mirror the local preview, as every video chat does. */
-  mirrored?: boolean;
-  /** Ring the disc while this player is talking. */
-  speaking?: boolean;
 };
 
 type Props = {
@@ -57,7 +47,7 @@ const CARDINALS = [90, 180, 270];
  * Seats sit on a circle, so the space each one gets is the circumference over
  * `n`. Past ten the ring has to grow and the discs shrink or they collide: at
  * radius 42% the arc per seat is ~2.64·W/n, which must stay above the seat's
- * own width. These three bands keep that true all the way to twenty.
+ * own width. These three bands keep that true all the way to eighteen.
  */
 function ringMetrics(n: number) {
   if (n <= 10) return { seal: 392, seat: 88, disc: 62, name: 11.5 };
@@ -105,7 +95,6 @@ export function CouncilSeal({ seats, emblemSrc, onSelect, isDisabled, className 
               named && "is-named",
               seat.state === "voted" && "is-voted",
               seat.state === "spent" && "is-spent",
-              seat.speaking && "is-speaking",
             ].filter(Boolean).join(" ")}
             style={{
               ...seatPosition(i, n),
@@ -118,24 +107,11 @@ export function CouncilSeal({ seats, emblemSrc, onSelect, isDisabled, className 
             onClick={() => onSelect?.(seat.playerId)}
           >
             <span className="vd-seat__disc">
-              {seat.stream ? (
-                <video
-                  className="vd-seat__video"
-                  autoPlay
-                  playsInline
-                  muted={seat.mirrored}
-                  style={seat.mirrored ? { transform: "scaleX(-1)" } : undefined}
-                  ref={(el) => {
-                    if (el && el.srcObject !== seat.stream) el.srcObject = seat.stream!;
-                  }}
-                />
-              ) : (
-                <Sigil
-                  index={seat.sigil}
-                  size={named ? 24 : 22}
-                  color={named ? "var(--vd-red)" : seat.state === "leader" ? "var(--vd-parchment-2)" : "#7b7266"}
-                />
-              )}
+              <Sigil
+                index={seat.sigil}
+                size={named ? 24 : 22}
+                color={named ? "var(--vd-red)" : seat.state === "leader" ? "var(--vd-parchment-2)" : "#7b7266"}
+              />
               {named && <span className="vd-seat__stud" />}
             </span>
             <span className="vd-seat__name">{seat.name}</span>

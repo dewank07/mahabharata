@@ -109,7 +109,7 @@ export function questSizesFor(playerCount: number): number[] {
 
 export const MIN_PLAYERS = 5;
 /** Ceiling on players IN A GAME. Beyond it, arrivals become watchers. */
-export const MAX_PLAYERS = 20;
+export const MAX_PLAYERS = 18;
 
 function buildMatrix() {
   const teams: Record<number, [number, number]> = {};

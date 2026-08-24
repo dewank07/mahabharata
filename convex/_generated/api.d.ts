@@ -11,9 +11,11 @@
 import type * as auth from "../auth.js";
 import type * as avalon from "../avalon.js";
 import type * as billing from "../billing.js";
+import type * as email from "../email.js";
 import type * as entitlements from "../entitlements.js";
 import type * as http from "../http.js";
 import type * as logic from "../logic.js";
+import type * as passwordReset from "../passwordReset.js";
 import type * as themes from "../themes.js";
 
 import type {
@@ -26,9 +28,11 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   avalon: typeof avalon;
   billing: typeof billing;
+  email: typeof email;
   entitlements: typeof entitlements;
   http: typeof http;
   logic: typeof logic;
+  passwordReset: typeof passwordReset;
   themes: typeof themes;
 }>;
 

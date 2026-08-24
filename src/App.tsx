@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
 import type * as React from "react";
 import { useQuery, useMutation } from "convex/react";
-import { useAuthActions } from "@convex-dev/auth/react";
+
 import { api } from "../convex/_generated/api";
-import { useVoice } from "./useVoice";
 import { RevealCeremony } from "./RevealCeremony";
 import { Table, type TableActions } from "./table";
-import emblemSrc from "./assets/emblem.png";
+import emblemSrc from "./assets/mark.svg";
 import { THEMES, THEME_LIST } from "../convex/themes";
 import { isPremiumTheme } from "../convex/logic";
 import {
@@ -29,7 +28,7 @@ import {
 /* ============================ identity (per tab) ========================= */
 // sessionStorage so each browser tab/window is a distinct warrior.
 // Refresh in the same tab keeps the seat; a new incognito window gets a new id.
-const PID_KEY = "kurukshetra.pid";
+const PID_KEY = "decevia.pid";
 function loadPid(): string {
   let id = sessionStorage.getItem(PID_KEY);
   if (!id) {
@@ -75,7 +74,7 @@ export default function App() {
   const [name, setName] = useState("");
   const [codeInput, setCodeInput] = useState("");
   const [code, setCode] = useState<string | null>(() =>
-    sessionStorage.getItem("kurukshetra.code"),
+    sessionStorage.getItem("decevia.code"),
   );
   const [msg, setMsg] = useState("");
   const [opts, setOpts] = useState({
@@ -98,15 +97,15 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const invite = (params.get("code") ?? "").trim().toUpperCase();
-    if (invite.length === 4 && !sessionStorage.getItem("kurukshetra.code")) {
+    if (invite.length === 4 && !sessionStorage.getItem("decevia.code")) {
       setCodeInput(invite);
       setActiveTab("join");
     }
   }, []);
 
   useEffect(() => {
-    if (code) sessionStorage.setItem("kurukshetra.code", code);
-    else sessionStorage.removeItem("kurukshetra.code");
+    if (code) sessionStorage.setItem("decevia.code", code);
+    else sessionStorage.removeItem("decevia.code");
     const url = new URL(window.location.href);
     if (code) url.searchParams.set("code", code);
     else if (url.searchParams.get("code")) url.searchParams.delete("code");
@@ -148,7 +147,6 @@ export default function App() {
 
   // Account + entitlement. Signing in is optional to play; it is what unlocks
   // the paid roles and boards, and what the admin console checks.
-  const { signIn } = useAuthActions();
   const viewer = useQuery(api.billing.viewer, {});
   const premium = viewer?.premium === true;
   const signedIn = viewer?.signedIn === true;
@@ -220,11 +218,6 @@ export default function App() {
   const isLeader = leader?.playerId === pid;
   const n = players.length;
 
-  const voicePeers = players
-    .filter((p) => p.inVoice && p.playerId !== pid)
-    .map((p) => ({ playerId: p.playerId, name: p.name }));
-  const voice = useVoice(code, pid, voicePeers);
-
   /**
    * Everything the Council Seal table can do. Kept here so the screens stay
    * presentational and every mutation error surfaces through one path.
@@ -290,14 +283,13 @@ export default function App() {
             goodTeamName: activeTheme.goodTeamName,
             evilTeamName: activeTheme.evilTeamName,
           }}
-          voice={voice}
           emblemSrc={emblemSrc}
           account={{
             signedIn: signedIn,
             isAdmin: viewer?.isAdmin === true,
             premium: premium,
             email: viewer?.email ?? null,
-            signIn: () => void signIn("google"),
+            signIn: () => { window.location.hash = "#/signin"; },
           }}
           worlds={THEME_LIST.map((t) => ({
             id: t.id,
@@ -353,7 +345,8 @@ export default function App() {
         <div className="vd-content vd-gate">
           <header className="vd-gate__head">
             <img src={emblemSrc} alt="" width={30} height={30} className="vd-topbar__emblem" />
-            <h1 className="vd-gate__brand">VERDICT</h1>
+            <h1 className="vd-gate__brand">DECEVIA</h1>
+            <p className="vd-label vd-gate__promise">Where friends become foes</p>
             <p className="vd-voice vd-gate__tag">{activeTheme.tagline}</p>
           </header>
 
@@ -454,9 +447,9 @@ export default function App() {
                 ? <span className="vd-pill vd-pill--brass"><BadgeCheck size={11} /> Premium</span>
                 : <a className="vd-pill" href="#/upgrade"><Crown size={11} /> Upgrade</a>
             ) : (
-              <button className="vd-pill" onClick={() => void signIn("google")}>
+              <a className="vd-pill" href="#/signin">
                 <LogIn size={11} /> Sign in
-              </button>
+              </a>
             )}
             {viewer?.isAdmin && (
               <a className="vd-pill" href="#/admin"><Shield size={11} /> Admin</a>

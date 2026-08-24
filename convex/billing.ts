@@ -29,8 +29,6 @@ export const viewer = query({
     const user = await signedInUser(ctx);
     const ent = await callerEntitlement(ctx);
     return {
-      /** Whether the email+password form should be offered alongside Google. */
-      passwordAuthEnabled: Boolean(process.env.DEV_PASSWORD_AUTH),
       signedIn: ent.signedIn,
       isAdmin: ent.isAdmin,
       email: ent.email,
@@ -118,7 +116,7 @@ export const submitOrder = mutation({
   },
   handler: async (ctx, { plan, memberEmails, paymentRef, note }) => {
     const user = await requireUser(ctx);
-    if (!user.email) throw new Error("Your Google account has no email.");
+    if (!user.email) throw new Error("Your account has no email address.");
     const ref = paymentRef.trim();
     if (ref.length < 4) {
       throw new Error("Paste the UPI transaction reference from your payment.");
@@ -179,7 +177,7 @@ export const updateMyMembers = mutation({
   args: { emails: v.array(v.string()) },
   handler: async (ctx, { emails }) => {
     const user = await requireUser(ctx);
-    if (!user.email) throw new Error("Your Google account has no email.");
+    if (!user.email) throw new Error("Your account has no email address.");
     const ent = await entitlementForEmail(ctx, user.email);
     if (!ent.subscriptionId) throw new Error("You have no active plan.");
     const sub = await ctx.db.get(ent.subscriptionId);
@@ -390,7 +388,7 @@ export const adminGrantSubscription = mutation({
       .unique();
     if (!user) {
       throw new Error(
-        `${owner} has never signed in. Ask them to sign in with Google once, then grant it.`,
+        `${owner} has never signed in. Ask them to create an account once, then grant it.`,
       );
     }
 

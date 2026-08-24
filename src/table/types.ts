@@ -7,7 +7,6 @@
    ========================================================================== */
 
 import type { FunctionReturnType } from "convex/server";
-import type { useVoice } from "../useVoice";
 import { api } from "../../convex/_generated/api";
 
 export type Room = NonNullable<FunctionReturnType<typeof api.avalon.getRoom>>;
@@ -16,8 +15,6 @@ export type Room = NonNullable<FunctionReturnType<typeof api.avalon.getRoom>>;
 export type TablePlayer = Room["players"][number];
 /** Someone in the room but not in the game. */
 export type Watcher = Room["watchers"][number];
-
-export type Voice = ReturnType<typeof useVoice>;
 
 /** The signed-in account, or the free/anonymous state. */
 export type Account = {
@@ -43,7 +40,6 @@ export type TableProps = {
   pid: string;
   /** Themed role names / lore. The palette is fixed — themes no longer colour the board. */
   theme: { name: string; goodTeamName: string; evilTeamName: string };
-  voice: Voice;
   emblemSrc: string;
   account: Account;
   worlds: World[];
@@ -51,14 +47,6 @@ export type TableProps = {
   act: (fn: () => Promise<unknown>) => () => void;
   error: string;
 };
-
-/** Live camera stream for a seat, if that player has their camera on. */
-export function streamFor(voice: Voice, pid: string, playerId: string) {
-  if (playerId === pid) return voice.camOn ? voice.localStream : null;
-  const s = voice.remoteStreams[playerId];
-  const live = s?.getVideoTracks().some((t) => t.readyState === "live");
-  return live ? s : null;
-}
 
 export const ROMAN = ["I", "II", "III", "IV", "V"];
 

@@ -40,7 +40,7 @@ function shuffle<T>(arr: T[]): T[] {
 const ROMAN = ["I", "II", "III", "IV", "V"];
 
 function seenKey(kind: string, id: string) {
-  return `kurukshetra.unveil.${kind}.${id}`;
+  return `decevia.unveil.${kind}.${id}`;
 }
 
 export function RevealCeremony({

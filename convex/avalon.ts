@@ -160,7 +160,7 @@ async function assertMayUse(
       `${blocked} ${
         ent.signedIn
           ? "Upgrade your account to unlock it."
-          : "Sign in with Google and upgrade to unlock it."
+          : "Sign in and upgrade to unlock it."
       }`,
     );
   }
@@ -690,7 +690,7 @@ export const setOpts = mutation({
         `${names} ${newlyOn.length === 1 ? "is" : "are"} premium. ${
           ent.signedIn
             ? "Upgrade your account to unlock it."
-            : "Sign in with Google and upgrade to unlock it."
+            : "Sign in and upgrade to unlock it."
         }`,
       );
     }
@@ -1421,69 +1421,6 @@ export const newGame = mutation({
   },
 });
 
-/* ----------------------------- voice / webrtc --------------------------- */
-// Presence: who currently has the mic open.
-export const setVoice = mutation({
-  args: { code: v.string(), playerId: v.string(), on: v.boolean() },
-  handler: async (ctx, { code, playerId, on }) => {
-    const room = await roomByCode(ctx, code);
-    if (!room) return;
-    const players = await playersOf(ctx, room._id);
-    const me = players.find((p) => p.playerId === playerId);
-    if (me) await ctx.db.patch(me._id, { inVoice: on });
-    if (!on) {
-      // clear signals addressed to the leaver so they don't pile up
-      const incoming = await ctx.db
-        .query("signals")
-        .withIndex("by_room_to", (q) =>
-          q.eq("roomId", room._id).eq("toId", playerId))
-        .collect();
-      for (const s of incoming) await ctx.db.delete(s._id);
-    }
-  },
-});
-
-// One peer hands a handshake message to another.
-export const sendSignal = mutation({
-  args: {
-    code: v.string(),
-    fromId: v.string(),
-    toId: v.string(),
-    kind: v.union(v.literal("offer"), v.literal("answer"), v.literal("candidate")),
-    data: v.string(),
-  },
-  handler: async (ctx, { code, fromId, toId, kind, data }) => {
-    const room = await roomByCode(ctx, code);
-    if (!room) return;
-    await ctx.db.insert("signals", { roomId: room._id, fromId, toId, kind, data });
-  },
-});
-
-// Reactive: handshakes waiting for me.
-export const getSignals = query({
-  args: { code: v.string(), toId: v.string() },
-  handler: async (ctx, { code, toId }) => {
-    const room = await roomByCode(ctx, code);
-    if (!room) return [];
-    const sigs = await ctx.db
-      .query("signals")
-      .withIndex("by_room_to", (q) => q.eq("roomId", room._id).eq("toId", toId))
-      .collect();
-    sigs.sort((a, b) => a._creationTime - b._creationTime);
-    return sigs.map((s) => ({ _id: s._id, fromId: s.fromId, kind: s.kind, data: s.data }));
-  },
-});
-
-export const clearSignals = mutation({
-  args: { ids: v.array(v.id("signals")) },
-  handler: async (ctx, { ids }) => {
-    for (const id of ids) {
-      const doc = await ctx.db.get(id);
-      if (doc) await ctx.db.delete(id);
-    }
-  },
-});
-
 /* -------------------------- reactive read model ------------------------- */
 // One query powers the whole client. It returns ONLY what `playerId` is allowed
 // to see: own role + own knowledge + own secrets, progress as counts, and the
@@ -1703,7 +1640,6 @@ export const getRoom = query({
         name: p.name,
         seat: p.seat,
         isHost: p.playerId === room.hostId,
-        inVoice: p.inVoice ?? false,
         role: ended ? p.role ?? null : null, // reveal only at end
         // Final allegiance matters at the reveal when a Lancelot has switched.
         team: ended && p.role ? currentTeam(p.role as Role, swapped) : null,
@@ -1717,7 +1653,6 @@ export const getRoom = query({
         name: p.name,
         seat: p.seat,
         isHost: p.playerId === room.hostId,
-        inVoice: p.inVoice ?? false,
       })),
       seating: {
         cap,

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation } from "convex/react";
-import { useAuthActions } from "@convex-dev/auth/react";
+import { useAuth } from "./auth";
 import { QRCodeSVG } from "qrcode.react";
 import {
   BadgeCheck, Check, Clock, Crown, Loader2, LogOut, QrCode, ScrollText,
@@ -28,7 +28,7 @@ function upiLink(vpa: string, payee: string, amount: number, note: string) {
 }
 
 export default function UpgradePage() {
-  const { signOut } = useAuthActions();
+  const { signOut } = useAuth();
   const viewer = useQuery(api.billing.viewer, {});
   const config = useQuery(api.billing.paymentConfig, {});
   const orders = useQuery(api.billing.myOrders, {});
@@ -66,7 +66,7 @@ export default function UpgradePage() {
       config.upiVpa,
       config.payeeName,
       amount,
-      `Dharmayuddha ${plan} plan`,
+      `Decevia ${plan} plan`,
     );
   }, [config?.upiVpa, config?.payeeName, amount, plan]);
 
@@ -103,12 +103,12 @@ export default function UpgradePage() {
           <p className="rules-kicker"><Crown size={14} /> Premium</p>
           <h1>Unlock the full war</h1>
           <p className="rules-lede">
-            One plan covers <strong>{seats} people</strong>. Sign in with Google
-            to buy or to claim a seat someone bought for you.
+            One plan covers <strong>{seats} people</strong>. Sign in to buy one, or
+            to claim a seat someone bought for you.
           </p>
         </header>
         <section className="rules-section">
-          <SignInCard passwordAuthEnabled={viewer.passwordAuthEnabled} />
+          <SignInCard />
         </section>
         <TierTable config={config} />
       </div>
@@ -172,7 +172,7 @@ export default function UpgradePage() {
           <p className="rules-note">
             Your own seat ({sub.ownerEmail}) is permanent. Add up to{" "}
             {sub.seats - 1} more — they get premium in any room they host or join
-            once they sign in with that Google account.
+            once they sign in with that email address.
           </p>
           <div className="billing-emails">
             {Array.from({ length: sub.seats - 1 }).map((_, i) => (
@@ -302,8 +302,8 @@ export default function UpgradePage() {
             <h2><Users size={18} /> Who should it cover?</h2>
             <p className="rules-note">
               Your seat ({viewer.email}) is included automatically. List up to{" "}
-              {seats - 1} teammates — they need to sign in with the same Google
-              account to use it. You can change these later.
+              {seats - 1} teammates — they each need an account on that same
+              email address to use it. You can change these later.
             </p>
             <div className="billing-emails">
               {members.map((val, i) => (

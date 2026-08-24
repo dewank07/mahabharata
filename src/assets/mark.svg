@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Decevia">
+  <!--
+    The Decevia mark: one circle, counterchanged.
+
+    The right half is struck solid, the left left hollow — but each half carries
+    a dot of the other inside it. Friends become foes: no side is only itself.
+    Drawn in the board's brass, flat, no gradients, so it holds at 24px in the
+    topbar and at 34% width behind the council seal.
+
+    Counter-dots are painted in the board colour rather than cut out, because
+    the seal renders this with mix-blend-mode: screen — near-black reads as
+    transparent there, and as solid anywhere else.
+  -->
+  <circle cx="16" cy="16" r="15" fill="none" stroke="#c2a55f" stroke-width="1"/>
+  <path d="M16 1 A15 15 0 0 1 16 31 Z" fill="#c2a55f"/>
+  <circle cx="21.5" cy="16" r="2.6" fill="#131110"/>
+  <circle cx="10.5" cy="16" r="2.6" fill="#c2a55f"/>
+</svg>

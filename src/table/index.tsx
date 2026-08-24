@@ -40,14 +40,13 @@ export type TableActions = {
 };
 
 export function Table(props: TableProps & { actions: TableActions }) {
-  const { room, pid, theme, voice, emblemSrc, account, worlds, act, error, actions } = props;
-  const base = { room, pid, theme, emblemSrc, voice, account, worlds, act };
+  const { room, pid, theme, emblemSrc, account, worlds, act, error, actions } = props;
+  const base = { room, pid, theme, emblemSrc, account, worlds, act };
 
   return (
     <TableShell
       room={room}
       theme={theme}
-      voice={voice}
       emblemSrc={emblemSrc}
       account={account}
       error={error}

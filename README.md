@@ -1,19 +1,36 @@
-# Dharmayuddha — The War of Kurukshetra
+# Decevia — Where Friends Become Foes
 
-A multiplayer online social-deduction game for 5–20 players, themed on the
-**Mahabharata**: the **Pandavas (Dharma)** against the **Kauravas (Adharma)**.
-Convene a war council, get a 4-letter code, share it, and play through war-party
-proposals, council votes, the battles of Kurukshetra, and Ashwatthama's final
-strike at Krishna. State syncs **live** through [Convex](https://convex.dev) —
-no polling, no manual refresh — and players talk and see one another over free
+A multiplayer online **social deduction** platform for 5–18 players. Convene a
+council, get a 4-letter code, share it, and find out who at your table is
+lying. State syncs **live** through [Convex](https://convex.dev) — no polling,
+no manual refresh — and players talk and see one another over free
 peer-to-peer audio &amp; video.
 
-(Under the hood this is the Avalon engine; the roles map as: Krishna=Merlin,
-Arjuna=Percival, Pandava Warrior=loyal servant, Ashwatthama=Assassin,
-Shakuni=Morgana, Duryodhana=Mordred, Jayadratha=Oberon, Kaurava Warrior=minion,
-Kunti=Guinevere, Abhimanyu/Uttara=Tristan/Isolde, Yuyutsu/Karna=the two
-Lancelots. Expansions are themed too: Yaksha Prashna=Lady of the Lake,
-Senapati Mudra=Excalibur, Niti Patra=plot cards.)
+## Worlds
+
+Decevia is the platform; a **world** is the skin it wears. Same engine, same
+rules, entirely different faces around the table — and the ground on which more
+social deduction games will be added.
+
+| World | The two sides |
+|---|---|
+| **Indian Mythology** | Pandavas (Dharma) vs Kauravas (Adharma) — the Mahabharata |
+| **Medieval Kingdom** | Knights of Arthur vs Mordred's traitors — the original Avalon |
+| **Egyptian Gods** | Every world has heroes; every kingdom has traitors |
+| **Greek Mythology** | Olympus vs the Underworld |
+| **Maratha Empire** | Swarajya vs Empire |
+
+Worlds live in `convex/themes.ts` — a name, a tagline, two team names, a
+palette, and a renamed role per engine role. Adding one is a data change, not
+a code change.
+
+Under the hood the engine is Avalon. Each world renames the same roles: Merlin,
+Percival, the loyal servant, the Assassin, Morgana, Mordred, Oberon, the minion,
+Guinevere, Tristan/Isolde and the two Lancelots — plus the expansions (Lady of
+the Lake, Excalibur, plot cards). In Indian Mythology, for instance, that reads
+as Krishna, Arjuna, Pandava Warrior, Ashwatthama, Shakuni, Duryodhana,
+Jayadratha, Kaurava Warrior, Kunti, Abhimanyu/Uttara and Yuyutsu/Karna, with
+Yaksha Prashna, Senapati Mudra and Niti Patra as the expansions.
 
 ## Why Convex (vs. the earlier polling version)
 
@@ -26,38 +43,12 @@ Senapati Mudra=Excalibur, Niti Patra=plot cards.)
 - **Atomic resolution** — vote and quest tallying happen inside transactional
   mutations, so there are no race conditions when several players act at once.
 
-## Free voice &amp; video chat (WebRTC)
-
-The game has a built-in **War Council** with both audio *and* video — and it's
-genuinely free, no third-party account:
-
-- Media flows **peer-to-peer over WebRTC**, so there are no per-minute charges.
-- **Convex is the signaling channel** (offers/answers/ICE candidates go through
-  the `signals` table) — the backend you already have, at no extra cost.
-- Connectivity uses **Google's free public STUN servers**.
-
-Tap **Join voice & video** in the bar at the top. You join with the mic on and
-camera off; the camera button turns video on/off anytime (handled with the
-WebRTC *perfect-negotiation* pattern so tracks can be added/removed mid-call).
-Tiles show everyone on the call, ring green when someone talks, and fall back to
-an initial when a camera is off.
-
-Notes &amp; limits:
-- It's a **mesh** (each player connects directly to every other). Audio scales
-  fine to 10; **video** is best kept to ~4–6 cameras on at once — each active
-  camera is uploaded to every peer. Video is capped to 320×240@15fps to help.
-  For many simultaneous cameras you'd add an SFU (e.g. LiveKit/mediasoup) — not free.
-- Camera/mic need a **secure context**: `localhost` in dev, HTTPS in production
-  (any static host gives you HTTPS automatically).
-- STUN-only connects on most home networks. Behind strict/symmetric NATs you may
-  need a **TURN** relay — there's a commented `iceServers` slot in
-  `src/useVoice.ts` (self-hosted `coturn` is the free route).
-
 ## Accounts, premium tier & admin
 
-Playing is still anonymous — a guest joins with a name and no account. Google
-sign-in exists for three things: holding a subscription seat, buying one, and
-reaching the admin console.
+Playing is anonymous — a guest joins with a name and no account. An account
+exists for three things: holding a subscription seat, buying one, and reaching
+the admin console. Sign-in is **email and password**; there is no OAuth
+provider and nothing to register with a third party.
 
 ### Tiers
 
@@ -66,11 +57,11 @@ reaching the admin console.
 | Roles | Merlin, Assassin, Percival, Morgana, servants, minions | + Mordred, Oberon, Guinevere, the lovers, both Lancelots |
 | Expansions | — | Lady of the Lake, Excalibur, Plot cards |
 | Worlds | Medieval | + Mahabharata, Maratha, Greek, Egyptian |
-| Players seated | 5–20 | up to the plan's seat count |
+| Players seated | 5–18 | up to the plan's seat count |
 
 A room's tier follows **the host's** plan. Seats are keyed on email, so a member
-gets premium in any room they host or join once they sign in with that Google
-account. The plan's seat count caps how many people are *seated* — which is what
+gets premium in any room they host or join once they sign in with that
+address. The plan's seat count caps how many people are *seated* — which is what
 stops one 7-seat plan covering a 10-player table.
 
 > Note the current inversion: a free room seats the full ten, while a 7-seat plan
@@ -79,11 +70,11 @@ stops one 7-seat plan covering a 10-player table.
 
 ## The table, and the room
 
-A **game** seats 5–20 (see *Beyond ten* below). A **room** is unbounded: anyone
+A **game** seats 5–18 (see *Beyond ten* below). A **room** is unbounded: anyone
 past the seat cap joins as a *watcher* rather than being turned away.
 
 - The first N by `seat` are seated; everyone after is a watcher in a stable queue.
-- Watchers see the board and hear voice, and are never dealt a role. Every game
+- Watchers see the board and are never dealt a role. Every game
   action refuses them server-side — vote, quest card, party membership, plot cards.
 - Seats are kept dense (`0..n-1`), so when a seated player leaves, compaction
   promotes the queue head automatically. There is no separate promote step.
@@ -123,7 +114,7 @@ extrapolated from the printed table's own arithmetic:
 | | Rule | Why |
 |---|---|---|
 | Evil count | `ceil(n / 3)` | Reproduces every official row exactly — 5→2, 6→2, 7→3, 8→3, 9→3, 10→4 — so it simply keeps going above ten. Good takes the rest. |
-| Mission sizes | flat `3 4 4 5 5` at 8–10, then `+1` per further three players | Continues the printed table's own plateau. 11 rides 4/5/5/6/6; 20 rides 7/8/8/9/9. |
+| Mission sizes | flat `3 4 4 5 5` at 8–10, then `+1` per further three players | Continues the printed table's own plateau. 11 rides 4/5/5/6/6; 18 rides 6/7/7/8/8. |
 | Two-fail quests | the 4th at 7+, **and the 3rd above ten** | Parties grow with the head count, so a lone saboteur would otherwise be aboard nearly every mission. |
 
 The 5–10 rows are literals in `convex/logic.ts` and are never computed; the
@@ -132,9 +123,9 @@ quietly change the printed game.
 
 The seal scales with the table: past ten the ring widens and the seat discs
 shrink in three bands, keeping the arc per seat above the seat's own width all
-the way to twenty.
+the way to eighteen.
 
-> Worth knowing before you seat twenty: the game is still **five quests** long,
+> Worth knowing before you seat eighteen: the game is still **five quests** long,
 > so at the largest sizes many players never ride. Extending the quest count is
 > the obvious follow-up if that turns out to matter.
 
@@ -143,7 +134,7 @@ the way to twenty.
 The gameplay surface is the **Council Seal** system: flat blackened surfaces with
 paper grain, aged brass for rank and state, parchment for anything you can act on.
 No gradients, glow or shadows. The design lives in `design/` — open
-`design/Verdict Council Seal Flow.dc.html` in a browser for the annotated spec,
+`design/Verdict Council Seal Flow.dc.html`  <!-- pre-rename filename --> in a browser for the annotated spec,
 and `design/COUNCIL_SEAL.md` for the tokens and per-screen rules.
 
 `src/seal.css` is the whole system (imported after `styles.css` so its tokens
@@ -153,7 +144,7 @@ win). `src/table/` has one screen per phase, all sharing `TableShell` and the
 ```
 src/table/
   index.tsx           phase router + the actions the screens can call
-  TableShell.tsx      board, grain, watermark, topbar, voice controls
+  TableShell.tsx      board, grain, watermark, topbar
   Parts.tsx           quest column, chronicle, room -> seat-ring mapping
   LobbyScreen.tsx     seats, watcher queue, verbatim setup errors
   NightScreen.tsx     role card (press-and-hold) + the NIGHT_ORDER script
@@ -170,57 +161,90 @@ Two consequences worth knowing. **Themes are now name-and-lore packs** — role
 names, win reasons and taglines still come from `convex/themes.ts`, but the board
 palette is fixed, so per-theme colours no longer apply to gameplay screens. And
 seats show **heraldic sigils** (`src/sigils.tsx`, derived from `playerId`) rather
-than avatars; voice audio and the camera toggle live in the topbar.
+than avatars.
 
-## Google sign-in setup
+## Accounts, sign-in & email
 
-Sign-in and billing need one-time configuration. Until it is done the app still
-runs — everyone is simply on the free tier, and `#/admin` says so.
+Playing needs no account — a guest joins any room with a name. An account is
+what holds a seat on a plan, buys one, and reaches the admin console.
 
-1. **Generate Convex Auth keys** (writes `JWKS` + `JWT_PRIVATE_KEY` to the
-   deployment):
+**Email + password is the way in**, and it is always available. There is no
+provider to configure and nothing to set up before the app is usable.
 
-   ```bash
-   npx @convex-dev/auth
-   ```
+### Forgot your password
 
-2. **Create a Google OAuth client** at
-   <https://console.cloud.google.com/apis/credentials> → *OAuth client ID* →
-   *Web application*. Add this authorised redirect URI, using your Convex
-   **site** URL (the `.convex.site` one, not `.convex.cloud`):
+The sign-in card runs the whole recovery itself: *Forgot your password?* asks
+for the address, Convex Auth mails a 6-digit code (15 minutes, single use), and
+the second step spends the code and sets the new password in one go, landing
+you signed in.
 
-   ```
-   https://<your-deployment>.convex.site/api/auth/callback/google
-   ```
+The code is deliberately short, which is safe only because the original email
+must be presented with it — a code on its own is worthless to anyone who
+intercepts it. Asking for a code never reveals whether an account exists.
 
-3. **Set the deployment environment variables** (`npx convex env set NAME value`,
-   or the Convex dashboard):
+**Recovery needs email to be working.** With no `RESEND_API_KEY` the request
+fails loudly rather than leaving someone waiting for a code that was never
+coming.
 
-   | Variable | Required | Purpose |
-   |---|---|---|
-   | `AUTH_GOOGLE_ID` | yes | Google OAuth client ID |
-   | `AUTH_GOOGLE_SECRET` | yes | Google OAuth client secret |
-   | `SITE_URL` | yes | Where to return after sign-in, e.g. `http://localhost:5173` |
-   | `ADMIN_EMAILS` | no | Comma-separated admins. Defaults to `dewank.r@amberstudent.com` |
-   | `UPI_VPA` | for payments | Your UPI ID, e.g. `you@okhdfcbank` — the QR is generated from it |
-   | `UPI_PAYEE_NAME` | no | Name shown in the payer's app. Defaults to `Dharmayuddha` |
-   | `PAYMENT_QR_URL` | no | Hosted image of your own static QR; shown instead of the generated one |
-   | `PRICE_MONTHLY_INR` | no | Defaults to `299` |
-   | `PRICE_YEARLY_INR` | no | Defaults to `2499` |
-   | `SUBSCRIPTION_SEATS` | no | Defaults to `7` |
+### Email (Resend)
 
-   Set `SITE_URL` to your production origin when you deploy.
+Two messages go out, both to someone who just acted — no lists, no scheduling:
 
-4. Restart `npx convex dev`, then sign in from the app header.
+| When | What |
+|---|---|
+| An account is created | A welcome note. Failure is logged and swallowed; the account is made either way. |
+| *Forgot your password?* | The reset code. Failure surfaces to the person waiting. |
 
-To give yourself premium without paying, sign in once, then use **Grant a plan**
-in `#/admin`.
+Resend is spoken to over plain `fetch` in `convex/email.ts` — no SDK
+dependency. Both templates live in that file.
+
+> **The one gotcha.** Until you verify a domain, Resend's shared
+> `onboarding@resend.dev` sender **only delivers to the address that owns the
+> Resend account**. Every other recipient comes back `403 validation_error`. To
+> send to real users: verify a domain at <https://resend.com/domains>, then set
+> `EMAIL_FROM` to an address on it.
+
+## What you have to manage
+
+Everything below is Convex **deployment** environment state, set with
+`npx convex env set NAME value` (or in the Convex dashboard). It is **per
+deployment** — nothing you set on dev carries over to production, so a deploy
+means setting them again on the prod deployment.
+
+| Variable | Needed | What happens without it |
+|---|---|---|
+| `RESEND_API_KEY` | for any email | Welcome notes are skipped; password reset fails outright. |
+| `EMAIL_FROM` | to mail anyone but yourself | Falls back to `onboarding@resend.dev`, which only reaches your own Resend address. Format: `Name <you@your-domain.com>`. |
+| `SITE_URL` | yes | The origin the links in your emails point at. Defaults to `http://localhost:5173`. **Set it to your real origin in production.** |
+| `ADMIN_EMAILS` | no | Comma-separated. Defaults to `dewank.r@amberstudent.com`. Being on this list *is* admin — there is no separate admin password. |
+| `UPI_VPA` | for payments | No payment QR can be generated. |
+| `UPI_PAYEE_NAME` | no | Defaults to `Decevia`. |
+| `PAYMENT_QR_URL` | no | A hosted image of your own static QR, shown instead of the generated one. |
+| `PRICE_MONTHLY_INR` / `PRICE_YEARLY_INR` | no | Default to `299` / `2499`. |
+| `SUBSCRIPTION_SEATS` | no | Defaults to `7`. |
+| `JWKS` / `JWT_PRIVATE_KEY` | yes | Written once by `npx @convex-dev/auth`. Sign-in cannot work without them. Never rotate casually — it signs out everyone. |
+
+The client also reads `VITE_CONVEX_URL` and `VITE_CONVEX_SITE_URL` from
+`.env.local`, which `npx convex dev` writes for you.
+
+### Recurring jobs
+
+- **Admin.** Approve or reject purchases in `#/admin`; that is what mints a
+  subscription. Nothing sweeps expired plans — entitlement is recomputed from
+  `expiresAt` on every read, so a lapsed plan simply stops unlocking content.
+- **Secrets.** `RESEND_API_KEY` is the only third-party secret in the project.
+  Rotating it is a `convex env set` and nothing else.
+- **Accounts.** There is no self-serve account deletion. Removing someone means
+  deleting their `users` row plus their `authAccounts` / `authSessions` /
+  `authRefreshTokens` rows — do it from the Convex dashboard, and note that
+  `subscriptions.ownerUserId`, `orders.userId` and `rooms.hostUserId` point at
+  that row.
 
 ## Project layout
 
 ```
 convex/
-  auth.ts       Convex Auth + Google provider
+  auth.ts       Convex Auth — email + password, reset, welcome mail
   auth.config.ts / http.ts   JWT issuer and the /api/auth/* routes
   entitlements.ts  who is premium, who is an admin, pricing (reads ctx.auth only)
   billing.ts    subscriptions, seats, orders, admin operations
@@ -235,7 +259,6 @@ src/
   main.tsx      ConvexAuthProvider + hash routing (#/rules, #/upgrade, #/admin)
   UpgradePage.tsx  plans, UPI QR, seat form, request history
   AdminPage.tsx    approvals, subscriptions, users, manual grants
-  useVoice.ts   WebRTC mesh hook — mic + camera, perfect-negotiation signaling
   App.tsx       Mahabharata-themed UI + video grid, driven by Convex hooks
 ```
 

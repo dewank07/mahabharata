@@ -20,7 +20,7 @@ import {
 } from "../../convex/logic";
 import { ChronicleColumn, SeatRing } from "./Parts";
 import { ActionLine } from "./TableShell";
-import { type Room, type TableProps, ROMAN, streamFor } from "./types";
+import { type Room, type TableProps, ROMAN } from "./types";
 
 type Opts = Room["opts"];
 
@@ -54,9 +54,9 @@ const ROLE_OPTS: Array<{
 ];
 
 export function LobbyScreen({
-  room, pid, emblemSrc, voice, account, worlds, act,
+  room, pid, emblemSrc, account, worlds, act,
   onStart, onSwapSeat, onSetOpts, onChangeTheme, onLeave,
-}: Pick<TableProps, "room" | "pid" | "emblemSrc" | "voice" | "account" | "worlds" | "act"> & {
+}: Pick<TableProps, "room" | "pid" | "emblemSrc" | "account" | "worlds" | "act"> & {
   onStart: () => Promise<unknown>;
   onSwapSeat: (watcherId: string, seatedId: string) => Promise<unknown>;
   onSetOpts: (opts: Opts) => Promise<unknown>;
@@ -271,10 +271,6 @@ export function LobbyScreen({
           noteFor={(p) =>
             p.isHost ? (p.playerId === pid ? "Host · you" : "Host")
               : p.playerId === pid ? "You" : ROMAN[p.seat] ?? String(p.seat + 1)
-          }
-          streamFor={(p) => streamFor(voice, pid, p.playerId)}
-          speakingFor={(p) =>
-            p.playerId === pid ? !!voice.speaking["me"] : !!voice.speaking[p.playerId]
           }
         />
 

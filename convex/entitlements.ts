@@ -19,7 +19,7 @@ export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-/** Cheap sanity check — real validation is the OAuth sign-in itself. */
+/** Cheap sanity check — real validation happens at sign-in. */
 export function looksLikeEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
@@ -53,7 +53,7 @@ export async function signedInUser(ctx: Ctx): Promise<Doc<"users"> | null> {
 
 export async function requireUser(ctx: Ctx): Promise<Doc<"users">> {
   const user = await signedInUser(ctx);
-  if (!user) throw new Error("Sign in with Google first.");
+  if (!user) throw new Error("Sign in first.");
   return user;
 }
 
@@ -166,7 +166,7 @@ export function pricing(): Pricing {
     yearlyInr: intEnv("PRICE_YEARLY_INR", 2499),
     seats: intEnv("SUBSCRIPTION_SEATS", DEFAULT_SEATS),
     upiVpa: process.env.UPI_VPA ?? null,
-    payeeName: process.env.UPI_PAYEE_NAME ?? "Dharmayuddha",
+    payeeName: process.env.UPI_PAYEE_NAME ?? "Decevia",
     qrImageUrl: process.env.PAYMENT_QR_URL ?? null,
   };
 }

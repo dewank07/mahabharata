@@ -1,11 +1,12 @@
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { ConvexReactClient } from "convex/react";
-import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import App from "./App";
 import RulesPage from "./RulesPage";
 import AdminPage from "./AdminPage";
 import UpgradePage from "./UpgradePage";
+import { SignInPage } from "./SignIn";
+import { AuthProvider } from "./auth";
 import "./styles.css";
 // After styles.css so the Council Seal tokens win on gameplay screens.
 import "./seal.css";
@@ -30,13 +31,15 @@ function Router() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
-  const route = hash.startsWith("#/rules")
-    ? "rules"
-    : hash.startsWith("#/admin")
-      ? "admin"
-      : hash.startsWith("#/upgrade")
-        ? "upgrade"
-        : "game";
+  const route = hash.startsWith("#/signin")
+    ? "signin"
+    : hash.startsWith("#/rules")
+      ? "rules"
+      : hash.startsWith("#/admin")
+        ? "admin"
+        : hash.startsWith("#/upgrade")
+          ? "upgrade"
+          : "game";
 
   // Everything outside a game room sits on the same board as the table, so the
   // whole app reads as one surface.
@@ -45,6 +48,7 @@ function Router() {
       <div className="app-root">
         <div className="vd-board">
           <div className="vd-content">
+            {route === "signin" && <SignInPage />}
             {route === "rules" && <RulesPage />}
             {route === "admin" && <AdminPage />}
             {route === "upgrade" && <UpgradePage />}
@@ -65,8 +69,8 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     {/* Auth wraps everything: the admin console and the upgrade flow both need
         a signed-in identity, and the game reads entitlement from it. */}
-    <ConvexAuthProvider client={convex}>
+    <AuthProvider client={convex}>
       <Router />
-    </ConvexAuthProvider>
+    </AuthProvider>
   </StrictMode>,
 );

@@ -1,5 +1,5 @@
 /* ============================================================================
-   Verdict — Council Seal design system
+   Decevia — Council Seal design system
    Drop into src/ and import once (e.g. in main.tsx, AFTER styles.css so these
    tokens win). No gradients, no glow, no shadows: depth comes from 1px rules,
    contrast and spacing.
@@ -34,7 +34,6 @@
   --vd-red:         #9e3b28; /* rejection / fail / evil */
   --vd-red-ink:     #b5442e; /* red text (passes contrast on --vd-bg) */
   --vd-red-rule:    #4a2620;
-  --vd-green:       #5b7f6e; /* voice-connected dot only */
 
   /* --- type ------------------------------------------------------------- */
   --vd-display: "Cinzel", Georgia, serif;      /* headings, numerals */
@@ -205,7 +204,7 @@
    ========================================================================== */
 
 .vd-seal { position: relative; aspect-ratio: 1; width: 100%; max-width: 392px; margin-inline: auto; }
-/* Seat metrics come from CouncilSeal so one ring serves 5–20 seats. */
+/* Seat metrics come from CouncilSeal so one ring serves 5–18 seats. */
 
 .vd-seal__ring,
 .vd-seal__ring-inner {
@@ -475,6 +474,88 @@
 .vd-unveil__skip { margin-top: var(--vd-6); }
 
 /* ============================================================================
+   Sign in / create account
+   Our own component: the overlay plate's materials, the table's segmented
+   group, the parchment primary. Email and password only.
+   ========================================================================== */
+
+.vd-signin { width: min(420px, 100%); margin-inline: auto; }
+.vd-signin__eyebrow {
+  display: block;
+  margin-bottom: var(--vd-5);
+  text-align: center;
+  letter-spacing: 0.32em;
+}
+.vd-signin__seg { margin-bottom: var(--vd-5); }
+.vd-signin__tab {
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  background: none;
+  color: var(--vd-ink-muted);
+  font: 500 14px/1 var(--vd-display);
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+.vd-signin__tab.is-active { background: var(--vd-brass); color: #171410; }
+
+/* The reveal toggle sits inside the field's own box, not beside it. */
+.vd-signin__pass { position: relative; }
+.vd-signin__peek {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 52px;
+  border: 0;
+  background: none;
+  color: var(--vd-ink-dim);
+  cursor: pointer;
+}
+.vd-signin__peek:hover { color: var(--vd-ink); }
+.vd-signin__pass .vd-field { padding-right: 46px; }
+
+.vd-signin__note { margin-top: var(--vd-4); text-align: center; font-size: 13.5px; }
+
+/* Recovery: the "we posted a code" line, and the detour links under the form. */
+.vd-signin__sent {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: var(--vd-5);
+  font-size: 14px;
+}
+.vd-signin__sent > svg { flex: none; margin-top: 3px; color: var(--vd-brass); }
+.vd-signin__sent strong { color: var(--vd-ink); font-weight: 500; font-style: normal; }
+
+.vd-signin__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--vd-3);
+  margin-top: var(--vd-4);
+}
+.vd-signin__foot:empty { display: none; }
+.vd-signin__foot .vd-textbtn:hover { color: var(--vd-brass); }
+
+/* The standalone #/signin page: the card centred on the board. */
+.vd-signin-page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--vd-5);
+  padding: var(--vd-10) 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .vd-spin { animation: vd-spin 900ms linear infinite; }
+}
+@keyframes vd-spin { to { transform: rotate(360deg); } }
+
+/* ============================================================================
    Layout
    ========================================================================== */
 
@@ -527,18 +608,6 @@
   font: italic 400 14px/1 var(--vd-voice); color: var(--vd-ink-muted);
 }
 .vd-topbar__right { display: flex; align-items: center; gap: var(--vd-4); flex-wrap: wrap; }
-
-.vd-voicechip { display: inline-flex; align-items: center; gap: 7px; font: 700 8.5px/1 var(--vd-ui); letter-spacing: 0.26em; text-transform: uppercase; color: var(--vd-ink-dim); }
-.vd-voicechip > i { width: 6px; height: 6px; background: var(--vd-rule-control); }
-.vd-voicechip > i.is-on { background: var(--vd-green); }
-
-.vd-voicebtns { display: inline-flex; gap: 6px; }
-.vd-iconbtn {
-  display: inline-grid; place-items: center; width: 30px; height: 30px;
-  border: 1px solid var(--vd-rule-control); background: transparent;
-  color: var(--vd-ink-muted); cursor: pointer;
-}
-.vd-iconbtn:hover { color: var(--vd-ink); border-color: var(--vd-rule-strong); }
 
 .vd-errline { margin-top: var(--vd-4); font: 400 13px/1.5 var(--vd-ui); color: var(--vd-red-ink); }
 
@@ -805,14 +874,6 @@
 .vd-pill:hover { color: var(--vd-ink); border-color: var(--vd-rule-strong); }
 .vd-pill--brass { border-color: var(--vd-brass); color: var(--vd-brass); }
 
-/* Live video inside a seat disc — keeps the camera feature in the design. */
-.vd-seat__video {
-  position: absolute; inset: 0; width: 100%; height: 100%;
-  object-fit: cover; border-radius: 50%;
-}
-
-/* Someone is talking: the disc takes a brass rim. No glow, no animation. */
-.vd-seat.is-speaking .vd-seat__disc { border-color: var(--vd-brass); }
 
 /* ============================================================================
    The gate (create / join) and the shared field control
@@ -828,6 +889,12 @@
 }
 .vd-gate__head { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .vd-gate__brand { margin: 0; font: 500 30px/1 var(--vd-display); letter-spacing: 0.26em; color: var(--vd-ink); }
+.vd-gate__promise {
+  margin: 0;
+  letter-spacing: 0.32em;
+  color: var(--vd-brass);
+  opacity: 0.85;
+}
 .vd-gate__tag { max-width: 380px; }
 .vd-gate__card { padding: 22px 20px; background: var(--vd-bg-plate); border: 1px solid var(--vd-rule-strong); }
 .vd-gate__card .vd-seg { margin-bottom: var(--vd-5); }
@@ -892,7 +959,32 @@
 .rules-page .rules-kicker { font-family: var(--vd-ui); letter-spacing: 0.26em; }
 
 .rules-page .rules-section { border-top: 1px solid var(--vd-rule-container); }
-.rules-page .rules-hero { border-bottom: 1px solid var(--vd-rule-container); padding-bottom: 24px; }
+/* The hero is a stack, not a line. `.rules-back` is inline-block and
+   `.rules-kicker` is inline-flex, so left to themselves they share a row and
+   run into each other — the back link's margin-bottom does nothing there.
+   A flex column separates them and lets the link sit out at the left edge,
+   where it reads as navigation rather than part of the title block. */
+.rules-page .rules-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--vd-3);
+  text-align: center;
+  border-bottom: 1px solid var(--vd-rule-container);
+  padding-bottom: 24px;
+}
+.rules-page .rules-back {
+  align-self: flex-start;
+  margin: 0 0 var(--vd-2);
+  font: 700 8.5px/1 var(--vd-ui);
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--vd-ink-muted);
+}
+.rules-page .rules-back:hover { color: var(--vd-brass); }
+.rules-page .rules-kicker,
+.rules-page .rules-hero h1,
+.rules-page .rules-hero .rules-lede { margin: 0; }
 
 /* Panels, cards and chips all become 1px containers on the board. */
 .rules-page .rules-callouts > article,

@@ -238,25 +238,9 @@ export default defineSchema({
     name: v.string(),
     seat: v.number(),
     role: v.optional(role),
-    inVoice: v.optional(v.boolean()),
   })
     .index("by_room", ["roomId"])
     .index("by_room_player", ["roomId", "playerId"]),
-
-  // WebRTC signaling relay. Clients write offers/answers/ICE candidates here,
-  // addressed to a specific peer, and delete them once consumed.
-  signals: defineTable({
-    roomId: v.id("rooms"),
-    fromId: v.string(),
-    toId: v.string(),
-    kind: v.union(
-      v.literal("offer"),
-      v.literal("answer"),
-      v.literal("candidate"),
-    ),
-    data: v.string(), // JSON-encoded SDP or ICE candidate
-  })
-    .index("by_room_to", ["roomId", "toId"]),
 
   votes: defineTable({
     roomId: v.id("rooms"),

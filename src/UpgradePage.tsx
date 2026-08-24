@@ -99,7 +99,7 @@ export default function UpgradePage() {
     return (
       <div className="rules-page">
         <header className="rules-hero">
-          <a className="rules-back" href="#/">← Back to council</a>
+          <a className="rules-back" href="#/play">← Back to council</a>
           <p className="rules-kicker"><Crown size={14} /> Premium</p>
           <h1>Unlock the full war</h1>
           <p className="rules-lede">
@@ -119,7 +119,7 @@ export default function UpgradePage() {
   return (
     <div className="rules-page">
       <header className="rules-hero">
-        <a className="rules-back" href="#/">← Back to council</a>
+        <a className="rules-back" href="#/play">← Back to council</a>
         <p className="rules-kicker"><Crown size={14} /> Premium</p>
         <h1>{viewer.premium ? "Your plan" : "Unlock the full war"}</h1>
         <p className="rules-lede">

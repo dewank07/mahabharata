@@ -6,6 +6,7 @@ import RulesPage from "./RulesPage";
 import AdminPage from "./AdminPage";
 import UpgradePage from "./UpgradePage";
 import { SignInPage } from "./SignIn";
+import { LandingPage } from "./LandingPage";
 import { AuthProvider } from "./auth";
 import "./styles.css";
 // After styles.css so the Council Seal tokens win on gameplay screens.
@@ -31,6 +32,10 @@ function Router() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
+  // An invite link (…/?code=ABCD) has to reach the table even though the
+  // index is now a holding page, so it counts as a request to play.
+  const invited = new URLSearchParams(window.location.search).has("code");
+
   const route = hash.startsWith("#/signin")
     ? "signin"
     : hash.startsWith("#/rules")
@@ -39,10 +44,21 @@ function Router() {
         ? "admin"
         : hash.startsWith("#/upgrade")
           ? "upgrade"
-          : "game";
+          : hash.startsWith("#/play") || invited
+            ? "game"
+            : "landing";
 
   // Everything outside a game room sits on the same board as the table, so the
   // whole app reads as one surface.
+  // The landing page paints its own board, so it sits outside the shared shell.
+  if (route === "landing") {
+    return (
+      <div className="app-root">
+        <LandingPage />
+      </div>
+    );
+  }
+
   if (route !== "game") {
     return (
       <div className="app-root">

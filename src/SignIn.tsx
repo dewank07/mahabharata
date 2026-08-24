@@ -240,10 +240,10 @@ export function SignInPage() {
   return (
     <div className="vd-shell">
       <div className="vd-signin-page">
-        <a className="vd-pill" href="#/">
+        <a className="vd-pill" href="#/play">
           <ArrowLeft size={11} /> Back to council
         </a>
-        <SignInCard onDone={() => { window.location.hash = "#/"; }} />
+        <SignInCard onDone={() => { window.location.hash = "#/play"; }} />
       </div>
     </div>
   );

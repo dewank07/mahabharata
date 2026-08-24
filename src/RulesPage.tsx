@@ -135,7 +135,7 @@ export default function RulesPage() {
   return (
     <div className="rules-page">
       <header className="rules-hero">
-        <a className="rules-back" href="#/">
+        <a className="rules-back" href="#/play">
           ← Back to council
         </a>
         <p className="rules-kicker">

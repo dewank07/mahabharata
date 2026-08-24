@@ -556,6 +556,78 @@
 @keyframes vd-spin { to { transform: rotate(360deg); } }
 
 /* ============================================================================
+   Landing — the front door at #/, while the game lives behind #/play
+   ========================================================================== */
+
+.lp { display: grid; place-items: center; padding: var(--vd-8) var(--vd-5); }
+.lp__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 560px;
+}
+
+.lp-mark { opacity: 0.95; margin-bottom: var(--vd-6); }
+
+/* Letters are individually wrapped so they can rise in sequence; the tracking
+   is on the wrapper so the spacing stays even. */
+.lp-wordmark {
+  display: flex;
+  margin: 0;
+  font: 500 clamp(38px, 9vw, 62px)/1 var(--vd-display);
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;          /* balances the trailing letter-space */
+  color: var(--vd-ink);
+}
+.lp-letter { display: inline-block; }
+
+.lp-promise {
+  margin: var(--vd-4) 0 0;
+  font: 700 10px/1 var(--vd-ui);
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  text-transform: uppercase;
+  color: var(--vd-brass);
+}
+
+.lp-line {
+  width: 76px;
+  height: 1px;
+  margin: var(--vd-6) 0;
+  border: 0;
+  background: var(--vd-rule-strong);
+}
+
+.lp-lede { margin: 0; font: italic 400 16px/1.6 var(--vd-voice); color: var(--vd-ink-soft); }
+
+/* The holding state. A 1px container like everything else — the only movement
+   is the dot, so it reads as waiting rather than as a button to press. */
+.lp-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: var(--vd-8);
+  padding: 15px 26px;
+  border: 1px solid var(--vd-brass);
+  font: 500 14px/1 var(--vd-display);
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--vd-brass);
+}
+.lp-cta__dot { width: 6px; height: 6px; background: var(--vd-brass); }
+
+.lp-foot {
+  display: flex;
+  gap: var(--vd-5);
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: var(--vd-8);
+}
+.lp-foot .vd-textbtn:hover { color: var(--vd-brass); }
+.lp-enter { color: var(--vd-ink-muted); }
+
+/* ============================================================================
    Layout
    ========================================================================== */
 

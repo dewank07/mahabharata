@@ -54,7 +54,7 @@ export default function AdminPage() {
     return (
       <div className="rules-page">
         <header className="rules-hero">
-          <a className="rules-back" href="#/">← Back to council</a>
+          <a className="rules-back" href="#/play">← Back to council</a>
           <p className="rules-kicker"><Shield size={14} /> Admin</p>
           <h1>Admin console</h1>
           <p className="rules-lede">Sign in to continue.</p>
@@ -71,7 +71,7 @@ export default function AdminPage() {
     return (
       <div className="rules-page">
         <header className="rules-hero">
-          <a className="rules-back" href="#/">← Back to council</a>
+          <a className="rules-back" href="#/play">← Back to council</a>
           <p className="rules-kicker"><Shield size={14} /> Admin</p>
           <h1>Not your console</h1>
           <p className="rules-lede">
@@ -92,7 +92,7 @@ export default function AdminPage() {
   return (
     <div className="rules-page">
       <header className="rules-hero">
-        <a className="rules-back" href="#/">← Back to council</a>
+        <a className="rules-back" href="#/play">← Back to council</a>
         <p className="rules-kicker"><Shield size={14} /> Admin</p>
         <h1>Admin console</h1>
         <p className="rules-lede">

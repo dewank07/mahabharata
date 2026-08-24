@@ -6,6 +6,25 @@ lying. State syncs **live** through [Convex](https://convex.dev) — no polling,
 no manual refresh — and players talk and see one another over free
 peer-to-peer audio &amp; video.
 
+## Routes
+
+Hash routing, so every URL is really `/` — no server rewrites needed to host it.
+
+| Route | What |
+|---|---|
+| `#/` | The landing page: a holding page with a **Coming soon** CTA |
+| `#/play` | The game — convene / join, the lobby, and every phase after it |
+| `#/rules` | The laws of the round table |
+| `#/signin` | Create an account, sign in, recover a password |
+| `#/upgrade` | Plans and purchase |
+| `#/admin` | The console, for emails in `ADMIN_EMAILS` |
+
+An invite link (`…/?code=ABCD`) goes straight to the table even without
+`#/play`, so shared codes keep working while the front door is shut.
+
+**When you open to everyone:** delete the *Enter the council* link in
+`src/LandingPage.tsx` and point `#/` at the game.
+
 ## Worlds
 
 Decevia is the platform; a **world** is the skin it wears. Same engine, same

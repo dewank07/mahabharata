@@ -566,39 +566,100 @@
 
 /* ============================================================================
    Lobby configuration: option toggles, world picker, invite line
+
+   These live in a full-width strip under the table, not the 274px sidebar, so
+   the rows get enough width to keep every label on one line.
    ========================================================================== */
 
-.vd-opts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--vd-2); }
-@media (max-width: 720px) { .vd-opts { grid-template-columns: 1fr; } }
-
-.vd-opt {
-  display: flex; flex-direction: column; gap: 4px; align-items: flex-start;
-  padding: 10px 12px; text-align: left; cursor: pointer;
-  border: 1px solid var(--vd-rule-control); background: transparent;
-  color: var(--vd-ink-soft); min-height: 56px;
+.vd-setup {
+  border-top: 1px solid var(--vd-rule-container);
+  padding: 26px 0 40px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--vd-6);
 }
-.vd-opt:hover:not(:disabled) { border-color: var(--vd-rule-strong); }
-.vd-opt.is-on { border-color: var(--vd-brass); background: rgba(194, 165, 95, 0.07); color: var(--vd-ink); }
-.vd-opt:disabled { opacity: 0.42; cursor: not-allowed; }
-.vd-opt__top { display: flex; align-items: center; gap: 7px; width: 100%; }
-.vd-opt__name { font: 600 12.5px/1 var(--vd-ui); color: inherit; }
-.vd-opt__desc { font: italic 400 11.5px/1.4 var(--vd-voice); color: var(--vd-ink-dim); }
-.vd-opt__lock { margin-left: auto; font: 700 7.5px/1 var(--vd-ui); letter-spacing: 0.18em; text-transform: uppercase; color: var(--vd-brass); }
-.vd-opt__tick { margin-left: auto; }
-/* good / evil / expansion get a 2px inner edge rather than a fill */
+.vd-setup__group { display: flex; flex-direction: column; gap: 11px; }
+.vd-setup__note { margin: 0; font-size: 13px; }
+
+/* Both grids fit as many columns as the width allows, so nothing wraps. */
+.vd-opts,
+.vd-worlds {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
+  gap: var(--vd-2);
+  align-items: stretch;
+}
+
+.vd-opt,
+.vd-world {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: flex-start;
+  padding: 11px 13px;
+  min-height: 62px;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid var(--vd-rule-control);
+  background: transparent;
+  color: var(--vd-ink-soft);
+}
+.vd-opt:hover:not(:disabled),
+.vd-world:hover:not(:disabled) { border-color: var(--vd-rule-strong); }
+.vd-opt.is-on,
+.vd-world.is-on {
+  border-color: var(--vd-brass);
+  background: rgba(194, 165, 95, 0.07);
+  color: var(--vd-ink);
+}
+.vd-opt:disabled,
+.vd-world:disabled { opacity: 0.42; cursor: not-allowed; }
+
+/* Name row: mark, name, then the state badge pinned right. One line. */
+.vd-opt__top,
+.vd-world__body {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-width: 0;
+}
+.vd-opt__name,
+.vd-world__name {
+  font: 600 12.5px/1.25 var(--vd-ui);
+  color: inherit;
+  flex: 1;
+  min-width: 0;
+}
+.vd-opt__top > svg:last-child { flex: none; margin-left: auto; }
+
+.vd-opt__desc,
+.vd-world__sub {
+  font: italic 400 11.5px/1.35 var(--vd-voice);
+  color: var(--vd-ink-dim);
+  display: block;
+}
+
+.vd-opt__lock {
+  flex: none;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;          /* "paid" must never wrap under the padlock */
+  font: 700 7.5px/1 var(--vd-ui);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--vd-brass);
+}
+
+/* Which side a role joins, as a 2px inner edge rather than a fill. */
 .vd-opt--good.is-on { box-shadow: inset 2px 0 0 var(--vd-brass); }
 .vd-opt--evil.is-on { box-shadow: inset 2px 0 0 var(--vd-red); }
 
-.vd-worlds { display: grid; grid-template-columns: 1fr 1fr; gap: var(--vd-2); }
-.vd-world {
-  display: flex; align-items: center; gap: 9px; padding: 10px 12px;
-  border: 1px solid var(--vd-rule-control); background: transparent;
-  color: var(--vd-ink-soft); cursor: pointer; text-align: left;
-}
-.vd-world.is-on { border-color: var(--vd-brass); background: rgba(194, 165, 95, 0.07); color: var(--vd-ink); }
-.vd-world:disabled { opacity: 0.45; cursor: not-allowed; }
-.vd-world__name { font: 600 12.5px/1 var(--vd-ui); }
-.vd-world__sub { display: block; margin-top: 3px; font: italic 400 11px/1.3 var(--vd-voice); color: var(--vd-ink-dim); }
+/* The world tiles carry their subtitle inside the body row. */
+.vd-world { flex-direction: row; align-items: center; }
+.vd-world__body { flex-direction: column; align-items: flex-start; gap: 3px; }
 
 .vd-invite {
   display: flex; align-items: center; gap: var(--vd-3); flex-wrap: wrap;
@@ -757,3 +818,7 @@ body { background: var(--vd-bg); }
   .vd-shell { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
 }
 .vd-center { display: grid; place-items: center; min-height: 100dvh; }
+
+/* The gate's world picker is inside a 460px card, so pin it to two columns. */
+.vd-gate__worlds .vd-worlds { grid-template-columns: 1fr 1fr; }
+@media (max-width: 520px) { .vd-gate__worlds .vd-worlds { grid-template-columns: 1fr; } }

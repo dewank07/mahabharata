@@ -6,8 +6,8 @@
    watcher directly. `validateSetup()`'s message is shown verbatim where it
    blocks the start.
 
-   The right column is where the host actually builds the game: the world, the
-   optional roles, and the expansions — free vs premium per FREE_OPT_KEYS /
+   The host builds the game in the full-width strip under the table: the world,
+   the optional roles, and the expansions — free vs premium per FREE_OPT_KEYS /
    PREMIUM_OPT_KEYS, with the paid ones locked behind the host's plan.
    ========================================================================== */
 
@@ -105,7 +105,118 @@ export function LobbyScreen({
     } catch { /* clipboard unavailable — the code is on screen anyway */ }
   };
 
+  /* The world / roles / expansions used to live in the 274px sidebar, where
+     every label wrapped. They are a full-width strip under the table instead:
+     the centre column runs tall and empty in the lobby, and at that width the
+     option rows fit on one line each. */
+  const setup = (
+    <section className="vd-setup">
+      <div className="vd-setup__group">
+        <span className="vd-label">The world</span>
+        <div className="vd-worlds">
+          {worlds.map((w) => {
+            const on = w.id === room.themeId;
+            const paid = !roomPremium && w.id !== "medieval" && !on;
+            return (
+              <button
+                key={w.id}
+                className={`vd-world ${on ? "is-on" : ""}`}
+                disabled={!isHost || paid}
+                title={paid ? `${w.name} — premium world` : w.name}
+                onClick={act(() => onChangeTheme(w.id))}
+              >
+                <span className="vd-world__body">
+                  <span className="vd-world__name">{w.name}</span>
+                  <span className="vd-world__sub">
+                    {paid ? "premium world" : `${w.goodTeamName} vs ${w.evilTeamName}`}
+                  </span>
+                </span>
+                {on && <Check size={13} color="var(--vd-brass)" />}
+                {paid && <Lock size={12} />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="vd-setup__group">
+        <div className="vd-row" style={{ justifyContent: "space-between" }}>
+          <span className="vd-label">Roles in play</span>
+          <span className="vd-label vd-label--dim">
+            {goodUsed}/{goodSlots} good · {evilUsed}/{evilSlots} evil
+          </span>
+        </div>
+        <div className="vd-opts">
+          {ROLE_OPTS.map((o) => {
+            const on = opts[o.key] === true;
+            const lock = locked(o.key);
+            const full = !on && !fits(o);
+            return (
+              <button
+                key={o.key}
+                className={`vd-opt vd-opt--${o.side} ${on ? "is-on" : ""}`}
+                disabled={!isHost || lock || full}
+                title={lock ? "Premium — upgrade to unlock" : full ? "No seat left on that side" : o.desc(rn)}
+                onClick={act(() => toggle(o.key))}
+              >
+                <span className="vd-opt__top">
+                  {o.side === "good"
+                    ? <Sun size={12} color="var(--vd-brass)" />
+                    : <Flame size={12} color="var(--vd-red-ink)" />}
+                  <span className="vd-opt__name">{o.label(rn)}</span>
+                  {lock ? <span className="vd-opt__lock"><Lock size={10} /> paid</span>
+                    : on ? <Check size={13} color="var(--vd-brass)" /> : null}
+                </span>
+                <span className="vd-opt__desc">{o.desc(rn)}</span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="vd-voice vd-setup__note">
+          {rn("merlin", "Merlin")} and {rn("assassin", "the Assassin")} always take the field.
+        </p>
+      </div>
+
+      <div className="vd-setup__group">
+        <span className="vd-label">Expansions</span>
+        <div className="vd-opts">
+          {([
+            ["lady", room.theme.expansions?.lady?.name ?? "Lady of the Lake",
+             seated < 7 ? "Needs seven at the table" : "Inspect one loyalty after quests 2–4"],
+            ["excalibur", room.theme.expansions?.excalibur?.name ?? "Excalibur",
+             "The leader arms a rider to flip a card"],
+            ["plots", room.theme.expansions?.plots?.name ?? "Plot cards",
+             `${seated <= 6 ? 1 : seated <= 8 ? 2 : 3} dealt each round by the leader`],
+          ] as const).map(([key, name, desc]) => {
+            const k = key as keyof Opts;
+            const on = opts[k] === true;
+            const lock = locked(k);
+            const tooSmall = key === "lady" && seated < 7 && !on;
+            return (
+              <button
+                key={key}
+                className={`vd-opt ${on ? "is-on" : ""}`}
+                disabled={!isHost || lock || tooSmall}
+                title={lock ? "Premium — upgrade to unlock" : desc}
+                onClick={act(() => toggle(k))}
+              >
+                <span className="vd-opt__top">
+                  <Sparkles size={12} color="var(--vd-brass)" />
+                  <span className="vd-opt__name">{name}</span>
+                  {lock ? <span className="vd-opt__lock"><Lock size={10} /> paid</span>
+                    : on ? <Check size={13} color="var(--vd-brass)" /> : null}
+                </span>
+                <span className="vd-opt__desc">{desc}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+
   return (
+    <>
     <div className="vd-table vd-table-layout">
       {/* ------------------------------- left ------------------------------ */}
       <div className="vd-stack">
@@ -218,113 +329,7 @@ export function LobbyScreen({
 
       {/* ------------------------------- right ----------------------------- */}
       <div className="vd-stack">
-        {/* --------------------------- the world --------------------------- */}
-        <div className="vd-stack vd-stack--tight">
-          <span className="vd-label">The world</span>
-          <div className="vd-worlds">
-            {worlds.map((w) => {
-              const on = w.id === room.themeId;
-              const paid = !roomPremium && w.id !== "medieval" && !on;
-              return (
-                <button
-                  key={w.id}
-                  className={`vd-world ${on ? "is-on" : ""}`}
-                  disabled={!isHost || paid}
-                  title={paid ? `${w.name} — premium world` : w.name}
-                  onClick={act(() => onChangeTheme(w.id))}
-                >
-                  <span>
-                    <span className="vd-world__name">{w.name}</span>
-                    <span className="vd-world__sub">
-                      {paid ? "premium world" : `${w.goodTeamName} vs ${w.evilTeamName}`}
-                    </span>
-                  </span>
-                  {on && <Check size={13} color="var(--vd-brass)" style={{ marginLeft: "auto" }} />}
-                  {paid && <Lock size={12} style={{ marginLeft: "auto" }} />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* -------------------------- optional roles ----------------------- */}
-        <div className="vd-stack vd-stack--tight">
-          <div className="vd-row" style={{ justifyContent: "space-between" }}>
-            <span className="vd-label">Roles in play</span>
-            <span className="vd-label vd-label--dim">
-              {goodUsed}/{goodSlots} good · {evilUsed}/{evilSlots} evil
-            </span>
-          </div>
-
-          <div className="vd-opts">
-            {ROLE_OPTS.map((o) => {
-              const on = opts[o.key] === true;
-              const lock = locked(o.key);
-              const full = !on && !fits(o);
-              return (
-                <button
-                  key={o.key}
-                  className={`vd-opt vd-opt--${o.side} ${on ? "is-on" : ""}`}
-                  disabled={!isHost || lock || full}
-                  title={lock ? "Premium — upgrade to unlock" : full ? "No seat left on that side" : undefined}
-                  onClick={act(() => toggle(o.key))}
-                >
-                  <span className="vd-opt__top">
-                    {o.side === "good"
-                      ? <Sun size={12} color="var(--vd-brass)" />
-                      : <Flame size={12} color="var(--vd-red-ink)" />}
-                    <span className="vd-opt__name">{o.label(rn)}</span>
-                    {lock ? <span className="vd-opt__lock"><Lock size={10} /> paid</span>
-                      : on ? <Check size={13} color="var(--vd-brass)" className="vd-opt__tick" /> : null}
-                  </span>
-                  <span className="vd-opt__desc">{o.desc(rn)}</span>
-                </button>
-              );
-            })}
-          </div>
-          <p className="vd-voice" style={{ margin: 0, fontSize: 13 }}>
-            {rn("merlin", "Merlin")} and {rn("assassin", "the Assassin")} always take the field.
-          </p>
-        </div>
-
-        {/* --------------------------- expansions -------------------------- */}
-        <div className="vd-stack vd-stack--tight">
-          <span className="vd-label">Expansions</span>
-          <div className="vd-opts">
-            {([
-              ["lady", room.theme.expansions?.lady?.name ?? "Lady of the Lake",
-               seated < 7 ? "Needs seven at the table" : "Inspect one loyalty after quests 2–4"],
-              ["excalibur", room.theme.expansions?.excalibur?.name ?? "Excalibur",
-               "The leader arms a rider to flip a card"],
-              ["plots", room.theme.expansions?.plots?.name ?? "Plot cards",
-               `${seated <= 6 ? 1 : seated <= 8 ? 2 : 3} dealt each round by the leader`],
-            ] as const).map(([key, name, desc]) => {
-              const k = key as keyof Opts;
-              const on = opts[k] === true;
-              const lock = locked(k);
-              const tooSmall = key === "lady" && seated < 7 && !on;
-              return (
-                <button
-                  key={key}
-                  className={`vd-opt ${on ? "is-on" : ""}`}
-                  disabled={!isHost || lock || tooSmall}
-                  title={lock ? "Premium — upgrade to unlock" : undefined}
-                  onClick={act(() => toggle(k))}
-                >
-                  <span className="vd-opt__top">
-                    <Sparkles size={12} color="var(--vd-brass)" />
-                    <span className="vd-opt__name">{name}</span>
-                    {lock ? <span className="vd-opt__lock"><Lock size={10} /> paid</span>
-                      : on ? <Check size={13} color="var(--vd-brass)" className="vd-opt__tick" /> : null}
-                  </span>
-                  <span className="vd-opt__desc">{desc}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ----------------------------- watchers -------------------------- */}
+          {/* ----------------------------- watchers -------------------------- */}
         <div className="vd-stack vd-stack--tight">
           <div className="vd-row" style={{ justifyContent: "space-between" }}>
             <span className="vd-label"><Users size={11} /> Watching</span>
@@ -375,5 +380,8 @@ export function LobbyScreen({
         <ChronicleColumn room={room} />
       </div>
     </div>
+
+    {setup}
+    </>
   );
 }

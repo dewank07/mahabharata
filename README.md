@@ -223,6 +223,36 @@ dependency. Both templates live in that file.
 > send to real users: verify a domain at <https://resend.com/domains>, then set
 > `EMAIL_FROM` to an address on it.
 
+## Deploying (Vercel + Convex)
+
+`vercel.json` pins the build, so the only thing to set in the Vercel dashboard
+is one environment variable:
+
+| Vercel env var | Where it comes from |
+|---|---|
+| `CONVEX_DEPLOY_KEY` | Convex dashboard → project → Settings → Deploy keys → **production** key |
+
+That is the whole Vercel list. `convex deploy --cmd` deploys the backend and
+injects `VITE_CONVEX_URL` into the build itself, so you never set it by hand —
+and `VITE_CONVEX_SITE_URL`, which lingers in `.env`, is read by nothing.
+
+No rewrite rules are needed: routing is hash-based, so every URL is really `/`
+and a plain static deploy serves the whole app.
+
+Everything else lives on the Convex **production** deployment, which starts
+empty — see the table below and set each with `npx convex env set NAME value
+--prod`. In order, once:
+
+```bash
+npx convex deploy              # creates the production deployment
+npx @convex-dev/auth --prod    # writes JWKS + JWT_PRIVATE_KEY; sign-in needs them
+npx convex env set SITE_URL https://your-domain --prod
+# …the rest of the table below
+```
+
+Then sign up on the live site with an address in `ADMIN_EMAILS`: production
+shares no accounts with dev.
+
 ## What you have to manage
 
 Everything below is Convex **deployment** environment state, set with

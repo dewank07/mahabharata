@@ -9,8 +9,6 @@ import { useState } from "react";
 import { Flame } from "lucide-react";
 import { QuestLadder } from "../TableParts";
 import { QUEST_SIZES, doubleFailQuests } from "../../convex/logic";
-import { CharacterCard } from "../CharacterCard";
-import { characterFor } from "../characters";
 import { ChronicleColumn } from "./Parts";
 import { ActionLine } from "./TableShell";
 import type { TableProps } from "./types";
@@ -27,8 +25,6 @@ export function AssassinScreen({
 
   const roleName = (id: string) =>
     room.theme.roles.find((r) => r.id === id)?.name ?? id;
-  const merlin = characterFor(room.theme, "merlin");
-  const teams = { good: room.theme.goodTeamName, evil: room.theme.evilTeamName };
   const n = room.players.length;
 
   const candidates = room.players.filter((p) => p.playerId !== pid);
@@ -46,24 +42,11 @@ export function AssassinScreen({
     <div className="vd-table vd-table-layout">
       <div className="vd-stack">
         <div className="vd-label">Three missions succeeded</div>
-        <div className="cc-row">
-          {merlin && (
-            <div className="cc-row__card">
-              <CharacterCard
-                character={merlin}
-                size="sm"
-                mode="static"
-                teams={teams}
-                hideNote
-              />
-            </div>
-          )}
-          <p className="vd-voice cc-row__body" style={{ margin: 0 }}>
-            The {theme.goodTeamName} have nearly won — but the evil team gets
-            one last chance. If they correctly guess which player is{" "}
-            {roleName("merlin")}, evil wins the whole game instead.
-          </p>
-        </div>
+        <p className="vd-voice">
+          The {theme.goodTeamName} have nearly won — but the evil team gets one
+          last chance. If they correctly guess who {roleName("merlin")} is,
+          evil wins the whole game instead.
+        </p>
         <QuestLadder
           sizes={QUEST_SIZES[n] ?? []}
           questIndex={room.questIndex}

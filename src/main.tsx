@@ -19,10 +19,6 @@ import {
 import "./styles.css";
 // After styles.css so the Council Seal tokens win on gameplay screens.
 import "./seal.css";
-// After seal.css, and here rather than inside CharacterCard: a component-level
-// import lands wherever the bundler happens to reach it, and the card's rules
-// are meant to sit on top of the seal's.
-import "./character-card.css";
 import { Loader2 } from "lucide-react";
 
 const url = import.meta.env.VITE_CONVEX_URL as string;

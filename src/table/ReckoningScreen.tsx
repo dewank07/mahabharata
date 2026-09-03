@@ -7,12 +7,10 @@
    ========================================================================== */
 
 import { RefreshCw } from "lucide-react";
-import { CharacterCard } from "../CharacterCard";
-import { characterFor } from "../characters";
 import { QuestLadder } from "../TableParts";
 import { QUEST_SIZES, doubleFailQuests } from "../../convex/logic";
 import { Studded, Waiting } from "./TableShell";
-import { type TableProps, displayName, nameOf } from "./types";
+import { type TableProps, nameOf } from "./types";
 
 export function ReckoningScreen({
   room, pid, theme, act, onNewGame,
@@ -26,7 +24,6 @@ export function ReckoningScreen({
 
   const roleName = (id: string | null) =>
     id ? room.theme.roles.find((r) => r.id === id)?.name ?? id : "—";
-  const teams = { good: room.theme.goodTeamName, evil: room.theme.evilTeamName };
 
   return (
     <div className="vd-table vd-table-layout">
@@ -74,60 +71,32 @@ export function ReckoningScreen({
       <div className="vd-centre">
         <div className="vd-centre__wide vd-stack vd-stack--tight">
           <span className="vd-label">Everyone's real role</span>
-          <p className="vd-hint" style={{ margin: "0 0 4px" }}>
-            The whole cast, in seat order. Evil is edged in red.
-          </p>
-
-          {/* The ledger this used to be was a list of names with a role written
-              beside each. It is the same information — seat, player, character,
-              side — dealt out as the cards everyone has been looking at all
-              game, because this screen is the moment the table finds out who
-              everybody was. */}
-          <div className="cc-grid cc-grid--sm">
-            {room.players.map((p) => {
-              const evil = p.team === "evil";
-              const character = p.role ? characterFor(room.theme, p.role) : null;
-              const turned =
-                p.team != null &&
-                p.role != null &&
-                ((p.role === "lancelot_good" && p.team === "evil") ||
-                  (p.role === "lancelot_evil" && p.team === "good"));
-              const notes = [
-                turned ? "Swapped sides" : null,
-                named.includes(p.playerId) ? "Named at the end" : null,
-              ].filter(Boolean);
-              return (
-                <div
-                  key={p.playerId}
-                  style={{ display: "flex", flexDirection: "column", gap: 5 }}
+          {room.players.map((p) => {
+            const evil = p.team === "evil";
+            const isMerlin = p.role === "merlin";
+            const turned =
+              p.team != null &&
+              p.role != null &&
+              ((p.role === "lancelot_good" && p.team === "evil") ||
+                (p.role === "lancelot_evil" && p.team === "good"));
+            return (
+              <div
+                key={p.playerId}
+                className={`vd-tile ${evil ? "vd-tile--evil" : ""} ${isMerlin ? "vd-tile--brass" : ""}`}
+              >
+                <span className="vd-tile__seat">{p.seat + 1}</span>
+                {p.name}
+                <span
+                  className="vd-tile__meta"
+                  style={{ color: evil ? "var(--vd-red-ink)" : "var(--vd-brass)" }}
                 >
-                  {character ? (
-                    <CharacterCard
-                      character={character}
-                      size="sm"
-                      mode="static"
-                      teams={teams}
-                      title={displayName(p.name)}
-                      subtitle={character.name}
-                      badge={{ label: `Seat ${p.seat + 1}` }}
-                    />
-                  ) : (
-                    /* No role dealt — somebody who joined mid-game. */
-                    <div className={`vd-tile ${evil ? "vd-tile--evil" : ""}`}>
-                      <span className="vd-tile__seat">{p.seat + 1}</span>
-                      {displayName(p.name)}
-                      <span className="vd-tile__meta">{roleName(p.role)}</span>
-                    </div>
-                  )}
-                  {notes.length > 0 && (
-                    <span className="vd-hint" style={{ margin: 0 }}>
-                      {notes.join(" · ")}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                  {roleName(p.role)}
+                  {turned ? " · swapped sides" : ""}
+                  {named.includes(p.playerId) ? " · guessed" : ""}
+                </span>
+              </div>
+            );
+          })}
 
           {room.watchers.length > 0 && (
             <>

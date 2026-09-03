@@ -70,53 +70,6 @@ export interface ThemeConfig {
   };
 }
 
-/* ============================================================================
-   Character art
-
-   2:3 portraits in an R2 bucket. The keys are the ORIGINAL filenames, which are
-   case-sensitive and in two different conventions ("Merlin.webp" but
-   "loyalknight.webp", and two with spaces in them) — so this is an explicit
-   table per role, never a name derived from the role id. `encodeURIComponent`
-   is what turns "Lancelot the Fallen.webp" into a URL that resolves.
-
-   Only the medieval world is illustrated so far. The other worlds rename every
-   character, so Merlin's portrait would be wrong on Krishna: they deliberately
-   have no entry and get the art-less card face instead. Adding a set later is
-   two lines here and nothing else.
-
-   The art is NOT a field on the role, and so is not part of what `getRoom`
-   ships to the client. It is pure presentation — the engine has no use for a
-   URL — and keeping it out of the room payload means new artwork reaches
-   players on the next page load rather than on the next backend deploy.
-   `characters.ts` reads these tables directly.
-   ========================================================================== */
-
-const ART_BASE = "https://pub-d8c55c5272c44b9aa9cf2121f20a82da.r2.dev";
-
-const art = (file: string) => `${ART_BASE}/${encodeURIComponent(file)}`;
-
-/** Engine role id → its portrait in the medieval world. */
-const MEDIEVAL_ART: Record<string, string> = {
-  merlin: art("Merlin.webp"),
-  percival: art("Percival.webp"),
-  servant: art("loyalknight.webp"),
-  guinevere: art("Guinevere.webp"),
-  tristan: art("Tristan.webp"),
-  isolde: art("Isolde.webp"),
-  lancelot_good: art("lancelotloyal.webp"),
-  assassin: art("Assassin.webp"),
-  morgana: art("Morgana.webp"),
-  mordred: art("Mordred.webp"),
-  oberon: art("Oberon.webp"),
-  lancelot_evil: art("Lancelot the Fallen.webp"),
-  minion: art("Minion of Mordred.webp"),
-};
-
-/** Theme id → that world's portraits. A world with no entry has no art. */
-export const THEME_ART: Record<string, Record<string, string>> = {
-  medieval: MEDIEVAL_ART,
-};
-
 /** Indian myth — indigo void, saffron gold, dharma / adharma. */
 export const INDIA_COLORS: ThemeConfig["colors"] = {
   ink: "#051424",
@@ -1172,21 +1125,6 @@ export const THEMES: Record<string, ThemeConfig> = {
     },
   },
 };
-
-/* Art that names a role its world does not have is a typo, and a typo here is
-   a character that silently renders without a portrait. Caught at import
-   instead, on the server and in the browser alike. */
-for (const [themeId, roleArt] of Object.entries(THEME_ART)) {
-  const theme = THEMES[themeId];
-  if (!theme) throw new Error(`THEME_ART has art for unknown world "${themeId}".`);
-  for (const roleId of Object.keys(roleArt)) {
-    if (!theme.roles.some((r) => r.id === roleId)) {
-      throw new Error(
-        `THEME_ART.${themeId} has art for "${roleId}", which is not a role in that world.`,
-      );
-    }
-  }
-}
 
 /** Playable worlds. Other keys in THEMES stay for older rooms. */
 export const PLAYABLE_THEME_IDS = ["medieval", "india"] as const;

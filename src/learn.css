@@ -321,6 +321,40 @@
 
 /* ----------------------------------------------------------------- cast -- */
 
+.lx-cast {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(238px, 1fr));
+  gap: var(--vd-3);
+}
+.lx-role {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vd-2);
+  padding: var(--vd-4);
+  border: 1px solid var(--vd-rule-control);
+  background: var(--vd-bg-raised);
+}
+.lx-role.is-evil { border-color: var(--vd-red-rule); }
+.lx-role header { display: flex; align-items: center; gap: 8px; color: var(--vd-brass); }
+.lx-role.is-evil header { color: var(--vd-red-ink); }
+.lx-role h3 { margin: 0; font: 500 18px/1.1 var(--vd-display); color: var(--vd-ink); }
+.lx-role__desc {
+  margin: 0;
+  font: 400 13.5px/1.55 var(--vd-ui);
+  color: var(--vd-ink-soft);
+}
+.lx-role__sees {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: auto;
+  padding-top: var(--vd-3);
+  border-top: 1px solid var(--vd-rule-structure);
+  font: 400 13px/1.4 var(--vd-ui);
+  color: var(--vd-ink-soft);
+}
+.lx-role__sees svg { flex: none; margin-top: 2px; color: var(--vd-brass); }
+
 /* ----------------------------------------------------------- expansions -- */
 
 .lx-cards3 {

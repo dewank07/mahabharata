@@ -3,12 +3,6 @@
   "configurations": [
     {
       "name": "decevia-dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 5173
-    },
-    {
-      "name": "decevia-attach",
       "url": "http://localhost:5173",
       "port": 5173
     }

@@ -4,8 +4,6 @@ import {
   Sun, Users, X,
 } from "lucide-react";
 import { THEMES, THEME_LIST, type ThemeConfig } from "../convex/themes";
-import { CharacterCard, CharacterGallery } from "./CharacterCard";
-import { characterFor } from "./characters";
 import {
   doubleFailQuests, MAX_PLAYERS, QUEST_SIZES, TEAM_COUNTS, MAX_REJECTS,
   LADY_MIN_PLAYERS, PLOT_CARDS, plotCardsPerRound, NIGHT_ORDER,
@@ -27,6 +25,14 @@ const BASE_ROLE_IDS = [
   "lancelot_evil",
   "minion",
 ] as const;
+
+/** Roles that come as an inseparable pair. */
+const PAIRED: Record<string, string> = {
+  tristan: "always comes with Isolde",
+  isolde: "always comes with Tristan",
+  lancelot_good: "always comes with the evil Lancelot",
+  lancelot_evil: "always comes with the good Lancelot",
+};
 
 const PHASES = [
   { id: "lobby", title: "Setting up", detail: "Everyone joins with the same 4-letter code. The host picks the setting and any optional roles or add-ons." },
@@ -345,7 +351,6 @@ export default function RulesPage() {
           <div className="vd-stack" style={{ marginTop: 16 }}>
             {BASE_ROLE_IDS.map((id) => {
               const viewer = roleOf(BASE, id)!;
-              const character = characterFor(BASE, id);
               const { ids, note } = seesTargets(id);
               return (
                 <div
@@ -353,36 +358,21 @@ export default function RulesPage() {
                   className="vd-panel"
                   style={{ borderLeft: `3px solid ${viewer.team === "good" ? "var(--vd-brass)" : "var(--vd-red)"}` }}
                 >
-                  <div className="cc-row">
-                    {character && (
-                      <div className="cc-row__card">
-                        <CharacterCard
-                          character={character}
-                          size="sm"
-                          mode="static"
-                          teams={{ good: BASE.goodTeamName, evil: BASE.evilTeamName }}
-                          hideNote
-                        />
-                      </div>
+                  <div className="vd-row" style={{ marginBottom: 6 }}>
+                    {viewer.team === "good" ? <Sun size={14} color="var(--vd-brass)" /> : <Flame size={14} color="var(--vd-red-ink)" />}
+                    <strong>{viewer.name}</strong>
+                  </div>
+                  <p className="vd-voice" style={{ margin: "0 0 10px" }}>{note}</p>
+                  <div className="vd-row">
+                    {ids.length === 0 ? (
+                      <span className="vd-pill"><EyeOff size={13} /> Is shown nobody</span>
+                    ) : (
+                      ids.map((tid) => (
+                        <span key={tid} className="vd-pill vd-pill--brass">
+                          <Eye size={13} /> {roleOf(BASE, tid)!.name}
+                        </span>
+                      ))
                     )}
-                    <div className="cc-row__body">
-                      <div className="vd-row" style={{ marginBottom: 6 }}>
-                        {viewer.team === "good" ? <Sun size={14} color="var(--vd-brass)" /> : <Flame size={14} color="var(--vd-red-ink)" />}
-                        <strong>{viewer.name}</strong>
-                      </div>
-                      <p className="vd-voice" style={{ margin: "0 0 10px" }}>{note}</p>
-                      <div className="vd-row">
-                        {ids.length === 0 ? (
-                          <span className="vd-pill"><EyeOff size={13} /> Is shown nobody</span>
-                        ) : (
-                          ids.map((tid) => (
-                            <span key={tid} className="vd-pill vd-pill--brass">
-                              <Eye size={13} /> {roleOf(BASE, tid)!.name}
-                            </span>
-                          ))
-                        )}
-                      </div>
-                    </div>
                   </div>
                 </div>
               );
@@ -533,12 +523,31 @@ export default function RulesPage() {
         <section id="roles" className="vd-page__section">
           <h2 className="vd-h1">All the roles</h2>
           <p className="vd-voice" style={{ marginTop: 12 }}>
-            Tap a character to read what it is, what it is told and what it is
-            trying to do. Shown with their Medieval names — the setting picker
-            at the bottom of this page lists what each one is called elsewhere.
+            Shown with their Medieval names. Use the setting picker at the
+            bottom of this page to see what each one is called elsewhere.
           </p>
-          <div style={{ marginTop: 20 }}>
-            <CharacterGallery source={BASE} />
+          <div className="vd-grid2" style={{ marginTop: 16 }}>
+            {roster.map(({ id, base }) => (
+              <div key={id} className={`vd-panel ${base.team === "evil" ? "vd-panel--danger" : ""}`}>
+                <div className="vd-row" style={{ marginBottom: 6 }}>
+                  {base.team === "good" ? <Sun size={16} color="var(--vd-brass)" /> : <Flame size={16} color="var(--vd-red-ink)" />}
+                  <strong style={{ flex: 1 }}>{base.name}</strong>
+                  <span className={base.team === "good" ? "vd-pill vd-pill--brass" : "vd-pill vd-pill--danger"}>
+                    {base.team === "good" ? "Good" : "Evil"}
+                  </span>
+                </div>
+                <p className="vd-lore" style={{ margin: "0 0 8px", fontSize: 15 }}>{base.desc}</p>
+                {id === "merlin" || id === "assassin" ? (
+                  <span className="vd-label vd-label--brass">Always in the game</span>
+                ) : id === "servant" || id === "minion" ? (
+                  <span className="vd-label vd-label--dim">Fills any places left over</span>
+                ) : PAIRED[id] ? (
+                  <span className="vd-label vd-label--dim">Optional · {PAIRED[id]}</span>
+                ) : (
+                  <span className="vd-label vd-label--dim">Optional · host turns it on</span>
+                )}
+              </div>
+            ))}
           </div>
         </section>
 

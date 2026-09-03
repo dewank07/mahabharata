@@ -12,22 +12,11 @@ import { useQuery } from "convex/react";
 import gsap from "gsap";
 import { ArrowRight, BadgeCheck, Crown, LogOut, Shield, Ticket } from "lucide-react";
 import { api } from "../convex/_generated/api";
-import { THEMES } from "../convex/themes";
-import { CharacterCard } from "./CharacterCard";
-import { characterFor } from "./characters";
 import { useAuth } from "./auth";
 import markSrc from "./assets/mark.svg";
 import { prefersReducedMotion, settleWhenUnwatched } from "./motion";
 
 const WORDMARK = "DECEVIA";
-
-/**
- * Six faces for the front door — the ones whose powers are easiest to say in
- * a sentence, three per side. The whole cast lives on /learn; this is here to
- * say that the game HAS characters, which the old front page only ever
- * mentioned in prose halfway down an account panel.
- */
-const TEASER_CAST = ["merlin", "percival", "guinevere", "assassin", "morgana", "mordred"];
 
 export function LandingPage() {
   const root = useRef<HTMLDivElement>(null);
@@ -83,7 +72,6 @@ export function LandingPage() {
         .from(".lp-lede", { y: 12, opacity: 0, duration: 0.5 }, "-=0.3")
         .from(".lp-how > li", { y: 10, opacity: 0, stagger: 0.08, duration: 0.4 }, "-=0.2")
         .from(".lp-acts", { y: 14, opacity: 0, duration: 0.5 }, "-=0.15")
-        .from(".cc-teaser", { y: 12, opacity: 0, duration: 0.45 }, "-=0.2")
         .from(".lp-foot", { opacity: 0, duration: 0.5 }, "-=0.2")
         .add(() => setHeroDone(true));
 
@@ -168,34 +156,6 @@ export function LandingPage() {
         {heroDone && known && signedIn && viewer && (
           <AccountCard viewer={viewer} config={config} onSignOut={signOut} />
         )}
-
-        <section className="cc-teaser" aria-label="Some of the characters">
-          <header className="cc-teaser__head">
-            <span className="vd-label vd-label--brass">Meet the cast</span>
-            <a className="vd-textbtn" href="/learn#cast">
-              See what each one does <ArrowRight size={13} />
-            </a>
-          </header>
-          <div className="cc-strip">
-            {TEASER_CAST.map((id) => {
-              const character = characterFor(THEMES.medieval, id);
-              if (!character) return null;
-              return (
-                <CharacterCard
-                  key={id}
-                  character={character}
-                  size="sm"
-                  mode="static"
-                  teams={{
-                    good: THEMES.medieval.goodTeamName,
-                    evil: THEMES.medieval.evilTeamName,
-                  }}
-                  hideNote
-                />
-              );
-            })}
-          </div>
-        </section>
 
         <div className="lp-foot">
           <a className="vd-textbtn" href="/learn">

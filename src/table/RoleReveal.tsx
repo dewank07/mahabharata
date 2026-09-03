@@ -14,8 +14,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, PointerEvent } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { CharacterCard } from "../CharacterCard";
-import { characterFor } from "../characters";
 import { NamePlate, RoleBrief } from "./Parts";
 import type { Room } from "./types";
 
@@ -103,7 +101,6 @@ export function RoleReveal({
   if (!me || me.isWatcher || !me.role) return null;
 
   const roleDef = room.theme.roles.find((r) => r.id === me.role);
-  const character = characterFor(room.theme, me.role);
   const evil = me.team === "evil";
 
   return (
@@ -132,25 +129,9 @@ export function RoleReveal({
                 ? `You are EVIL · ${theme.evilTeamName}`
                 : `You are GOOD · ${theme.goodTeamName}`}
             </div>
-            <div className="cc-reveal" style={{ marginTop: 12 }}>
-              {character && (
-                <div className="cc-reveal__card">
-                  <CharacterCard
-                    character={character}
-                    size="md"
-                    mode="static"
-                    showPlate={false}
-                  />
-                </div>
-              )}
-              <div className="cc-reveal__body">
-                <div className="vd-role__name" style={{ marginTop: 0 }}>
-                  {roleDef?.name ?? "—"}
-                </div>
-                <RoleBrief room={room} />
-              </div>
-            </div>
-            <p className="vd-lore" style={{ marginTop: 14 }}>{character?.lore ?? roleDef?.desc}</p>
+            <div className="vd-role__name">{roleDef?.name ?? "—"}</div>
+            <RoleBrief room={room} />
+            <p className="vd-lore" style={{ marginTop: 14 }}>{roleDef?.desc}</p>
 
             <div style={{ marginTop: 14 }}>
               <span className="vd-label">

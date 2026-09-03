@@ -12,8 +12,6 @@
    ========================================================================== */
 
 import { Eye, EyeOff, Sword } from "lucide-react";
-import { CharacterCard } from "../CharacterCard";
-import { characterFor, rolesInPlay, usePreloadArt } from "../characters";
 import { Studded } from "./TableShell";
 import { NamePlate, RoleBrief } from "./Parts";
 import { useHold } from "./RoleReveal";
@@ -34,19 +32,6 @@ export function NightScreen({
     : null;
   const evil = me?.team === "evil";
   const myStep = me?.nightStep ?? 0;
-
-  const character = me?.role ? characterFor(room.theme, me.role) : null;
-
-  /* Warm every portrait this setup could deal, so the hold lands on a painting
-     instead of on its stand-in. The set is what the lobby already showed
-     everyone; asking for one portrait would put your own role in the network
-     log, which is exactly what the rest of this screen goes to lengths to
-     avoid. */
-  usePreloadArt(
-    rolesInPlay(room.opts as Record<string, boolean | undefined>).map(
-      (id) => characterFor(room.theme, id)?.image,
-    ),
-  );
 
   // Only list steps whose role could actually be in this game.
   const steps = room.nightOrder.filter((s) => {
@@ -95,29 +80,9 @@ export function NightScreen({
 
               {held ? (
                 <>
-                  {/* Mounted only inside this branch, like everything else that
-                      names the role: a portrait is the loudest tell there is,
-                      and it must not be sitting in the DOM before the hold. */}
-                  <div className="cc-reveal" style={{ marginTop: 12 }}>
-                    {character && (
-                      <div className="cc-reveal__card">
-                        <CharacterCard
-                          character={character}
-                          size="md"
-                          mode="static"
-                          showPlate={false}
-                        />
-                      </div>
-                    )}
-                    <div className="cc-reveal__body">
-                      <div className="vd-role__name" style={{ marginTop: 0 }}>
-                        {roleDef?.name ?? "—"}
-                      </div>
-                      <RoleBrief room={room} />
-                    </div>
-                  </div>
-
-                  <p className="vd-lore" style={{ marginTop: 14 }}>{character?.lore ?? roleDef?.desc}</p>
+                  <div className="vd-role__name">{roleDef?.name ?? "—"}</div>
+                  <RoleBrief room={room} />
+                  <p className="vd-lore" style={{ marginTop: 14 }}>{roleDef?.desc}</p>
 
                   <div style={{ marginTop: 16 }}>
                     <span className="vd-label">

@@ -17,7 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import {
-  ArrowRight, Eye, Flame, Moon, ScrollText, Sparkles, Sun, Swords,
+  ArrowRight, Eye, EyeOff, Flame, Moon, ScrollText, Sparkles, Sun, Swords,
   Users, Zap,
 } from "lucide-react";
 import { THEMES } from "../convex/themes";
@@ -25,13 +25,35 @@ import {
   MAX_REJECTS, NIGHT_ORDER, PLOT_CARDS, TEAM_COUNTS, QUEST_SIZES,
   doubleFailQuests, plotCardsPerRound, LADY_MIN_PLAYERS,
 } from "../convex/logic";
-import { CharacterGallery } from "./CharacterCard";
 import { Stage } from "./learn/Stage";
 import { prefersReducedMotion, settleWhenUnwatched } from "./motion";
 import { SCENARIOS, SCENARIO_GROUPS } from "./learn/scenarios";
 import "./learn.css";
 
 const BASE = THEMES.medieval;
+
+/** Good first, evil after — the order the night itself runs in. */
+const CAST_ORDER = [
+  "merlin", "percival", "guinevere", "tristan", "isolde", "lancelot_good", "servant",
+  "assassin", "morgana", "mordred", "oberon", "lancelot_evil", "minion",
+] as const;
+
+/** What each role is actually shown on the first night, in one line. */
+const SIGHT: Record<string, string> = {
+  merlin: "Shown every evil player except Mordred",
+  percival: "Shown Merlin and Morgana, but not which is which",
+  guinevere: "Shown both Lancelots, but not which side each is on",
+  tristan: "Shown Isolde, and nobody else",
+  isolde: "Shown Tristan, and nobody else",
+  lancelot_good: "Shown nobody. Must always play Succeed",
+  servant: "Shown nobody. You have only the conversation to go on",
+  assassin: "Shown the other evil players, and makes the final guess",
+  morgana: "Shown the other evil players. Looks like Merlin to Percival",
+  mordred: "Shown the other evil players. Merlin cannot see you",
+  oberon: "Shown nobody, and the other evil players aren't shown you",
+  lancelot_evil: "Shown nobody. Must always play Fail",
+  minion: "Shown the other evil players",
+};
 
 export default function LearnPage() {
   const [scenarioId, setScenarioId] = useState(SCENARIOS[0].id);
@@ -124,8 +146,8 @@ export default function LearnPage() {
       <Section
         id="cast"
         eyebrow="The roles"
-        title="Meet the characters"
-        lede="Everything anyone knows for certain comes from one moment at the start of the game. Tap any character below to find out what they are told, and what they are trying to do."
+        title="Who gets shown what, and when"
+        lede="Everything anyone knows for certain comes from this one moment at the start. After it, there is only conversation."
       >
         <ol className="lx-night">
           {NIGHT_ORDER.map((s) => (
@@ -136,12 +158,31 @@ export default function LearnPage() {
           ))}
         </ol>
 
-        <CharacterGallery source={BASE} size="lg" />
-
+        <div className="lx-cast">
+          {CAST_ORDER.map((id) => {
+            const role = BASE.roles.find((r) => r.id === id);
+            if (!role) return null;
+            const evil = role.team === "evil";
+            const sight = SIGHT[id] ?? "";
+            const blind = sight.startsWith("Nothing");
+            return (
+              <article key={id} className={`lx-role ${evil ? "is-evil" : ""}`}>
+                <header>
+                  {evil ? <Flame size={13} /> : <Sun size={13} />}
+                  <h3>{role.name}</h3>
+                </header>
+                <p className="lx-role__desc vd-lore">{role.desc}</p>
+                <div className="lx-role__sees">
+                  {blind ? <EyeOff size={12} /> : <Eye size={12} />}
+                  <span>{sight}</span>
+                </div>
+              </article>
+            );
+          })}
+        </div>
         <p className="lx-foot">
-          Every setting gives these characters different names, and its own
-          artwork where we have it. What they can do never changes — Krishna is
-          shown exactly what Merlin is shown.
+          Every setting gives these characters different names. What they can do
+          never changes — Krishna is shown exactly what Merlin is shown.
         </p>
       </Section>
 

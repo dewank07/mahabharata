@@ -19,51 +19,39 @@ import {
 import {
   PREMIUM_OPT_KEYS, PREMIUM_OPT_LABELS, TEAM_COUNTS, validateSetup,
 } from "../../convex/logic";
-import { CharacterCard } from "../CharacterCard";
-import { characterFor } from "../characters";
 import { ChronicleColumn, SeatRing } from "./Parts";
 import { ActionLine, Confirm } from "./TableShell";
 import { type Room, type TableProps } from "./types";
 
 type Opts = Room["opts"];
 
-/**
- * Each optional role, with what it costs, which side it joins, and the
- * character whose card stands for it.
- *
- * Two of these switch on a PAIR — the lovers, and the two Lancelots. They get
- * ONE card and one toggle: two cards under a single switch would read as two
- * switches. The card is the good half of the pair, under its own name, and the
- * line beneath it names who arrives alongside.
- */
+/** Each optional role, with what it costs and which side it joins. */
 const ROLE_OPTS: Array<{
   key: keyof Opts; side: "good" | "evil"; good: number; evil: number;
-  /** Engine role id of the character the card shows. */
-  roleId: string;
   label: (rn: (id: string, f: string) => string) => string;
   desc: (rn: (id: string, f: string) => string) => string;
 }> = [
-  { key: "percival", side: "good", good: 1, evil: 0, roleId: "percival",
+  { key: "percival", side: "good", good: 1, evil: 0,
     label: (rn) => rn("percival", "Percival"),
-    desc: (rn) => `Shown two names \u2014 one is ${rn("merlin", "Merlin")}, one is a fake` },
-  { key: "lovers", side: "good", good: 2, evil: 0, roleId: "tristan",
+    desc: (rn) => `Good. Is shown two names — one is ${rn("merlin", "Merlin")}, one is a fake` },
+  { key: "lovers", side: "good", good: 2, evil: 0,
     label: (rn) => `${rn("tristan", "Tristan")} & ${rn("isolde", "Isolde")}`,
-    desc: (rn) => `With ${rn("isolde", "Isolde")}. Two good players who trust each other` },
-  { key: "lancelot", side: "good", good: 1, evil: 1, roleId: "lancelot_good",
-    label: (rn) => `${rn("lancelot_good", "Lancelot")} & ${rn("lancelot_evil", "Lancelot")}`,
-    desc: (rn) => `With ${rn("lancelot_evil", "the other Lancelot")}. Their sides can swap mid-game` },
-  { key: "guinevere", side: "good", good: 1, evil: 0, roleId: "guinevere",
+    desc: () => "Two good players who know each other. Adds 2 good roles" },
+  { key: "lancelot", side: "good", good: 1, evil: 1,
+    label: (rn) => `${rn("lancelot_good", "Lancelot")} / ${rn("lancelot_evil", "Lancelot")}`,
+    desc: () => "Two players, one per side. Their sides can swap mid-game" },
+  { key: "guinevere", side: "good", good: 1, evil: 0,
     label: (rn) => rn("guinevere", "Guinevere"),
-    desc: () => "Knows both Lancelots, but not their sides" },
-  { key: "morgana", side: "evil", good: 0, evil: 1, roleId: "morgana",
+    desc: () => "Good. Learns who the two Lancelots are, but not their sides" },
+  { key: "morgana", side: "evil", good: 0, evil: 1,
     label: (rn) => rn("morgana", "Morgana"),
-    desc: (rn) => `Looks like ${rn("merlin", "Merlin")} to ${rn("percival", "Percival")}` },
-  { key: "mordred", side: "evil", good: 0, evil: 1, roleId: "mordred",
+    desc: (rn) => `Evil. Looks like ${rn("merlin", "Merlin")} to ${rn("percival", "Percival")}` },
+  { key: "mordred", side: "evil", good: 0, evil: 1,
     label: (rn) => rn("mordred", "Mordred"),
-    desc: (rn) => `Invisible to ${rn("merlin", "Merlin")}` },
-  { key: "oberon", side: "evil", good: 0, evil: 1, roleId: "oberon",
+    desc: (rn) => `Evil, and invisible to ${rn("merlin", "Merlin")}` },
+  { key: "oberon", side: "evil", good: 0, evil: 1,
     label: (rn) => rn("oberon", "Oberon"),
-    desc: () => "Fights alone \u2014 the other traitors do not know them" },
+    desc: () => "Evil, but doesn't know the other traitors — and they don't know them" },
 ];
 
 export function LobbyScreen({
@@ -178,59 +166,29 @@ export function LobbyScreen({
           Leave these all off for the simplest game. Each one you turn on gives
           somebody a special power — and takes one place from that side.
         </p>
-        {/* The roles a host is choosing between are CHARACTERS, so they are
-            shown as the same cards the rest of the app uses. The card itself is
-            the switch: one tap is one toggle, and it never flips — there is
-            already a place to read what a character does, and a control that
-            sometimes turns over and sometimes turns on makes every tap a
-            gamble. Every state the old row carried is still here: on, paid,
-            no-places-left, and host-only. */}
-        <div className="cc-grid cc-grid--md">
+        <div className="vd-opts">
           {ROLE_OPTS.map((o) => {
             const on = opts[o.key] === true;
             const lock = locked(o.key);
             const full = !on && !fits(o);
-            const blocked = !isHost || lock || full;
-            const character = characterFor(room.theme, o.roleId);
-            const badge = lock
-              ? { label: "Paid", icon: <Lock size={10} /> }
-              : on
-                ? { label: "On", icon: <Check size={11} />, tone: "on" as const }
-                : full
-                  ? { label: "No room" }
-                  : undefined;
             return (
-              <div key={o.key} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {character ? (
-                  <CharacterCard
-                    character={character}
-                    size="md"
-                    mode="select"
-                    teams={{ good: room.theme.goodTeamName, evil: room.theme.evilTeamName }}
-                    subtitle={o.desc(rn)}
-                    badge={badge}
-                    selected={on}
-                    disabled={blocked}
-                    onSelect={act(() => toggle(o.key))}
-                  />
-                ) : (
-                  /* A world that somehow lacks this role still gets a working
-                     switch, rather than one silently missing from the setup. */
-                  <button
-                    className={`vd-opt vd-opt--${o.side} ${on ? "is-on" : ""}`}
-                    disabled={blocked}
-                    aria-pressed={on}
-                    onClick={act(() => toggle(o.key))}
-                  >
-                    <span className="vd-opt__top">
-                      {o.side === "good"
-                        ? <Sun size={12} color="var(--vd-brass)" />
-                        : <Flame size={12} color="var(--vd-red-ink)" />}
-                      <span className="vd-opt__name">{o.label(rn)}</span>
-                    </span>
-                    <span className="vd-opt__desc">{o.desc(rn)}</span>
-                  </button>
-                )}
+              <div key={o.key} style={{ display: "flex", flexDirection: "column" }}>
+                <button
+                  className={`vd-opt vd-opt--${o.side} ${on ? "is-on" : ""}`}
+                  disabled={!isHost || lock || full}
+                  aria-pressed={on}
+                  onClick={act(() => toggle(o.key))}
+                >
+                  <span className="vd-opt__top">
+                    {o.side === "good"
+                      ? <Sun size={12} color="var(--vd-brass)" />
+                      : <Flame size={12} color="var(--vd-red-ink)" />}
+                    <span className="vd-opt__name">{o.label(rn)}</span>
+                    {lock ? <span className="vd-opt__lock"><Lock size={11} /> Paid</span>
+                      : on ? <span className="vd-opt__lock"><Check size={13} /> On</span> : null}
+                  </span>
+                  <span className="vd-opt__desc">{o.desc(rn)}</span>
+                </button>
                 {/* Why a control is off, under the control, in readable text.
                     It used to be a `title` tooltip only — invisible on touch,
                     which is this app's main surface. */}

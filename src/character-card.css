@@ -40,6 +40,7 @@
 .cc-strip {
   display: flex;
   gap: var(--vd-3);
+  min-width: 0;
   overflow-x: auto;
   scroll-snap-type: x proximity;
   padding-bottom: var(--vd-2);
@@ -233,7 +234,7 @@
 .cc--sm .cc__plate { padding: var(--vd-2) 8px 8px; gap: 1px; }
 
 .cc__side {
-  font: 700 10.5px/1.2 var(--vd-ui);
+  font: 700 var(--vd-t-label)/1.2 var(--vd-ui);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--vd-brass);
@@ -470,6 +471,7 @@
   flex-direction: column;
   gap: var(--vd-2);
   width: 100%;
+  min-width: 0;          /* never contribute an intrinsic width to a parent */
   max-width: 520px;
   margin: var(--vd-6) auto 0;
 }

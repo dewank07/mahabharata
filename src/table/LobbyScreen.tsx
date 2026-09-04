@@ -12,10 +12,11 @@
    host's plan.
    ========================================================================== */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Check, Copy, Crown, Flame, Lock, Sparkles, Sun, Swords, Users, X,
+  Check, ChevronDown, Copy, Crown, Flame, Lock, Sparkles, Sun, Swords, Users, X,
 } from "lucide-react";
+import { ROOMY, useMediaQuery } from "../useMediaQuery";
 import {
   PREMIUM_OPT_KEYS, PREMIUM_OPT_LABELS, TEAM_COUNTS, validateSetup,
 } from "../../convex/logic";
@@ -77,6 +78,10 @@ export function LobbyScreen({
   onChangeTheme: (themeId: string) => Promise<unknown>;
 }) {
   const [copied, setCopied] = useState(false);
+  /* The setup was 3,700px of phone scrolling before the Start button. On a
+     roomy screen there is space to show all of it at once, and a host
+     configuring a game on a laptop should not have to click four times. */
+  const roomy = useMediaQuery(ROOMY);
   const isHost = room.hostId === pid;
   const seated = room.seating.seatedCount;
   const opts = room.opts;
@@ -106,6 +111,21 @@ export function LobbyScreen({
   const fits = (o: (typeof ROLE_OPTS)[number]) =>
     goodUsed + o.good <= goodSlots && evilUsed + o.evil <= evilSlots;
 
+  /* What each collapsed section says about itself. A host should be able to
+     read the whole setup off four closed headers without opening any of
+     them — otherwise collapsing has just hidden the thing they came to
+     check. */
+  const themeSummary = worlds.find((w) => w.id === room.themeId)?.name ?? room.theme.name;
+  const onRoleNames = ROLE_OPTS.filter((o) => opts[o.key] === true).map((o) => o.label(rn));
+  const rolesSummary = onRoleNames.length ? onRoleNames.join(" · ") : "None";
+  const addOnNames = [
+    opts.lady === true && (room.theme.expansions?.lady?.name ?? "Lady of the Lake"),
+    opts.excalibur === true && (room.theme.expansions?.excalibur?.name ?? "Excalibur"),
+    opts.plots === true && (room.theme.expansions?.plots?.name ?? "Plot cards"),
+  ].filter(Boolean) as string[];
+  const addOnsSummary = addOnNames.length ? addOnNames.join(" · ") : "None";
+  const houseSummary = opts.goodMayFail === true ? "Good may sabotage" : "Standard";
+
   const errors = validateSetup(Math.max(seated, 5), opts);
   const canStart = seated >= 5 && errors.length === 0 && stranded.length === 0;
 
@@ -124,8 +144,7 @@ export function LobbyScreen({
      option rows fit on one line each. */
   const setup = (
     <section className="vd-setup">
-      <div className="vd-setup__group">
-        <span className="vd-label">Setting</span>
+      <SetupSection title="Setting" summary={themeSummary} startOpen={roomy}>
         <p className="vd-hint" style={{ margin: 0 }}>
           Only changes the character names and the story. Every setting plays
           by exactly the same rules.
@@ -165,11 +184,10 @@ export function LobbyScreen({
             );
           })}
         </div>
-      </div>
+      </SetupSection>
 
-      <div className="vd-setup__group">
-        <div className="vd-row" style={{ justifyContent: "space-between" }}>
-          <span className="vd-label">Extra roles (optional)</span>
+      <SetupSection title="Extra roles" summary={rolesSummary} startOpen={roomy}>
+        <div className="vd-row" style={{ justifyContent: "flex-end" }}>
           <span className="vd-label vd-label--dim">
             {goodUsed} of {goodSlots} good · {evilUsed} of {evilSlots} evil used
           </span>
@@ -249,10 +267,9 @@ export function LobbyScreen({
           {rn("merlin", "Merlin")} and {rn("assassin", "the Assassin")} are always
           in the game. Everyone left over is a plain good or evil player.
         </p>
-      </div>
+      </SetupSection>
 
-      <div className="vd-setup__group">
-        <span className="vd-label">Add-ons (optional)</span>
+      <SetupSection title="Add-ons" summary={addOnsSummary} startOpen={roomy}>
         <p className="vd-hint" style={{ margin: 0 }}>
           Extra twists on top of the basic game. Skip them on your first play.
         </p>
@@ -296,10 +313,9 @@ export function LobbyScreen({
             );
           })}
         </div>
-      </div>
+      </SetupSection>
 
-      <div className="vd-setup__group">
-        <span className="vd-label">House rule (optional)</span>
+      <SetupSection title="House rule" summary={houseSummary} startOpen={roomy}>
         <div className="vd-opts">
           <div style={{ display: "flex", flexDirection: "column" }}>
             <button
@@ -323,7 +339,7 @@ export function LobbyScreen({
             {!isHost && <span className="vd-hint">Only the host can change this</span>}
           </div>
         </div>
-      </div>
+      </SetupSection>
     </section>
   );
 
@@ -547,5 +563,40 @@ export function LobbyScreen({
 
     {setup}
     </>
+  );
+}
+
+/**
+ * One collapsible block of setup.
+ *
+ * `startOpen` follows the viewport rather than being remembered, so rotating a
+ * phone into a roomy layout opens everything and back closes it again — the
+ * alternative is a tablet in landscape showing four collapsed headers for no
+ * reason. A host's own toggle wins until the breakpoint itself changes.
+ */
+function SetupSection({
+  title, summary, startOpen, children,
+}: {
+  title: string;
+  summary: string;
+  startOpen: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(startOpen);
+  useEffect(() => setOpen(startOpen), [startOpen]);
+
+  return (
+    <section className={`vd-setup__group ${open ? "is-open" : ""}`}>
+      <button
+        className="vd-setup__toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="vd-label">{title}</span>
+        <span className="vd-setup__summary">{summary}</span>
+        <ChevronDown className="vd-setup__chev" size={16} aria-hidden />
+      </button>
+      {open && <div className="vd-setup__body">{children}</div>}
+    </section>
   );
 }

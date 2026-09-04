@@ -10,6 +10,9 @@
   max-width: 1080px;
   margin-inline: auto;
   padding: var(--vd-8) var(--vd-5) var(--vd-10);
+  /* Landscape on a notched phone puts the cutout on a long edge. */
+  padding-left: max(var(--vd-5), env(safe-area-inset-left));
+  padding-right: max(var(--vd-5), env(safe-area-inset-right));
   color: var(--vd-ink);
 }
 
@@ -262,8 +265,10 @@
 }
 .lx-beat {
   flex: 1 0 28px;
-  height: 28px;
-  padding: 12px 0;               /* the bar is still 4px; the target is 28px */
+  /* 44px of thumb, still a 4px bar. These segments are contiguous, so the
+     row has no dead zones horizontally and only the height had to grow. */
+  height: 44px;
+  padding: 20px 0;
   background: none;
   border: 0;
   cursor: pointer;

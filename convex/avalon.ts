@@ -46,8 +46,38 @@ async function playersOf(ctx: MutationCtx | QueryCtx, roomId: Id<"rooms">) {
   return list.sort((a, b) => a.seat - b.seat);
 }
 
-function requireRoom<T>(r: T | null): T {
+/**
+ * How long a code works for. Twenty-four hours from the moment the room was
+ * minted — not from the last thing anyone did in it, so a code cannot hold its
+ * four letters open indefinitely by being busy.
+ *
+ * This is a HARD stop: past it the room answers nobody, including the people
+ * already sitting in it. Nothing at a real table runs close to a day — five
+ * quests is well under an hour — so the only games this can interrupt are ones
+ * that were left open overnight, which is exactly what it is for.
+ */
+const ROOM_CODE_TTL_MS = 24 * 60 * 60 * 1000;
+
+/** Past its day. The row may still exist — see `ROOM_TTL_MS`. */
+function isExpired(room: Doc<"rooms">): boolean {
+  return Date.now() - room._creationTime > ROOM_CODE_TTL_MS;
+}
+
+/** What a player is told when they act on a code that has run out. */
+const EXPIRED_ERROR =
+  "This game's code has expired. Codes last 24 hours — start a new game to get a fresh one.";
+
+/**
+ * Every mutation reaches its room through here, so the expiry check lives here
+ * too rather than in twenty call sites that would each have to remember it.
+ *
+ * `leaveRoom` and `closeRoom` look their room up directly and are the two
+ * deliberate exceptions: both only ever tear something down, and refusing to
+ * let someone walk out of a dead room helps nobody.
+ */
+function requireRoom(r: Doc<"rooms"> | null): Doc<"rooms"> {
   if (!r) throw new Error("Room not found.");
+  if (isExpired(r)) throw new Error(EXPIRED_ERROR);
   return r;
 }
 
@@ -760,11 +790,21 @@ export const leaveRoom = mutation({
 });
 
 /**
- * How long an untouched room lives. A long evening of five quests fits inside
- * it with room to spare, and nothing shorter is safe: a table that breaks for
- * dinner should not come back to a deleted game.
+ * How long the ROW lives, which is a different question from how long the code
+ * works — see `ROOM_CODE_TTL_MS`.
+ *
+ * It has to be the longer of the two. When this was the shorter (12h against a
+ * 24h code) the sweep deleted rooms before they could ever reach their expiry,
+ * and a player who came back to a spent code got "we couldn't find that game"
+ * instead of being told it had run out. The extra twelve hours past expiry are
+ * what make that message possible; after that the room is genuinely gone and
+ * "not found" is the honest answer.
+ *
+ * Keeping the row also keeps its four letters reserved, so a code someone is
+ * still holding a link to cannot be re-minted as a different live game while
+ * that link is in circulation.
  */
-const ROOM_TTL_MS = 12 * 60 * 60 * 1000;
+const ROOM_TTL_MS = 36 * 60 * 60 * 1000;
 
 /**
  * How many rooms one sweep will purge. A mutation is one transaction with hard
@@ -1747,11 +1787,40 @@ export const newGame = mutation({
 // One query powers the whole client. It returns ONLY what `playerId` is allowed
 // to see: own role + own knowledge + own secrets, progress as counts, and the
 // full reveal only at game end.
+/**
+ * Why a code isn't working — asked only once a lookup has already failed.
+ *
+ * Kept apart from `getRoom` rather than folded into its return on purpose.
+ * `getRoom` answers with the whole board, and widening that to a union of
+ * "board" and "reason it isn't a board" would put a narrowing step in front of
+ * every one of the fifty places the client reads a field off the room. This is
+ * a handful of bytes on the one path where nothing else is being fetched
+ * anyway: the not-found screen.
+ */
+export const codeStatus = query({
+  args: { code: v.string() },
+  returns: v.union(
+    v.literal("live"),
+    v.literal("expired"),
+    v.literal("unknown"),
+  ),
+  handler: async (ctx, { code }) => {
+    const room = await roomByCode(ctx, code);
+    if (!room) return "unknown" as const;
+    return isExpired(room) ? ("expired" as const) : ("live" as const);
+  },
+});
+
 export const getRoom = query({
   args: { code: v.string(), playerId: v.string() },
   handler: async (ctx, { code, playerId }) => {
     const room = await roomByCode(ctx, code);
     if (!room) return null;
+    /* The hard stop, from the board's side. Returning null rather than a
+       half-room is what turns everyone still sitting there out to the gate:
+       the client already treats a room that goes null as one that ended, and
+       `codeStatus` below is what lets it say which kind of ending this was. */
+    if (isExpired(room)) return null;
 
     // `players` is everyone in the room; `seated` is everyone in the GAME.
     // Every rules-derived number below is sized to the table, not the room.

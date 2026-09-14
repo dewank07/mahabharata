@@ -16,6 +16,7 @@
    ========================================================================== */
 
 import { useEffect, useRef } from "react";
+import { useHeldQuests } from "./reveal-gate";
 
 /* --------------------------------------------------------- mission board --- */
 
@@ -39,6 +40,7 @@ export function MissionCoins({
   log = [],
   size = "sm",
   legend = false,
+  holdUnrevealed = false,
 }: {
   sizes: number[];
   questIndex: number;
@@ -47,7 +49,19 @@ export function MissionCoins({
   log?: Array<{ questIndex: number; successes: number; fails: number }>;
   size?: "sm" | "lg";
   legend?: boolean;
+  /**
+   * Draw a quest as un-ridden while its unveil is still owed to this player.
+   *
+   * The server writes the result and the tally in one patch, so without this
+   * the coin turns red and prints "0–2" the instant the last card lands —
+   * behind an unveil that is still showing those cards face down. On for the
+   * in-play strip; off for the reckoning, which is the record after the game
+   * and has nothing left to spoil.
+   */
+  holdUnrevealed?: boolean;
 }) {
+  const heldQuests = useHeldQuests();
+
   return (
     <>
       <div
@@ -56,9 +70,12 @@ export function MissionCoins({
         aria-label="The five missions"
       >
         {sizes.map((n, i) => {
-          const result = results[i];
+          // Everything this coin knows is withheld together — the colour and
+          // the count come from the same write and would give each other away.
+          const held = holdUnrevealed && heldQuests.has(i);
+          const result = held ? null : results[i];
           const active = i === questIndex;
-          const tally = log.find((q) => q.questIndex === i);
+          const tally = held ? undefined : log.find((q) => q.questIndex === i);
           const twoFails = doubleFail.includes(i);
           return (
             <span

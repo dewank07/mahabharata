@@ -35,6 +35,9 @@ export function StatusStrip({ room }: { room: Room }) {
         results={room.questResults}
         doubleFail={doubleFail}
         log={log}
+        /* The strip sits behind the unveil, so it is the surface that was
+           giving quests away before the cards had been turned over. */
+        holdUnrevealed
       />
 
       <div

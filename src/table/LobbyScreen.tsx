@@ -528,15 +528,25 @@ export function LobbyScreen({
                     {w.playerId === pid && <span className="vd-tile__meta">You</span>}
                     {isHost && (
                       <>
-                        <button
+                        {/* This takes a seat FROM someone — the last player
+                            who joined — and that only ever lived in a `title`,
+                            which does not exist on a touch screen. On the
+                            app's main surface a host tapped "Give a place" and
+                            somebody silently lost theirs. Routed through the
+                            same two-tap Confirm every other consequential
+                            control uses, so the swap is stated where it can
+                            actually be read. */}
+                        <Confirm
                           className="vd-watcher__seat"
-                          title={`Give ${w.name} a place, swapping out the last player who joined`}
-                          onClick={act(() =>
+                          label="Give a place"
+                          icon={null}
+                          ask={`Give ${w.name} a place? ${
+                            room.players[room.players.length - 1]?.name ?? "The last player who joined"
+                          } loses theirs and moves to the queue.`}
+                          onConfirm={act(() =>
                             onSwapSeat(w.playerId, room.players[room.players.length - 1].playerId),
-                          )}
-                        >
-                          Give a place
-                        </button>
+                          ) as () => Promise<unknown>}
+                        />
                         <Confirm
                           className="vd-tile__x"
                           compact

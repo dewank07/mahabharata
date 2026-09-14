@@ -110,8 +110,14 @@
 
 .cc:disabled { cursor: not-allowed; }
 /* Locked and full options are still legible as characters — the face is what
-   makes someone want to unlock them — but plainly out of reach. */
-.cc:disabled .cc__art img { filter: grayscale(1) brightness(0.62); }
+   makes someone want to unlock them — but plainly out of reach.
+
+   0.62 was set against a mid-tone reference and these paintings are not one:
+   they are dark oils on dark grounds, so most of a NO ROOM card went to black
+   on a phone and read as a portrait that had not downloaded. The badge and the
+   dimmed name already say "out of reach"; the face only has to stop competing
+   with the ones you can still pick. */
+.cc:disabled .cc__art img { filter: grayscale(1) brightness(0.82); }
 .cc:disabled .cc__name,
 .cc:disabled .cc__tagline { color: var(--vd-ink-dim); }
 
@@ -369,6 +375,10 @@
   font: 500 16px/1.1 var(--vd-display);
   color: var(--vd-ink);
   min-width: 0;
+  /* `min-width: 0` lets this shrink past its own text, which is what a flex
+     row needs — but text does not shrink, it spills. Long names wrap here
+     rather than running out over whatever sits beside them. */
+  overflow-wrap: anywhere;
 }
 .cc__backhead .cc__side { flex: none; }
 

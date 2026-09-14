@@ -52,9 +52,8 @@ export function ReckoningScreen({
         />
 
         {room.lancelot?.swapped && (
-          <p className="vd-voice">
-            The two Lancelots swapped sides during the game, so each finished on
-            the opposite team to the one they started on.
+          <p className="vd-hint">
+            The two Lancelots swapped sides during the game.
           </p>
         )}
         {room.lady?.last && (
@@ -74,9 +73,6 @@ export function ReckoningScreen({
       <div className="vd-centre">
         <div className="vd-centre__wide vd-stack vd-stack--tight">
           <span className="vd-label">Everyone's real role</span>
-          <p className="vd-hint" style={{ margin: "0 0 4px" }}>
-            The whole cast, in seat order. Evil is edged in red.
-          </p>
 
           {/* The ledger this used to be was a list of names with a role written
               beside each. It is the same information — seat, player, character,
@@ -152,14 +148,11 @@ export function ReckoningScreen({
                 <RefreshCw size={16} />
               </button>
               <span className="vd-hint">
-                Everyone keeps their place and gets a new secret role. You can
-                change the setup before starting.
+                Same places, new roles — you can change the setup first.
               </span>
             </>
           ) : (
-            <Waiting>
-              Waiting for the host to start another game. Your place is kept.
-            </Waiting>
+            <Waiting>Waiting for the host. Your place is kept.</Waiting>
           )}
         </div>
       </div>

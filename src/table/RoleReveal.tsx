@@ -5,6 +5,10 @@
    proposal onward there was no way to check it — and at a real table people
    forget, especially which names they were shown.
 
+   Shorter than the night card on purpose: mid-game you are checking a fact,
+   not being introduced to a character, so this is the side, the name, the job
+   and who you were shown — no lore paragraph.
+
    Same rule as the night card, for the same reason: press and hold, never a
    tap toggle, and nothing about the role — not the name, not the side, not the
    colour — exists in the DOM until the hold lands. The phone is in your hand in
@@ -152,8 +156,6 @@ export function RoleReveal({
                 <RoleBrief room={room} />
               </div>
             </div>
-            <p className="vd-lore" style={{ marginTop: 14 }}>{character?.lore ?? roleDef?.desc}</p>
-
             <div style={{ marginTop: 14 }}>
               <span className="vd-label">
                 {roleDef?.knowledgeLabel ?? "You are shown nothing."}

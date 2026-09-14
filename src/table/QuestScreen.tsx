@@ -121,7 +121,7 @@ export function ExcaliburScreen({
     return (
       <Plate eyebrow="Excalibur" title={nameOf(room, holderId)}>
         <p className="vd-hint" style={{ marginTop: 12, textAlign: "center" }}>
-          Deciding whether to flip a card. This only takes a moment.
+          Deciding whether to flip a card.
         </p>
       </Plate>
     );

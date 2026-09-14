@@ -345,7 +345,9 @@ export default function App() {
           </div>
         </div>
       )}
-      {code && room === null && NotFound()}
+      {code && room === null && (
+        <CodeGone code={code} onBack={() => { setCode(null); setMsg(""); }} />
+      )}
 
       {/* The Council Seal owns every in-game phase. */}
       {code && room && (
@@ -629,31 +631,46 @@ export default function App() {
     );
   }
 
-  function NotFound() {
-    return (
-      <div className="vd-board">
-        <div className="vd-content vd-gate">
-          <div className="vd-studded vd-gate__card">
-            <span className="vd-stud-b" aria-hidden />
-            <h2 className="vd-h1">We couldn't find that game</h2>
-            <p className="vd-voice" style={{ marginTop: 10 }}>
-              It has probably ended, or the code has a typo in it. Check the
-              four letters with whoever set the game up and try again.
-            </p>
-            <button
-              className="vd-btn vd-btn--primary"
-              style={{ marginTop: 18 }}
-              onClick={() => { setCode(null); setMsg(""); }}
-            >
-              <span>Try another code</span>
-              <ArrowRight size={16} />
-            </button>
-          </div>
+}
+
+/**
+ * A code that led nowhere.
+ *
+ * "We couldn't find that game" was the only answer this screen had, and it
+ * sends someone off to re-read four letters that were never wrong. A code that
+ * has simply run out of its day is a different thing from a typo and gets told
+ * so — `codeStatus` is asked only here, on a screen that is fetching nothing
+ * else, because by this point `getRoom` has already come back empty.
+ */
+function CodeGone({ code, onBack }: { code: string; onBack: () => void }) {
+  const status = useQuery(api.avalon.codeStatus, { code });
+  const expired = status === "expired";
+
+  return (
+    <div className="vd-board">
+      <div className="vd-content vd-gate">
+        <div className="vd-studded vd-gate__card">
+          <span className="vd-stud-b" aria-hidden />
+          <h2 className="vd-h1">
+            {expired ? "That game has expired" : "We couldn't find that game"}
+          </h2>
+          <p className="vd-voice" style={{ marginTop: 10 }}>
+            {expired
+              ? "Codes last 24 hours, and this one has run out. Nothing is lost — start a new game and share the fresh code."
+              : "It has probably ended, or the code has a typo in it. Check the four letters with whoever set the game up and try again."}
+          </p>
+          <button
+            className="vd-btn vd-btn--primary"
+            style={{ marginTop: 18 }}
+            onClick={onBack}
+          >
+            <span>{expired ? "Start a new game" : "Try another code"}</span>
+            <ArrowRight size={16} />
+          </button>
         </div>
       </div>
-    );
-  }
-
+    </div>
+  );
 }
 /* StyleTag styles moved to src/styles.css */
 

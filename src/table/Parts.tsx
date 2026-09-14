@@ -65,6 +65,11 @@ export function SeatRing({
  * Derived from your side and from `allowedCards` — not from theme copy — so
  * it stays correct across all five settings without another 65 strings to
  * write and keep in sync with the engine.
+ *
+ * One line, because this renders on the night card AND behind every mid-game
+ * role peek. The second line — what you are allowed to play on a mission — is
+ * gone except for the one case that surprises people: the quest screen greys
+ * out the card you cannot play and says why, at the moment it matters.
  */
 export function RoleBrief({ room }: { room: Room }) {
   const me = room.me;
@@ -72,25 +77,20 @@ export function RoleBrief({ room }: { room: Room }) {
   const evil = me.team === "evil";
   const allowed = me.allowedCards ?? [];
   const forcedFail = allowed.length === 1 && allowed[0] === "fail";
-  const forcedSuccess = allowed.length === 1 && allowed[0] === "success";
 
   return (
     <div className="vd-brief">
       <span className="vd-label">Your job</span>
       <p className="vd-brief__text">
         {evil
-          ? "Make missions FAIL — and don't get found out. Try to get picked for teams, and lie about who you are."
-          : "Make missions SUCCEED. Work out who is lying and keep them off the teams."}
+          ? "Make missions FAIL, without being found out."
+          : "Make missions SUCCEED. Work out who's lying."}
       </p>
-      <p className="vd-hint">
-        {forcedFail
-          ? "Your role gives you no choice on a mission: you must always play Fail."
-          : forcedSuccess
-            ? "On a mission you can only ever play Succeed."
-            : evil
-              ? "On a mission you may play Succeed or Fail, whichever suits you."
-              : "You can only play Succeed on a mission."}
-      </p>
+      {/* Only the surprise stays. Everyone else learns what they may play from
+          the quest screen itself, at the moment it matters. */}
+      {forcedFail && (
+        <p className="vd-hint">You have no choice on a mission — always Fail.</p>
+      )}
     </div>
   );
 }

@@ -42,10 +42,12 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 /**
- * A reveal already shown in THIS tab, so a reconnect does not replay it.
- * Wrapped because Safari in private mode throws on both get and set — an
- * uncaught throw in the queueing effect took the whole ceremony down, which is
- * one of the ways players ended up never seeing a vote at all.
+ * A reveal already SEEN in this tab, so a reconnect does not replay it.
+ *
+ * Seen means dismissed, not queued — see `dismiss` below. Wrapped because
+ * Safari in private mode throws on both get and set: an uncaught throw in the
+ * queueing effect took the whole ceremony down, which is one of the ways
+ * players ended up never seeing a vote at all.
  */
 function alreadySeen(key: string): boolean {
   try {
@@ -112,11 +114,17 @@ export function RevealCeremony({
   /** Keys queued this mount. Guards the effects, which re-run on every render. */
   const queued = useRef<Set<string>>(new Set());
 
+  /*
+    `queued` stops the same reveal being added twice within one mount — both
+    effects re-run on every render, because App rebuilds the vote/quest props
+    into fresh objects each time. `alreadySeen` stops it coming back in a LATER
+    mount. Nothing is written to storage here: a reveal is only spent once the
+    player has actually dismissed it.
+  */
   const push = (item: Reveal) => {
     if (queued.current.has(item.key)) return;
     queued.current.add(item.key);
     if (alreadySeen(item.key)) return;
-    markSeen(item.key);
     setQueue((q) => [...q, item]);
   };
 
@@ -133,7 +141,23 @@ export function RevealCeremony({
   }, [code, lastQuest]);
 
   const current = queue[0] ?? null;
-  const dismiss = () => setQueue((q) => q.slice(1));
+
+  /*
+    The dedupe key is written HERE, not when the reveal was queued.
+
+    Marking it at enqueue meant a reveal was spent the moment it was lined up,
+    before it had painted a single frame — so if the component came down in
+    between (a reload, or `room` going briefly undefined on a Convex
+    reconnect, both of which this file already knows happen) storage said
+    "seen" for something nobody had seen, and it never came back. That is the
+    same disappearing-vote symptom the queue was meant to fix, arriving by a
+    different door. A reveal is now spent only when a player has pressed
+    Continue on it.
+  */
+  const dismiss = () => {
+    if (current) markSeen(current.key);
+    setQueue((q) => q.slice(1));
+  };
 
   // Escape dismisses — a deliberate key press, unlike the timer that used to
   // close this on its own.

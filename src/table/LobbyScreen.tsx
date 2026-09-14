@@ -24,6 +24,7 @@ import { CharacterCard } from "../CharacterCard";
 import { characterFor } from "../characters";
 import { SeatRing } from "./Parts";
 import { ActionLine, Confirm } from "./TableShell";
+import { Tutorial, hasSeenTutorial, markTutorialSeen } from "../Tutorial";
 import { type Room, type TableProps } from "./types";
 
 type Opts = Room["opts"];
@@ -78,6 +79,15 @@ export function LobbyScreen({
   onChangeTheme: (themeId: string) => Promise<unknown>;
 }) {
   const [copied, setCopied] = useState(false);
+  /* The lobby is the first moment a new player is sitting still with nothing
+     to press, so it is where the explainer offers itself — once, and then only
+     when asked for. Read at mount rather than on every render: a player who
+     dismisses it should not have it flicker back. */
+  const [tutorial, setTutorial] = useState(() => !hasSeenTutorial());
+  const closeTutorial = () => {
+    markTutorialSeen();
+    setTutorial(false);
+  };
   /* The setup was 3,700px of phone scrolling before the Start button. On a
      roomy screen there is space to show all of it at once, and a host
      configuring a game on a laptop should not have to click four times. */
@@ -146,8 +156,7 @@ export function LobbyScreen({
     <section className="vd-setup">
       <SetupSection title="Setting" summary={themeSummary} startOpen={roomy}>
         <p className="vd-hint" style={{ margin: 0 }}>
-          Only changes the character names and the story. Every setting plays
-          by exactly the same rules.
+          Names and story only — the rules never change.
         </p>
         <div className="vd-worlds">
           {worlds.map((w) => {
@@ -193,8 +202,8 @@ export function LobbyScreen({
           </span>
         </div>
         <p className="vd-hint" style={{ margin: 0 }}>
-          Leave these all off for the simplest game. Each one you turn on gives
-          somebody a special power — and takes one place from that side.
+          Leave them all off for the simplest game. Each one takes a place from
+          its own side.
         </p>
         {/* The roles a host is choosing between are CHARACTERS, so they are
             shown as the same cards the rest of the app uses. The card itself is
@@ -263,15 +272,15 @@ export function LobbyScreen({
             );
           })}
         </div>
-        <p className="vd-voice vd-setup__note">
+        <p className="vd-hint vd-setup__note">
           {rn("merlin", "Merlin")} and {rn("assassin", "the Assassin")} are always
-          in the game. Everyone left over is a plain good or evil player.
+          in. Everyone else is a plain good or evil player.
         </p>
       </SetupSection>
 
       <SetupSection title="Add-ons" summary={addOnsSummary} startOpen={roomy}>
         <p className="vd-hint" style={{ margin: 0 }}>
-          Extra twists on top of the basic game. Skip them on your first play.
+          Skip these on your first play.
         </p>
         <div className="vd-opts">
           {([
@@ -332,8 +341,7 @@ export function LobbyScreen({
                   : null}
               </span>
               <span className="vd-opt__desc">
-                Normally only evil players can play a Fail card. Turn this on
-                and a Fail no longer proves anyone is evil.
+                A Fail no longer proves anyone is evil.
               </span>
             </button>
             {!isHost && <span className="vd-hint">Only the host can change this</span>}
@@ -345,6 +353,7 @@ export function LobbyScreen({
 
   return (
     <>
+    {tutorial && <Tutorial onClose={closeTutorial} />}
     <div className="vd-table vd-table-layout">
       {/* ------------------------------- left ------------------------------ */}
       <div className="vd-stack">
@@ -357,12 +366,19 @@ export function LobbyScreen({
               Five missions. <b>Good wins</b> if three succeed, <b>evil wins</b>{" "}
               if three fail.
             </li>
-            <li>Each round the leader picks a team and everyone votes on it.</li>
-            <li>Only the people on a mission decide if it succeeds.</li>
+            <li>The leader picks a team, everyone votes, the team decides.</li>
           </ul>
-          <a className="vd-textbtn" href="/learn" style={{ marginTop: 4 }}>
-            See a round played out
-          </a>
+          {/* Was a direct link to /learn. The explainer is the smaller first
+              step and offers /learn on its own last line, so this opens that
+              instead of skipping past it — and it means a player who dismissed
+              the explainer has somewhere to get it back. */}
+          <button
+            className="vd-textbtn"
+            style={{ marginTop: 4 }}
+            onClick={() => setTutorial(true)}
+          >
+            How to play
+          </button>
         </div>
 
         <div className="vd-studded vd-panel vd-panel--strong">
@@ -384,9 +400,6 @@ export function LobbyScreen({
             {copied ? "Link copied" : "Copy invite link"}
           </button>
         </div>
-        <span className="vd-hint" style={{ marginTop: -8 }}>
-          Send the link, or read out the four letters.
-        </span>
 
         <div className="vd-stack vd-stack--tight">
           <span className="vd-label">Who's here ({room.players.length})</span>
@@ -415,10 +428,6 @@ export function LobbyScreen({
           ))}
         </div>
 
-        <p className="vd-voice">
-          Between 5 and {room.premium.seatCap} people can play. Anyone who
-          joins after that watches along and takes the next free place.
-        </p>
       </div>
 
       {/* ------------------------------ centre ----------------------------- */}
@@ -442,10 +451,8 @@ export function LobbyScreen({
             <div className="vd-panel vd-panel--danger" style={{ marginBottom: 12 }}>
               <p className="vd-voice" style={{ margin: 0, color: "var(--vd-red-ink)" }}>
                 {stranded.map((k) => PREMIUM_OPT_LABELS[k] ?? k).join(", ")}{" "}
-                {stranded.length === 1 ? "needs" : "need"} a paid plan, and this
-                game doesn't have one. Turn{" "}
-                {stranded.length === 1 ? "it" : "them"} off below to carry on,
-                or get a plan.
+                {stranded.length === 1 ? "needs" : "need"} a paid plan. Turn{" "}
+                {stranded.length === 1 ? "it" : "them"} off below, or get a plan.
               </p>
             </div>
           )}
@@ -477,20 +484,21 @@ export function LobbyScreen({
               </button>
               {/* A disabled primary button with no explanation is the most
                   common place a host gets stuck. */}
-              <span className="vd-hint">
-                {seated < 5
-                  ? "Five people is the minimum. Share the code to get more in."
-                  : !canStart
-                    ? "See the message above — something in the setup doesn't add up."
-                    : "This deals everyone a secret role. You can still start over afterwards."}
-              </span>
+              {/* A disabled button needs its reason; a ready one does not. */}
+              {!canStart && (
+                <span className="vd-hint">
+                  {seated < 5
+                    ? "Five people is the minimum — share the code."
+                    : "Something in the setup above doesn't add up."}
+                </span>
+              )}
             </>
           ) : (
             <div className="vd-panel">
               <p className="vd-voice" style={{ margin: 0 }}>
                 {room.seating.iAmWatching
-                  ? "You're watching for now. You'll be given a place as soon as one frees up."
-                  : "You're in. Waiting for the host to start the game — nothing for you to do yet."}
+                  ? "Watching for now — you'll get the next free place."
+                  : "You're in. Waiting for the host to start."}
               </p>
             </div>
           )}
@@ -507,8 +515,8 @@ export function LobbyScreen({
           </div>
 
           {room.watchers.length === 0 ? (
-            <p className="vd-voice" style={{ margin: 0 }}>
-              Nobody's waiting — everyone who has joined has a place.
+            <p className="vd-hint" style={{ margin: 0 }}>
+              Nobody waiting — everyone who joined has a place.
             </p>
           ) : (
             <>
@@ -543,10 +551,8 @@ export function LobbyScreen({
                   </div>
                 ))}
               </div>
-              <p className="vd-voice" style={{ margin: 0 }}>
-                People waiting can see the board and hear the room, but they
-                get no role and cannot vote. To include everyone, split into
-                two groups and run a second game.
+              <p className="vd-hint" style={{ margin: 0 }}>
+                They follow along, but get no role and cannot vote.
               </p>
             </>
           )}

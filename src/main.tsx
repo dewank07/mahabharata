@@ -11,6 +11,12 @@ import { SignInPage } from "./SignIn";
 const LearnPage = lazy(() => import("./LearnPage"));
 import { LandingPage } from "./LandingPage";
 import { AuthProvider } from "./auth";
+/* `/react`, not `/next` — the dashboard's Get Started card defaults to the
+   Next.js snippet and this is a Vite SPA. The component only injects
+   `/_vercel/insights/script.js`; the route tracking lives in that script, not
+   in this package, which is why the rewrite in `vercel.json` has to let the
+   `_vercel` namespace through or nothing is ever counted. */
+import { Analytics } from "@vercel/analytics/react";
 import {
   adoptLegacyHashRoute,
   useLinkInterception,
@@ -166,5 +172,9 @@ createRoot(document.getElementById("root")!).render(
     <AuthProvider client={convex}>
       <Router />
     </AuthProvider>
+    {/* Outside the provider on purpose: page views are not an authenticated
+        concern, and a failure here must never be able to take the app down
+        with it. */}
+    <Analytics />
   </StrictMode>,
 );

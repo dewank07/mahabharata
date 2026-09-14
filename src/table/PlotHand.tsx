@@ -75,9 +75,8 @@ export function PlotHand({
                 ))}
             </div>
           ) : (
-            <p className="vd-voice" style={{ margin: 0 }}>
-              If you're dealt one, it will appear below. Nobody sees which
-              card anyone else was given.
+            <p className="vd-hint" style={{ margin: 0 }}>
+              If you're dealt one, it appears below.
             </p>
           )}
         </div>

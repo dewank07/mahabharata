@@ -24,7 +24,7 @@ export function LadyScreen({
     return (
       <Plate eyebrow={ladyName} title={nameOf(room, holderId)}>
         <p className="vd-hint" style={{ marginTop: 12, textAlign: "center" }}>
-          Picking one player to inspect. Only they see the answer.
+          Inspecting someone. Only they see the answer.
         </p>
       </Plate>
     );
@@ -33,7 +33,7 @@ export function LadyScreen({
   return (
     <Plate eyebrow={ladyName} title="Choose someone to inspect">
       {/* Both halves of this change WHO you should pick, so both stay. */}
-      <p className="vd-voice" style={{ marginTop: 12, textAlign: "center" }}>
+      <p className="vd-hint" style={{ marginTop: 12, textAlign: "center" }}>
         You alone learn their side — and the power passes to whoever you pick.
       </p>
       <div className="vd-grid2" style={{ marginTop: 18 }}>

@@ -9,6 +9,21 @@
    card told the whole table who the traitors were from across the room.
    Below it the full NIGHT_ORDER script with your own step struck in brass —
    knowing *when* you were shown something is part of the game.
+
+   Gone from this screen, and why:
+     two paragraphs on how press-and-hold works  → the button says it
+     the lore paragraph under every role         → `RoleBrief` above it is the
+                                                   same thing in words you can
+                                                   act on; the portrait carries
+                                                   the flavour
+     "Press and hold the button below…"          → sits directly above a button
+                                                   reading "Press and hold to
+                                                   see your role"
+     "Roles are revealed in this fixed order…"   → the header now says "in
+                                                   order", and /learn explains
+                                                   why it matters
+     "Hold your card to see which step was yours" → a third instruction to hold
+                                                   the same card
    ========================================================================== */
 
 import { Eye, EyeOff, Sword } from "lucide-react";
@@ -60,14 +75,9 @@ export function NightScreen({
     <div className="vd-table vd-table-layout">
       <div className="vd-stack">
         <div className="vd-label">Your secret role</div>
-        <p className="vd-voice">
-          Everyone has just been dealt a role. Press and hold your card to read
-          it — let go and it hides again, so nobody can read it over your
-          shoulder.
-        </p>
         <p className="vd-hint" style={{ margin: 0 }}>
-          You only get shown this once, so read it properly now. You can check
-          it again later with the <b>Show my role</b> button at the top.
+          Hold the card to read it — let go and it hides. You can check it again
+          later with <b>Show my role</b>.
         </p>
       </div>
 
@@ -77,10 +87,8 @@ export function NightScreen({
             <Studded className="vd-role">
               <div className="vd-role__side">Watching this round</div>
               <div className="vd-role__hidden">No role</div>
-              <p className="vd-voice" style={{ margin: 0 }}>
-                You don't have a place in this game yet, so you weren't dealt a
-                role. You can watch the board and follow along, and you'll be
-                given a place as soon as one frees up.
+              <p className="vd-hint" style={{ margin: 0 }}>
+                You'll be given a place as soon as one frees up.
               </p>
             </Studded>
           ) : (
@@ -117,8 +125,6 @@ export function NightScreen({
                     </div>
                   </div>
 
-                  <p className="vd-lore" style={{ marginTop: 14 }}>{character?.lore ?? roleDef?.desc}</p>
-
                   <div style={{ marginTop: 16 }}>
                     <span className="vd-label">
                       {roleDef?.knowledgeLabel ?? "You are shown nothing."}
@@ -133,12 +139,7 @@ export function NightScreen({
                   </div>
                 </>
               ) : (
-                <>
-                  <div className="vd-role__hidden">— — —</div>
-                  <p className="vd-voice" style={{ margin: 0 }}>
-                    Press and hold the button below to see which side you're on.
-                  </p>
-                </>
+                <div className="vd-role__hidden">— — —</div>
               )}
 
               <button
@@ -167,10 +168,8 @@ export function NightScreen({
                   submission, that would need a new server field this pass
                   doesn't add. A reminder in place of a live count still sets
                   the right expectation before a screen that can't be replayed. */}
-              <p className="vd-voice" style={{ marginBottom: 10 }}>
-                Check out loud that everyone has read their role before you
-                carry on. This screen can't be shown again for someone who
-                missed it.
+              <p className="vd-hint" style={{ marginBottom: 10 }}>
+                Check everyone has read it — this screen can't be shown again.
               </p>
               <button className="vd-btn vd-btn--primary" onClick={act(onBegin)}>
                 <span>Everyone's read it — start round 1</span>
@@ -180,8 +179,7 @@ export function NightScreen({
           ) : (
             <div className="vd-panel">
               <p className="vd-voice" style={{ margin: 0 }}>
-                Read your role. The host starts the first round once everyone
-                has — say so when you're done.
+                Read your role, then tell the host you're ready.
               </p>
             </div>
           )}
@@ -189,11 +187,7 @@ export function NightScreen({
       </div>
 
       <div className="vd-stack">
-        <span className="vd-label">Who was shown what</span>
-        <p className="vd-hint" style={{ margin: 0 }}>
-          Roles are revealed in this fixed order. Knowing <i>when</i> you were
-          shown something is part of the game.
-        </p>
+        <span className="vd-label">Who was shown what, in order</span>
         <div>
           {steps.map((s) => {
             // Each step belongs to exactly one role — 3 is Merlin, 4 Percival,
@@ -210,17 +204,11 @@ export function NightScreen({
             );
           })}
         </div>
-        {!held && !watching && (
-          <p className="vd-voice" style={{ margin: 0 }}>
-            Hold your card to see which of these steps was yours.
-          </p>
-        )}
         {/* "No vision is yours" is itself a tell — it rules out Merlin,
             Percival, Guinevere, the lovers and the evil table in one line. */}
         {held && myStep === 0 && !watching && (
-          <p className="vd-voice" style={{ margin: 0 }}>
-            None of these was yours — you weren't shown anything. You'll have
-            to work it out from the conversation.
+          <p className="vd-hint" style={{ margin: 0 }}>
+            None of these was yours — you were shown nothing.
           </p>
         )}
       </div>

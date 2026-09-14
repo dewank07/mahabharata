@@ -201,8 +201,8 @@ export function CharacterCard({
         {c.watch && <Block label="Watch out" text={c.watch} warn />}
         {/* No lore here on purpose. It is a paragraph of flavour, and a
             paragraph is what pushed the useful half of this face behind a
-            scrollbar. It still runs on the night reveal, where there is a
-            whole column for it. */}
+            scrollbar. It no longer runs anywhere: the night reveal dropped it
+            too, so `Character.lore` is carried but unrendered. */}
 
         <span className="cc__return">
           <RotateCcw size={11} /> Tap to go back

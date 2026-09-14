@@ -74,11 +74,18 @@ export function NightScreen({
 
   return (
     <div className="vd-table vd-table-layout">
+      {/* The same instruction was on screen three times: the phase banner says
+          "Hold your card to see your role", the hold button says "Press and
+          hold to see your role", and this block said it a third — and on a
+          phone it lands UNDER the action, where it reads as something left
+          over rather than something to do first.
+
+          What is left is the one fact none of the other two carry: that this
+          is not your only chance to look. */}
       <div className="vd-stack">
-        <div className="vd-label">Your secret role</div>
         <p className="vd-hint" style={{ margin: 0 }}>
-          Hold the card to read it — let go and it hides. You can check it again
-          later with <b>Show my role</b>.
+          You can check your role again at any time with <b>Show my role</b>,
+          top right.
         </p>
       </div>
 

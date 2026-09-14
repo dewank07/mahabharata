@@ -460,13 +460,32 @@
    every screen, and the only phase that wants a tap is the one where naming a
    party is the whole job. A dashed rim means "this one is yours to pick", it
    fills on hover, and a picked seat already goes parchment + brass stud. */
-.vd-seal--pick .vd-seat:not(:disabled) .vd-seat__disc { border-style: dashed; border-color: #574e40; }
-.vd-seal--pick .vd-seat:not(:disabled):hover .vd-seat__disc {
-  border-style: solid;
-  border-color: var(--vd-brass);
-  background: rgba(194, 165, 95, 0.1);
+/* "You can tap these."
+
+   This was `border-style: dashed`, which the depth pass silently killed: the
+   disc's border went to 0 so both dashed rules became no-ops and the one cue
+   that the ring is a CONTROL disappeared. It is an outline now, drawn inside
+   the edge, which needs no border and does not shift the token. */
+.vd-seal--pick .vd-seat:not(:disabled):not(.is-named) .vd-seat__disc {
+  outline: 1px dashed var(--brass-deep);
+  outline-offset: -1px;
 }
-.vd-seal--pick .vd-seat.is-named .vd-seat__disc { border-style: solid; }
+
+/* Hover, and ONLY where hovering is a thing.
+
+   Ungated, this rule was the bug behind "the highlight doesn't appear until I
+   tap somewhere else": it is more specific than `.is-named`, so its wash
+   painted over the brass fill — and on a touch screen `:hover` sticks to the
+   last thing tapped. You named a seat, the seat stayed dark, and it turned
+   brass only once you tapped elsewhere and the stuck hover moved on. It also
+   no longer applies to a named seat at all, so the two can never fight. */
+@media (hover: hover) and (pointer: fine) {
+  .vd-seal--pick .vd-seat:not(:disabled):not(.is-named):hover .vd-seat__disc {
+    outline-style: solid;
+    outline-color: var(--vd-brass);
+    background: rgba(200, 162, 76, 0.12);
+  }
+}
 .vd-seal--pick .vd-seat:disabled .vd-seat__name { color: var(--vd-ink-dim); }
 
 /* Phones: scale whatever the ring chose, so a 20-seat table still fits. */
@@ -680,7 +699,14 @@
   gap: var(--vd-2);
   margin-top: var(--vd-5);
 }
-.vd-unveil__card { width: 56px; height: 80px; perspective: 900px; }
+/* The quest cards.
+
+   These were flat cream rectangles with a bold sans label — the one moment of
+   the game everyone is watching, dressed as a form control. They are cards
+   now, in the system's own materials: a hatched back with the table's keyline,
+   a parchment face for a Succeed and a rust one for a Fail, the word struck in
+   the display serif, and real card depth under both. */
+.vd-unveil__card { width: 62px; height: 88px; perspective: 900px; }
 .vd-unveil__card-inner {
   position: relative;
   width: 100%;
@@ -694,30 +720,40 @@
   place-items: center;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  border: 1px solid var(--vd-rule-strong);
-  background: var(--vd-bg-raised);
-  font: 700 var(--vd-t-label)/1 var(--vd-ui);
-  letter-spacing: 0.06em;
+  border: 0;
+  font: 400 13px/1 var(--font-display);
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-/* The back carries the engraved keyline the seal uses for unread things. */
+
+/* The back: the same hatch and inset keyline as the face-down card on the
+   night screen, so a card back is one object across the whole game. */
+.vd-unveil__face--back {
+  background: linear-gradient(150deg, #241d12, #100c07);
+  box-shadow: var(--shadow-card);
+}
 .vd-unveil__face--back::after {
   content: "";
   position: absolute;
   inset: 5px;
-  border: 1px solid var(--vd-rule-engraved);
+  background: repeating-linear-gradient(45deg, rgba(235, 207, 136, 0.05) 0 1px, transparent 1px 7px);
+  box-shadow: inset 0 0 0 1px rgba(235, 207, 136, 0.12);
 }
+
 .vd-unveil__face--front { transform: rotateY(180deg); }
+/* Held: parchment, lit along the top like every other struck surface. */
 .vd-unveil__face--front.is-success {
-  background: var(--vd-parchment);
-  border-color: var(--vd-brass-edge);
-  color: #171410;
+  background: linear-gradient(180deg, var(--parch), var(--parch-2));
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  color: var(--ink-on-brass);
 }
+/* Fallen: rust, the one place the evil colour is allowed to be a fill. */
 .vd-unveil__face--front.is-fail {
-  background: var(--vd-red);
-  border-color: var(--vd-red);
-  color: var(--vd-ink);
+  background: linear-gradient(180deg, #c05f44, #6e2e1f);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  color: #fbeee9;
 }
+
 
 .vd-unveil__skip { margin-top: var(--vd-6); }
 
@@ -1334,7 +1370,15 @@
 /* A tile that is a button gets a brass hover and a real focus ring, so "can I
    click this row?" is answered by the row itself rather than by trying it. */
 .vd-tile--btn { cursor: pointer; }
-.vd-tile--btn:hover:not(:disabled) { box-shadow: var(--shadow-row), inset 0 0 0 1px var(--vd-brass-edge); }
+/* Same trap as the seat ring, same fix. This selector outranks
+   `.vd-tile--brass`, so on a touch screen the stuck hover of a just-tapped
+   row painted over the brass rule that says it is chosen — the Excalibur
+   picker and the plot-card targets both select this way. */
+@media (hover: hover) and (pointer: fine) {
+  .vd-tile--btn:hover:not(:disabled):not(.vd-tile--brass) {
+    box-shadow: var(--shadow-row), inset 0 0 0 1px var(--vd-brass-edge);
+  }
+}
 .vd-tile--btn:focus-visible { outline: 2px solid var(--vd-brass); outline-offset: 2px; }
 .vd-tile:disabled { opacity: 0.65; cursor: not-allowed; }
 .vd-tile__meta { margin-left: auto; font: 700 var(--vd-t-label)/1 var(--vd-ui); letter-spacing: 0.07em; text-transform: uppercase; color: var(--vd-ink-dim); }

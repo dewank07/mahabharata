@@ -30,7 +30,7 @@ import { Eye, EyeOff, Sword } from "lucide-react";
 import { CharacterCard } from "../CharacterCard";
 import { characterFor, rolesInPlay, usePreloadArt } from "../characters";
 import { Studded } from "./TableShell";
-import tableEmblem from "../assets/emblem.png";
+import markSrc from "../assets/mark.svg";
 import { KnownPlayers, RoleBrief } from "./Parts";
 import { useHold } from "./RoleReveal";
 import type { TableProps } from "./types";
@@ -144,7 +144,7 @@ export function NightScreen({
                   <div className="vd-facedown">
                     <i /><i />
                     <div className="vd-facedown__top">
-                      <img className="vd-facedown__mark" src={tableEmblem} alt="" />
+                      <img className="vd-facedown__mark" src={markSrc} alt="" />
                     </div>
                   </div>
                   <p className="vd-facedown__say">Your card, face down</p>

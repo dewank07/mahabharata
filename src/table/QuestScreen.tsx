@@ -21,8 +21,8 @@ import { Riders } from "./ProposeScreen";
 import { type TableProps, nameOf } from "./types";
 
 export function QuestScreen({
-  room, pid, act, onCard,
-}: Pick<TableProps, "room" | "pid" | "act"> & {
+  room, pid, emblemSrc, act, onCard,
+}: Pick<TableProps, "room" | "pid" | "emblemSrc" | "act"> & {
   onCard: (card: "success" | "fail") => Promise<unknown>;
 }) {
   const onTeam = room.proposedTeam.includes(pid);
@@ -73,6 +73,7 @@ export function QuestScreen({
 
       <SeatRing
         room={room}
+        emblemSrc={emblemSrc}
         stateFor={(p) => (room.proposedTeam.includes(p.playerId) ? "named" : "idle")}
         noteFor={(p) => (room.proposedTeam.includes(p.playerId) ? "On the team" : undefined)}
       />

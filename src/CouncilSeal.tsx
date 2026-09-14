@@ -5,11 +5,6 @@
    ========================================================================== */
 
 import { Sigil } from "./sigils";
-/* The table's own mark, not the wordmark. The system names `emblem.png` as the
-   one raster in the product and puts it in the middle of the table and on card
-   backs; `mark.svg` stays the small wordmark glyph in the bar, where a vector
-   is sharper at 22px. A caller may still override with `emblemSrc`. */
-import tableEmblem from "./assets/emblem.png";
 
 export type SeatState =
   | "idle"      // seated, nothing to say
@@ -92,7 +87,7 @@ export function CouncilSeal({ seats, emblemSrc, onSelect, isDisabled, className 
         <div key={`c${deg}`} className="vd-seal__mark vd-seal__mark--brass" style={{ rotate: `${deg}deg` }}><i /></div>
       ))}
 
-      <img className="vd-seal__emblem" src={emblemSrc ?? tableEmblem} alt="" aria-hidden />
+      {emblemSrc && <img className="vd-seal__emblem" src={emblemSrc} alt="" aria-hidden />}
 
       {seats.map((seat, i) => {
         const disabled = isDisabled?.(seat) ?? !onSelect;

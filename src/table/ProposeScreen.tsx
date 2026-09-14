@@ -24,8 +24,8 @@ import {
 } from "./types";
 
 export function ProposeScreen({
-  room, pid, act, onPropose,
-}: Pick<TableProps, "room" | "pid" | "act"> & {
+  room, pid, emblemSrc, act, onPropose,
+}: Pick<TableProps, "room" | "pid" | "emblemSrc" | "act"> & {
   onPropose: (team: string[], excaliburId?: string) => Promise<unknown>;
 }) {
   const leader = leaderOf(room);
@@ -62,6 +62,7 @@ export function ProposeScreen({
 
       <SeatRing
         room={room}
+        emblemSrc={emblemSrc}
         stateFor={(p) =>
           picked.includes(p.playerId)
             ? "named"

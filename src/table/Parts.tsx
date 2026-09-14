@@ -20,12 +20,14 @@ import { type Room, displayName } from "./types";
  */
 export function SeatRing({
   room,
+  emblemSrc,
   stateFor,
   noteFor,
   onSelect,
   isDisabled,
 }: {
   room: Room;
+  emblemSrc: string;
   stateFor: (p: Room["players"][number]) => SeatState;
   noteFor?: (p: Room["players"][number]) => string | undefined;
   onSelect?: (playerId: string) => void;
@@ -48,10 +50,12 @@ export function SeatRing({
   }));
 
   return (
-    /* No `emblemSrc`: the mark in the middle of the table is the table's own,
-       which `CouncilSeal` imports. The wordmark threaded down from `App` is
-       for the bar, where it is 22px and wants to be a vector. */
-    <CouncilSeal seats={seats} onSelect={onSelect} isDisabled={isDisabled} />
+    <CouncilSeal
+      seats={seats}
+      emblemSrc={emblemSrc}
+      onSelect={onSelect}
+      isDisabled={isDisabled}
+    />
   );
 }
 

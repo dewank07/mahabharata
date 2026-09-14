@@ -362,17 +362,21 @@
   background: rgba(235, 207, 136, 0.5);
 }
 
-/* The mark in the middle of the table. `emblem.png` at 40%, per the system —
-   the one raster in the product, and the reason that file exists. Not
-   `mix-blend-mode: screen` any more: screen over a lit radial washed the
-   emblem out to nothing on the felt ground. */
+/* The mark in the middle of the table.
+
+   The system asked for `emblem.png` here at 40%. In place it was wrong: that
+   file is an opaque raster, so it read as a dark SQUARE tile sitting inside a
+   circle, and no opacity fixes a background that is painted in. `mark.svg` is
+   transparent and screens onto the cloth, which is why it was here to begin
+   with — a mark lit ON the surface rather than a picture laid over it. */
 .vd-seal__emblem {
   position: absolute;
   left: 50%;
   top: 50%;
   translate: -50% -50%;
-  width: 24%;
-  opacity: 0.4;
+  width: 34%;
+  opacity: 0.32;
+  mix-blend-mode: screen;
   pointer-events: none;
 }
 

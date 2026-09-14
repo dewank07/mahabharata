@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type * as React from "react";
 import { useQuery, useMutation } from "convex/react";
 
@@ -8,6 +8,7 @@ import { Table, type TableActions } from "./table";
 import { displayName } from "./table/types";
 import emblemSrc from "./assets/mark.svg";
 import { navigate } from "./router";
+import { play } from "./sound";
 import { THEMES, THEME_LIST } from "../convex/themes";
 import { isPremiumTheme } from "../convex/logic";
 import {
@@ -174,8 +175,11 @@ export default function App() {
     }
   }, [room?.themeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // The board palette is fixed, so nothing per-theme is injected any more. The
-  // realm attribute stays only for the few decorative selectors in styles.css.
+  /* The board PALETTE is fixed — nothing per-theme is injected any more — but
+     the realm is no longer inert either: `chamber.css` reads this attribute to
+     decide which illustrated ground the gate, the lobby and the table stand on
+     (the medieval hall, the Kurukshetra relief, or none). Change what this is
+     set to and the room behind the game changes with it. */
   useEffect(() => {
     document.documentElement.dataset.realm = activeTheme.id;
     return () => { delete document.documentElement.dataset.realm; };
@@ -201,6 +205,23 @@ export default function App() {
     document.documentElement.dataset.phase = phaseGround;
     return () => { delete document.documentElement.dataset.phase; };
   }, [phaseGround]);
+
+  /* The table moving on is the one thing that happens to you rather than
+     because of you — somebody else voted, somebody else sealed a quest — and
+     it is what a player looking away misses. One cue on the CROSSING, never
+     on the value: `seen` starts at whatever phase this tab first rendered, so
+     joining a game in progress is silent, and a re-render that does not change
+     the phase is too. There is no cue for the phase's CONTENT, so this says
+     "look up" and nothing more. */
+  const seenPhase = useRef<string | null>(null);
+  useEffect(() => {
+    const phase = room?.phase ?? null;
+    if (phase === null) { seenPhase.current = null; return; }
+    if (seenPhase.current === null) { seenPhase.current = phase; return; }
+    if (seenPhase.current === phase) return;
+    seenPhase.current = phase;
+    play("phase");
+  }, [room?.phase]);
 
   // Account + entitlement. Signing in is optional to play; it is what unlocks
   // the paid roles and boards, and what the admin console checks.
@@ -339,8 +360,19 @@ export default function App() {
     passKingReturns: () => mPassKing({ code: code!, playerId: pid }),
   };
 
-  /** `act` for the table: same error funnel as `wrap`, but takes a thunk. */
+  /**
+   * `act` for the table: same error funnel as `wrap`, but takes a thunk.
+   *
+   * It is also where the `seal` cue lives, and the reason there is exactly one
+   * line of audio in the whole table rather than a call in each of fourteen
+   * screens: everything a player COMMITS — a vote, a quest card, a target, a
+   * plot — already comes through here, so one cue covers all of them and a new
+   * screen gets it for free. Fired before the await, because the cue is
+   * feedback that the press landed, not that the server agreed; the failure
+   * path is the error line, which is a better carrier for that than silence.
+   */
   const act = (fn: () => Promise<unknown>) => async () => {
+    play("seal", true);
     try {
       setMsg("");
       await fn();
@@ -458,9 +490,12 @@ export default function App() {
                 page, so this is the only place they can be told what the
                 thing is. It used to be the setting's tagline, which assumes
                 you already know. */}
+            {/* Three short sentences beat one long one here — and the bold
+                clause is kept short enough that it never breaks across a line,
+                which the longer version did on every phone. */}
             <p className="vd-voice vd-gate__tag">
-              A hidden-roles game for 5 to 18 people in the same room. Some of
-              you are secretly working against the group.
+              5 to 18 players. Most are on your side.{" "}
+              <strong>A few are lying.</strong>
             </p>
           </header>
 
@@ -501,7 +536,7 @@ export default function App() {
               autoComplete="nickname"
             />
             <span className="vd-hint" id="gate-name-help">
-              This is what everyone else at the table will see.
+              Everyone at the table sees this.
             </span>
 
             {activeTab === "join" && (
@@ -520,30 +555,23 @@ export default function App() {
                   autoCorrect="off"
                 />
                 <span className="vd-hint" id="gate-code-help">
-                  Four letters, from whoever started the game.
+                  Four letters, from whoever started it.
                 </span>
               </>
             )}
 
-            {/* What pressing the button will actually do. The create hint
-                used to describe the code; the join hint described a
-                multiple-browser-tab gotcha nobody at a real table has. */}
-            <div className="vd-gate__next">
-              <span className="vd-label">What happens next</span>
-              {activeTab === "create" ? (
-                <ol className="vd-steps">
-                  <li>You get a 4-letter code and a link to share.</li>
-                  <li>Everyone joins on their own phone.</li>
-                  <li>You press start once 5 or more people are in.</li>
-                </ol>
-              ) : (
-                <ol className="vd-steps">
-                  <li>You take a place at the table.</li>
-                  <li>The app deals you a secret role.</li>
-                  <li>The person who set it up starts the game.</li>
-                </ol>
-              )}
-            </div>
+            {/* One line, not a labelled box of three numbered steps.
+            
+                Everything the list said that a person actually needs before
+                pressing the button is here: that a code is coming and has to
+                be shared, and that five is the number. The rest — everyone
+                joins on their own phone, the app deals the roles — is either
+                obvious or is the next screen's job to show. */}
+            <p className="vd-hint vd-gate__next">
+              {activeTab === "create"
+                ? "You'll get a 4-letter code to share. Start once five are in."
+                : "You'll take a seat and be dealt a secret role."}
+            </p>
 
             <button className="vd-btn vd-btn--primary" onClick={gateSubmit}>
               <span>{activeTab === "create" ? "Create the game" : "Join the game"}</span>
@@ -580,16 +608,14 @@ export default function App() {
                 in a `title` tooltip, which never fires on a phone. */}
             <span className="vd-label">Setting {activeTab === "create" ? "(optional)" : ""}</span>
             <p className="vd-hint" style={{ marginTop: 4 }}>
-              A setting only changes the character names and the story. The
-              rules are identical in all of them.
+              Only the names change. The rules never do.
             </p>
             {activeTab === "join" ? (
               // A joiner's pick here is discarded server-side — only the
               // host's setting applies. Leaving the grid interactive implied
               // otherwise.
               <p className="vd-voice" style={{ marginTop: 10 }}>
-                Whoever started the game picks the setting. You'll see theirs
-                once you're in.
+                The host picks the setting. You'll see theirs once you're in.
               </p>
             ) : (
               <div className="vd-worlds" style={{ marginTop: 10 }}>

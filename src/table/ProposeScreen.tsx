@@ -19,6 +19,7 @@ import { Eye, Sword } from "lucide-react";
 import { SeatRing } from "./Parts";
 import { StatusStrip } from "./StatusStrip";
 import { ActionLine } from "./TableShell";
+import { play } from "../sound";
 import {
   type Room, type TableProps, isLeader, leaderOf, partySize,
 } from "./types";
@@ -47,6 +48,17 @@ export function ProposeScreen({
   const ready = picked.length === needed && swordOk;
 
   const toggle = (playerId: string) => {
+    const on = picked.includes(playerId);
+    const full = !on && picked.length >= needed;
+
+    /* Only a seat that actually moved makes a sound. A press on an already
+       full team is the one case here that changes nothing, and a cue for it
+       would say the opposite; the disabled look already explains itself.
+
+       Outside the updater on purpose — a state updater must be pure, and
+       StrictMode calls it twice, which would double-strike the cue in dev. */
+    if (!full) play("select", true);
+
     setPicked((q) =>
       q.includes(playerId)
         ? q.filter((x) => x !== playerId)

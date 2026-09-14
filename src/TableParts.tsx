@@ -1,10 +1,12 @@
 /* ============================================================================
-   Shared pieces: the chronicle and the overlay plate.
+   Shared pieces: the mission board, the chronicle and the overlay plate.
 
-   `QuestLadder` left with the reckoning's redesign. It was a second drawing of
-   the same five facts `StatusStrip` already deals as coins, kept in step with
-   it by hand — so the reckoning renders that same coin a size larger and there
-   is one board in the app instead of two.
+   `QuestLadder` and `StatusStrip` used to draw the same five facts two
+   different ways and had to be kept in step by hand. `MissionCoins` is that
+   one board, struck as coins per the design system — and it carries
+   everything BOTH of them carried: the mission number, the party size, the
+   tally a ridden mission came back with, the two-fails mark, and the line
+   that explains that mark.
 
    `ClockFuse` (a 52px numeral, a caption and fifteen ticks) and
    `RejectionTrack` (dots under a sentence explaining them) both left when the
@@ -14,6 +16,96 @@
    ========================================================================== */
 
 import { useEffect, useRef } from "react";
+
+/* --------------------------------------------------------- mission board --- */
+
+/**
+ * The five missions, as struck coins.
+ *
+ * One coin carries two lines because it has to carry two facts: WHICH mission
+ * it is, and what is known about it — the party size before it rides, the
+ * `successes–fails` it came back with after. The coin's colour says whether it
+ * held; the numbers say by how much, which is the thing the next round argues
+ * about.
+ *
+ * `size="lg"` is the reckoning, where the board is the record rather than a
+ * readout, and where the two-fails legend is worth the line it costs.
+ */
+export function MissionCoins({
+  sizes,
+  questIndex,
+  results,
+  doubleFail = [],
+  log = [],
+  size = "sm",
+  legend = false,
+}: {
+  sizes: number[];
+  questIndex: number;
+  results: (("success" | "fail") | null)[];
+  doubleFail?: number[];
+  log?: Array<{ questIndex: number; successes: number; fails: number }>;
+  size?: "sm" | "lg";
+  legend?: boolean;
+}) {
+  return (
+    <>
+      <div
+        className={`vd-coins ${size === "lg" ? "vd-coins--lg" : ""}`}
+        role="group"
+        aria-label="The five missions"
+      >
+        {sizes.map((n, i) => {
+          const result = results[i];
+          const active = i === questIndex;
+          const tally = log.find((q) => q.questIndex === i);
+          const twoFails = doubleFail.includes(i);
+          return (
+            <span
+              key={i}
+              className={[
+                "vd-slot",
+                active ? "is-active" : "",
+                result === "fail" ? "is-fail" : "",
+                result === "success" ? "is-held" : "",
+              ].filter(Boolean).join(" ")}
+              style={{ animationDelay: `calc(var(--stagger) * ${i})` }}
+              aria-label={
+                tally
+                  ? `Mission ${i + 1}: ${tally.successes} succeeded, ${tally.fails} failed`
+                  : `Mission ${i + 1}: ${n} people go${twoFails ? ", needs two fails" : ""}`
+              }
+            >
+              <span className="vd-slot__n" aria-hidden>{i + 1}</span>
+              <span className="vd-slot__face" aria-hidden>
+                {tally ? (
+                  <>
+                    {tally.successes}
+                    <i className="vd-slot__dash">–</i>
+                    <i className={tally.fails > 0 ? "vd-slot__fails" : undefined}>{tally.fails}</i>
+                  </>
+                ) : (
+                  n
+                )}
+              </span>
+              {twoFails && <span className="vd-slot__dbl" aria-hidden />}
+            </span>
+          );
+        })}
+      </div>
+
+      {/* The mark on a coin's rim means nothing on its own. */}
+      {legend && doubleFail.length > 0 && (
+        <p className="vd-coins__legend">
+          <span className="vd-slot__dbl" aria-hidden />
+          {doubleFail.length === 1
+            ? `Mission ${doubleFail[0] + 1} needed two Fail cards to fail`
+            : `Missions ${doubleFail.map((i) => i + 1).join(" and ")} needed two Fail cards to fail`}
+        </p>
+      )}
+    </>
+  );
+}
 
 /* ------------------------------------------------------------ chronicle --- */
 

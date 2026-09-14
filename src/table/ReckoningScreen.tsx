@@ -12,7 +12,8 @@
 
 import { RefreshCw } from "lucide-react";
 import { characterFor } from "../characters";
-import { QUEST_SIZES } from "../../convex/logic";
+import { MissionCoins } from "../TableParts";
+import { QUEST_SIZES, doubleFailQuests } from "../../convex/logic";
 import { Waiting } from "./TableShell";
 import { type TableProps, displayName, nameOf } from "./types";
 
@@ -48,28 +49,22 @@ export function ReckoningScreen({
         </div>
 
         {/* The five, one more time — the same coins the strip deals, struck a
-            size larger. `QuestLadder` was a second, different drawing of the
-            board that had to be kept in step with the strip by hand. */}
-        <div className="vd-result" role="group" aria-label="How the five missions went">
-          {(QUEST_SIZES[n] ?? []).map((size, i) => {
-            const r = room.questResults[i];
-            const q = (room.questLog ?? []).find((x) => x.questIndex === i);
-            return (
-              <span
-                key={i}
-                className={`vd-slot ${r === "success" ? "is-held" : r === "fail" ? "is-fail" : ""}`}
-                aria-label={
-                  q
-                    ? `Mission ${i + 1}: ${q.successes} succeeded, ${q.fails} failed`
-                    : `Mission ${i + 1}: never ridden, ${size} would have gone`
-                }
-              >
-                <span className="vd-slot__face" aria-hidden>
-                  {r === "success" ? "\u2726" : r === "fail" ? "\u2715" : size}
-                </span>
-              </span>
-            );
-          })}
+            size larger, with the two-fails legend this screen is the right
+            place for. */}
+        <div className="vd-result">
+          {/* The ladder carried this heading; the strip does not need one
+              because it sits under the bar that says where you are. Here the
+              board is a titled section of a record, so it keeps it. */}
+          <span className="vd-label vd-result__head">The five missions</span>
+          <MissionCoins
+            sizes={QUEST_SIZES[n] ?? []}
+            questIndex={-1}
+            results={room.questResults}
+            doubleFail={doubleFailQuests(n)}
+            log={room.questLog ?? []}
+            size="lg"
+            legend
+          />
         </div>
 
         {room.lancelot?.swapped && (
@@ -135,7 +130,13 @@ export function ReckoningScreen({
                     </span>
                   )}
                   <span className="vd-whowas__body">
-                    <span className="vd-whowas__who">{displayName(p.name)}</span>
+                    <span className="vd-whowas__who">
+                      {/* The seat was a badge on the old card. It is how the
+                          table refers to a player while the roles are still
+                          being read out, so it stays. */}
+                      <i className="vd-whowas__seat">{p.seat + 1}</i>
+                      {displayName(p.name)}
+                    </span>
                     <span className="vd-whowas__role" style={{ display: "block" }}>
                       {roleName(p.role)}
                     </span>

@@ -405,10 +405,13 @@ export function LobbyScreen({
           <span className="vd-label">Who's here ({room.players.length})</span>
           {room.players.map((p) => (
             <div key={p.playerId} className="vd-tile">
-              {/* The mark, not the seat index. A seat number is a fact about
-                  the array; the sigil is how this person is identified on the
-                  seal, in the night reveal and across the table. */}
+              {/* The mark AND the seat. The sigil is how this person is
+                  identified on the seal, in the night reveal and across the
+                  table; the number is how the host refers to them while
+                  setting up. The design adds the first, it does not replace
+                  the second. */}
               <PlayerMark room={room} playerId={p.playerId} />
+              <span className="vd-tile__seat">{p.seat + 1}</span>
               {p.name}
               <span className="vd-tile__meta">
                 {p.isHost ? "Host" : ""}{p.isHost && p.playerId === pid ? " · " : ""}
@@ -437,7 +440,7 @@ export function LobbyScreen({
       <div className="vd-centre">
         <SeatRing
           room={room}
-            stateFor={(p) => (p.playerId === pid ? "leader" : "idle")}
+          stateFor={(p) => (p.playerId === pid ? "leader" : "idle")}
           /* Every non-host seat used to be labelled with a Roman numeral —
              "II", "III", "IV" — which reads as a fact about that player and
              is really just their seat index. Only the two labels that mean

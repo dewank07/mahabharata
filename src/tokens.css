@@ -1,0 +1,166 @@
+/* ============================================================================
+   Verdict Table — design tokens.
+
+   Ported verbatim from the `Design refinement: Dark and brass identity`
+   project (claude.ai/design), whose own README says it was read OUT of this
+   repo in the first place: `convex/themes.ts` for the worlds and palette,
+   `src/sigils.tsx` for the marks, `src/CouncilSeal.tsx` for the ring geometry.
+   So this is not a foreign system being imposed — it is this app's own
+   language, resolved and given names.
+
+   Values are copied rather than re-derived so a diff against the design
+   project is meaningful. `seal.css` maps its own `--vd-*` names onto these
+   below, which is what carries the identity into three thousand lines of
+   existing CSS without rewriting them.
+
+   One deliberate divergence, marked at the line: the design's dimmest greys
+   fall under 4.5:1 on these grounds, and `seal.css` had already been through
+   a contrast pass that lifted exactly those values. Decoration follows the
+   design; anything that is a sentence keeps the accessible ink.
+   ========================================================================== */
+
+/* --------------------------------------------------------------- colour --- */
+:root {
+  --ink-void: #0a0806;
+  --ink-0: #0c0a08;
+  --ink-1: #15110b;
+  --ink-2: #1e1912;
+  --felt: #1d2018;
+  --felt-edge: #0a0906;
+
+  --brass: #c8a24c;
+  --brass-lit: #ebcf88;
+  --brass-pale: #f0dca6;
+  --brass-deep: #6b5c3c;
+
+  --parch: #efe7d5;
+  --parch-2: #e6dcc2;
+  --ink-on-brass: #1a1408;
+
+  --text-body: var(--parch);
+  --text-muted: #8e8579;
+  /* Design value is #6b6358 — 2.9:1 on --ink-0, and it is used on disabled
+     reasons and helper lines, which are the words a stuck player most needs.
+     Lifted to the floor `seal.css` already established. */
+  --text-dim: #948a79;
+  --text-brass: var(--brass-lit);
+
+  --evil: #b4553c;
+  --evil-lit: #c98a6b;
+  --good: var(--brass);
+
+  --line: rgba(255, 255, 255, 0.05);
+  --line-brass: rgba(235, 207, 136, 0.2);
+  --raised: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.012));
+  --plate: linear-gradient(180deg, #2c2417 0%, #181207 100%);
+  --brass-fill: linear-gradient(180deg, var(--brass-pale), var(--brass));
+
+  /* One ground per phase. The table is a surface, not a page. */
+  --surface-table: radial-gradient(90% 55% at 50% 46%, var(--felt) 0%, var(--felt-edge) 72%);
+  --surface-room: radial-gradient(130% 90% at 50% -12%, #221d15 0%, var(--ink-0) 66%);
+  --surface-night: radial-gradient(120% 80% at 50% 30%, var(--ink-2) 0%, var(--ink-void) 70%);
+  --surface-loss: radial-gradient(120% 80% at 50% 0%, #2a1712 0%, var(--ink-void) 62%);
+
+  /* The weave. Two hairline gratings, never an image file. */
+  --texture-weave:
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.015) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0 1px, transparent 1px 3px);
+}
+
+/* ----------------------------------------------------------------- type --- */
+:root {
+  --font-display: "EB Garamond", Georgia, serif;
+  --font-ui: "Manrope", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Display — role names, game code, result. Tight, never bold. */
+  --type-display-xl: 400 52px/1.02 var(--font-display);
+  --type-display-l: 400 34px/1.05 var(--font-display);
+  --type-display-m: 400 28px/1.15 var(--font-display);
+  --type-display-s: 400 20px/1.1 var(--font-display);
+
+  /* UI — everything a player reads at speed. */
+  --type-body: 400 15px/1.45 var(--font-ui);
+  --type-body-strong: 600 15px/1.4 var(--font-ui);
+  --type-action: 700 16px/1 var(--font-ui);
+  --type-small: 400 13px/1.45 var(--font-ui);
+
+  /* Engraved label — always uppercase, always tracked out. Mono at 10px is
+     wider than the 11.5px sans it replaces, which is why this tracking works
+     here and did not before. */
+  --type-label: 400 10px/1 var(--font-mono);
+  --label-tracking: 0.22em;
+  --wordmark-tracking: 0.3em;
+  --code-tracking: 0.14em;
+}
+
+/* ---------------------------------------------------------------- space --- */
+:root {
+  --space-1: 3px;
+  --space-2: 6px;
+  --space-3: 9px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 20px;
+  --space-7: 26px;
+  --space-8: 34px;
+
+  --gutter: var(--space-6);
+  --row-gap: 7px;
+  --stack-gap: var(--space-4);
+
+  /* Square is the system. Only tokens and coins are round. */
+  --radius-none: 0;
+  --radius-round: 50%;
+
+  --seat-size: 44px;
+  --token-size: 26px;
+  --coin-size: 42px;
+  --card-w: 240px;
+  --card-h: 328px;
+  --hit-min: 44px;
+}
+
+/* ------------------------------------------------------------ elevation --- */
+/* Depth is pressed and lit, never a soft drop shadow on a flat page. This is
+   the one real departure from what `seal.css` said before ("no shadows") —
+   the design's whole depth model is lit edges and pressed lips. */
+:root {
+  --shadow-plate: 0 12px 26px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,216,142,0.16), inset 0 -1px 0 rgba(0,0,0,0.6);
+  --shadow-row: inset 0 1px 0 rgba(255,255,255,0.05), 0 2px 6px rgba(0,0,0,0.35);
+  --shadow-card: 0 22px 44px rgba(0,0,0,0.6), inset 0 0 0 1px var(--line-brass);
+  --shadow-card-face: 0 26px 50px rgba(0,0,0,0.65), inset 0 0 0 1px rgba(235,207,136,0.35);
+  --shadow-brass: 0 10px 22px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -2px 0 rgba(0,0,0,0.2);
+  --shadow-brass-pressed: 0 3px 8px rgba(0,0,0,0.5), inset 0 2px 4px rgba(0,0,0,0.28);
+  --shadow-token: inset 0 0 0 1px rgba(255,255,255,0.07), 0 4px 10px rgba(0,0,0,0.45);
+  --shadow-token-named: 0 6px 14px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.5);
+  --shadow-quiet: inset 0 0 0 1px rgba(255,255,255,0.06);
+  --shadow-ring: inset 0 0 0 1px var(--line), 0 0 40px rgba(0,0,0,0.5);
+}
+
+/* --------------------------------------------------------------- motion --- */
+/* Four verbs: rise, turn, land, press. Nothing bounces and nothing loops
+   except the single sheen across the live brass action. */
+:root {
+  --ease-deal: cubic-bezier(0.2, 0.7, 0.3, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-tint: 120ms;
+  --dur-press: 90ms;
+  --dur-rise: 300ms;
+  --dur-turn: 340ms;
+  --dur-coin: 420ms;
+  --stagger: 40ms;
+}
+
+@keyframes vd-rise { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
+@keyframes vd-turn { from { opacity: 0; transform: rotateY(-62deg) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes vd-coin { from { opacity: 0; transform: scale(0.72) rotate(-16deg); } to { opacity: 1; transform: none; } }
+@keyframes vd-seat-in { from { transform: scale(0.86); } to { transform: scale(1); } }
+@keyframes vd-sheen { from { transform: translateX(-120%); } to { transform: translateX(220%); } }
+@keyframes vd-timer { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+/* The token file owns this, so no screen re-declares a duration. */
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-rise: 1ms; --dur-turn: 1ms; --dur-coin: 1ms; --stagger: 0ms; }
+  .vd-sheen, [style*="vd-sheen"] { animation: none !important; }
+}

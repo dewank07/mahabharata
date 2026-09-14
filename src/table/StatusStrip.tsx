@@ -46,9 +46,13 @@ export function StatusStrip({ room }: { room: Room }) {
                   : `Mission ${i + 1}: ${size} people go${twoFails ? ", needs two fails" : ""}`
               }
             >
-              <span className="vd-slot__n">{i + 1}</span>
-              <span className="vd-slot__v">
-                {tally ? `${tally.successes}–${tally.fails}` : size}
+              {/* One face. A coin that has been decided shows the verdict as a
+                  mark; one still to come shows how many ride. The tally that
+                  used to sit here does not fit on a struck coin and is a
+                  number the table argues about later, not mid-turn — it is in
+                  the ledger behind the info sheet, and in the aria-label. */}
+              <span className="vd-slot__face" aria-hidden>
+                {result === "success" ? "\u2726" : result === "fail" ? "\u2715" : size}
               </span>
               {twoFails && <span className="vd-slot__dbl" aria-hidden />}
             </span>

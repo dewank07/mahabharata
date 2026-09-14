@@ -181,6 +181,27 @@ export default function App() {
     return () => { delete document.documentElement.dataset.realm; };
   }, [activeTheme]);
 
+  /* The ground under the whole app, one per phase — the system's four
+     surfaces. It is set on the ROOT rather than on the board so every overlay
+     that escapes the board (the reveal, the info sheet, the explainer) stands
+     on the same cloth as the screen behind it.
+
+     The reckoning takes the rust ground whichever side won: it is the colour
+     of the game being over, not of losing. */
+  const phaseGround =
+    room == null || room.phase === "lobby"
+      ? "room"
+      : room.phase === "reveal"
+        ? "night"
+        : room.phase === "end"
+          ? "loss"
+          : "table";
+
+  useEffect(() => {
+    document.documentElement.dataset.phase = phaseGround;
+    return () => { delete document.documentElement.dataset.phase; };
+  }, [phaseGround]);
+
   // Account + entitlement. Signing in is optional to play; it is what unlocks
   // the paid roles and boards, and what the admin console checks.
   const viewer = useQuery(api.billing.viewer, {});

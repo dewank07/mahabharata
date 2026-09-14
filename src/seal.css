@@ -1,61 +1,83 @@
 /* ============================================================================
-   Decevia — Council Seal design system
-   Drop into src/ and import once (e.g. in main.tsx, AFTER styles.css so these
-   tokens win). No gradients, no glow, no shadows: depth comes from 1px rules,
-   contrast and spacing.
+   Decevia — the Verdict Table system.
+
+   This file is the app's whole visual vocabulary, and the block below is the
+   one place it is defined. Everything under it is unchanged in structure: the
+   `--vd-*` names are now ALIASES onto `tokens.css`, which is the design
+   project's own token set copied verbatim. That is what carries a new identity
+   through three thousand lines of selectors without rewriting them.
+
+   What actually changed, and why it is not a betrayal of what was here:
+
+   - Depth. The header used to say "no gradients, no glow, no shadows: depth
+     comes from 1px rules". The design keeps the no-glow rule and replaces flat
+     rules with LIT and PRESSED surfaces — a raised row has a 1px highlight on
+     its top edge and sits on a soft ground shadow; the brass action has a lit
+     top edge and a dark bottom lip. Nothing floats and nothing blurs. Borders
+     mostly go away, because grouping is now done by raising a surface rather
+     than by drawing a box around it.
+
+   - Display face. Cinzel becomes EB Garamond. The design's own caveat says EB
+     Garamond is standing in for the display serif in the screenshots; if the
+     real face is licensed, it is a one-line swap here.
+
+   - Ground. One flat board colour becomes one ground per phase — room, night,
+     felt table, reckoning — each under a two-grating weave that reads as
+     cloth. `.vd-board` picks the ground from a data attribute on the root.
    ========================================================================== */
 
 :root {
   /* --- surface ---------------------------------------------------------- */
-  --vd-bg:            #131110; /* the board */
-  --vd-bg-raised:     #191612; /* idle token face */
-  --vd-bg-token:      #1b1814; /* leader token face */
-  --vd-bg-plate:      #161311; /* modal / overlay plate */
+  --vd-bg:            var(--ink-0);   /* the board, flat fallback */
+  --vd-bg-raised:     var(--ink-1);   /* idle token face */
+  --vd-bg-token:      #1b1712;        /* leader token face */
+  --vd-bg-plate:      var(--ink-1);   /* modal / overlay plate */
 
-  /* --- rules: three weights, used consistently -------------------------- */
-  --vd-rule-structure: #221e19; /* column dividers */
-  --vd-rule-container: #2b2620; /* panel borders, section rules */
-  --vd-rule-control:   #342f26; /* control borders, segmented groups */
-  --vd-rule-strong:    #4c4234; /* emphasised container (role card, plate) */
-  --vd-rule-engraved:  #453c2f; /* engraved marks on the seal */
+  /* --- rules ------------------------------------------------------------
+     Kept as five names so nothing below has to change, but they are hairlines
+     in white now rather than five browns: the design groups with raised
+     surfaces and insets, not with boxes inside boxes. */
+  --vd-rule-structure: rgba(255, 255, 255, 0.035);
+  --vd-rule-container: var(--line);
+  --vd-rule-control:   rgba(255, 255, 255, 0.07);
+  --vd-rule-strong:    var(--line-brass);
+  --vd-rule-engraved:  rgba(255, 255, 255, 0.10);
 
-  /* --- ink -------------------------------------------------------------- */
-  /* Every ink below is checked against --vd-bg. The three tertiary greys used
-     to sit at 3.2:1, 2.6:1 and 3.4:1 — under the 4.5:1 AA floor for text, on
-     labels, disabled reasons and error lines, which are exactly the words a
-     confused player most needs to read. They are lightened to clear it. */
-  --vd-ink:        #efe7d5; /* primary text            — 14.9:1 */
-  --vd-ink-soft:   #a89e90; /* body / chronicle        —  7.1:1 */
-  --vd-ink-muted:  #b0a693; /* labels                  —  7.9:1 */
-  --vd-ink-dim:    #948a79; /* tertiary, disabled      —  5.7:1 */
-  --vd-ink-faint:  #8a8171; /* inscriptions            —  4.9:1 */
+  /* --- ink --------------------------------------------------------------
+     The contrast pass that lifted these stands. `--text-dim` in `tokens.css`
+     carries the note: the design's dimmest grey is 2.9:1 and lands on helper
+     lines, which is exactly the copy a stuck player needs. */
+  --vd-ink:        var(--text-body);  /* primary text      — 14.9:1 */
+  --vd-ink-soft:   #b9af9b;           /* body / chronicle  —  8.6:1 */
+  --vd-ink-muted:  var(--text-muted); /* labels            —  4.9:1 */
+  --vd-ink-dim:    var(--text-dim);   /* tertiary          —  5.4:1 */
+  --vd-ink-faint:  #8a8171;           /* inscriptions      —  4.6:1 */
 
   /* --- materials -------------------------------------------------------- */
-  --vd-brass:       #c2a55f; /* aged brass: rules, ticks, state. NEVER a glow */
-  --vd-brass-edge:  #b39a5c; /* brass border on parchment */
-  --vd-parchment:   #e9e1cf; /* primary action + active tokens */
-  --vd-parchment-2: #e0d7c4; /* sigil ink on dark */
-  --vd-red:         #9e3b28; /* rejection / fail / evil (fills, rules) */
-  --vd-red-ink:     #e0644a; /* red TEXT                —  5.5:1 */
-  --vd-red-rule:    #4a2620;
+  --vd-brass:       var(--brass);      /* the only accent; means "live" */
+  --vd-brass-edge:  rgba(235, 207, 136, 0.45);
+  --vd-parchment:   var(--parch-2);    /* name plates, active tokens */
+  --vd-parchment-2: var(--parch);      /* sigil ink on dark */
+  --vd-red:         var(--evil);       /* side meaning only, never destructive UI */
+  --vd-red-ink:     var(--evil-lit);   /* red TEXT          —  6.4:1 */
+  --vd-red-rule:    rgba(201, 138, 107, 0.3);
 
   /* --- type ------------------------------------------------------------- */
-  --vd-display: "Cinzel", Georgia, serif;      /* headings, numerals, the seal */
-  --vd-lore-face: "EB Garamond", Georgia, serif; /* flavour only, never a task */
-  --vd-ui: "Manrope", system-ui, sans-serif;   /* everything you have to read */
+  --vd-display:   var(--font-display);
+  --vd-lore-face: var(--font-display);
+  --vd-ui:        var(--font-ui);
 
-  /* --- type scale --------------------------------------------------------
-     Four body sizes and three heading sizes, so a screen can rank what it is
-     saying without inventing a size. Nothing functional is below 12px, and
-     tracking on small caps is 0.09em rather than 0.26em: at 8.5px the old
-     labels were spaced further apart than they were tall. */
-  --vd-t-hero:  clamp(30px, 6vw, 40px); /* one per page: the page's name      */
-  --vd-t-h1:    26px;   /* screen / section title                            */
-  --vd-t-h2:    20px;   /* sub-section                                       */
-  --vd-t-h3:    16px;   /* card / panel title                                */
-  --vd-t-body:  15px;   /* prose, instructions, help                         */
-  --vd-t-sm:    13.5px; /* dense rows, secondary help                        */
-  --vd-t-label: 11.5px; /* uppercase metadata — the floor for readable caps  */
+  /* --- type scale -------------------------------------------------------
+     Unchanged, except the label, which is now the design's engraved mono at
+     10px/0.22em. Mono at 10px sets wider than the 11.5px sans it replaces,
+     which is why this tracking reads here and did not before. */
+  --vd-t-hero:  clamp(30px, 6vw, 40px);
+  --vd-t-h1:    26px;
+  --vd-t-h2:    20px;
+  --vd-t-h3:    16px;
+  --vd-t-body:  15px;
+  --vd-t-sm:    13.5px;
+  --vd-t-label: 10px;
   --vd-lh-body: 1.6;
 
   /* --- space (4px base) ------------------------------------------------- */
@@ -69,22 +91,30 @@
    Board
    ========================================================================== */
 
+/* One ground per phase — room, night, felt, reckoning — set by `data-phase`
+   on the root element. The default is the room, which is also what every
+   non-game page (landing, rules, learn, sign-in) sits on. */
 .vd-board {
   position: relative;
   min-height: 100dvh;
-  background: var(--vd-bg);
+  background: var(--surface-room);
+  background-attachment: fixed;
   color: var(--vd-ink);
   font-family: var(--vd-ui);
 }
+:root[data-phase="night"] .vd-board   { background: var(--surface-night); }
+:root[data-phase="table"] .vd-board   { background: var(--surface-table); }
+:root[data-phase="loss"] .vd-board    { background: var(--surface-loss); }
 
-/* Paper grain. Fixed 140px tile at 5% — must never be noticeable at a glance. */
+/* The weave. Two hairline gratings that read as cloth — never an image file,
+   and it replaces the turbulence tile, which was a raster the eye read as
+   noise rather than as a surface. */
 .vd-board::before {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.05;
-  background-image: url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%27140%27%20height=%27140%27%3E%3Cfilter%20id=%27n%27%3E%3CfeTurbulence%20type=%27fractalNoise%27%20baseFrequency=%270.85%27%20numOctaves=%273%27/%3E%3C/filter%3E%3Crect%20width=%27140%27%20height=%27140%27%20filter=%27url%28%23n%29%27/%3E%3C/svg%3E");
+  background: var(--texture-weave);
 }
 
 
@@ -100,8 +130,11 @@
   gap: 5px;
   flex-wrap: wrap;
   max-width: 100%;
-  font: 700 var(--vd-t-label)/1.3 var(--vd-ui);
-  letter-spacing: 0.09em;
+  /* The engraved label. Mono rather than bold sans, because the tracking is
+     what makes it read as stamped into the surface rather than as small text,
+     and mono at 10px carries 0.22em where 11.5px sans could not. */
+  font: var(--type-label);
+  letter-spacing: var(--label-tracking);
   text-transform: uppercase;
   color: var(--vd-ink-muted);
 }
@@ -111,11 +144,14 @@
 /* Three heading steps that are actually distinguishable. 27/24 was a half-step
    apart, so a section title and its sub-sections read as one flat run of
    Cinzel and nothing announced itself as more important than anything else. */
-.vd-hero { font: 500 var(--vd-t-hero)/1.08 var(--vd-display); color: var(--vd-ink); margin: 0; }
-.vd-h1 { font: 500 var(--vd-t-h1)/1.15 var(--vd-display); color: var(--vd-ink); margin: 0; }
-.vd-h2 { font: 500 var(--vd-t-h2)/1.2 var(--vd-display); color: var(--vd-ink); margin: 0; }
+/* Weight 400 throughout: the display serif is never bold in this system, and
+   EB Garamond at 500 loses the thin-stroke contrast that makes it read as
+   engraved rather than as a heading in a serif. */
+.vd-hero { font: 400 var(--vd-t-hero)/1.08 var(--vd-display); color: var(--vd-ink); margin: 0; }
+.vd-h1 { font: 400 var(--vd-t-h1)/1.15 var(--vd-display); color: var(--vd-ink); margin: 0; }
+.vd-h2 { font: 400 var(--vd-t-h2)/1.2 var(--vd-display); color: var(--vd-ink); margin: 0; }
 .vd-h3 { font: 700 var(--vd-t-h3)/1.3 var(--vd-ui); color: var(--vd-ink); margin: 0; }
-.vd-numeral { font: 500 1em/1 var(--vd-display); }
+.vd-numeral { font: 400 1em/1 var(--vd-display); }
 
 /* Body copy. This used to be italic 15px EB Garamond — a small-x-height serif,
    slanted, for every instruction in the game. It is the single biggest reason
@@ -155,9 +191,12 @@
 .vd-rule { height: 1px; background: var(--vd-rule-container); border: 0; }
 .vd-rule--brass { background: var(--vd-brass); opacity: 0.5; }
 
-.vd-panel { border: 1px solid var(--vd-rule-container); padding: var(--vd-3) 13px; }
-.vd-panel--strong { border-color: var(--vd-rule-strong); }
-.vd-panel--danger { border-color: var(--vd-red-rule); }
+/* A panel is a lifted surface now, not a box: the 1px highlight along its top
+   edge is what says "raised", and the ground shadow is what says "off the
+   cloth". No border at all. */
+.vd-panel { background: var(--raised); box-shadow: var(--shadow-row); padding: var(--vd-3) 13px; }
+.vd-panel--strong { box-shadow: var(--shadow-row), inset 0 0 0 1px var(--line-brass); }
+.vd-panel--danger { box-shadow: var(--shadow-row), inset 0 0 0 1px var(--vd-red-rule); }
 
 /* Brass studs at the corners. Reserved for objects with rank: the role card,
    the quest plate, the verdict plate. Never on ordinary panels. */
@@ -190,7 +229,10 @@
   width: 100%;
   min-height: 56px;               /* never below 44px: phone in hand */
   padding: 0 var(--vd-5);
-  border: 1px solid var(--vd-rule-control);
+  border: 0;
+  /* A hairline inset rather than a border: the system groups by raising a
+     surface, and an inset keeps the control flush with the ground. */
+  box-shadow: var(--shadow-quiet);
   background: none;
   color: var(--vd-ink);
   /* Was Cinzel 15px at 0.1em tracking. A display serif, letter-spaced, is the
@@ -199,26 +241,41 @@
   letter-spacing: 0.01em;
   text-align: left;
   cursor: pointer;
+  transition: color var(--dur-tint) linear, box-shadow var(--dur-tint) linear;
 }
-.vd-btn:hover:not(:disabled) { border-color: var(--vd-brass); }
-.vd-btn:disabled { color: var(--vd-ink-dim); border-color: var(--vd-rule-container); cursor: not-allowed; }
+.vd-btn:hover:not(:disabled) { box-shadow: inset 0 0 0 1px var(--vd-brass-edge); }
+.vd-btn:disabled { color: var(--vd-ink-dim); box-shadow: var(--shadow-quiet); cursor: not-allowed; }
 
 /* Primary = a parchment control with an inset keyline. One per screen. */
 .vd-btn--primary {
   position: relative;
-  background: var(--vd-parchment);
-  border-color: var(--vd-brass-edge);
-  color: #171410;
+  overflow: hidden;
+  /* Brass foil: lit along the top edge, with a dark lip underneath. This is
+     the system's one "live" surface and there is one per screen. */
+  background: var(--brass-fill);
+  box-shadow: var(--shadow-brass);
+  color: var(--ink-on-brass);
+  transition: transform var(--dur-press) linear, box-shadow var(--dur-press) linear;
 }
-.vd-btn--primary::after {
+/* Pressed, not dimmed: 1px down and the shadow compresses under it. */
+.vd-btn--primary:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: var(--shadow-brass-pressed);
+}
+.vd-btn--primary:hover:not(:disabled) { box-shadow: var(--shadow-brass); }
+
+/* The single continuous animation in the app: a sheen crossing the live
+   action. Nothing else loops, and reduced motion kills it in `tokens.css`. */
+.vd-btn--primary::before {
   content: "";
   position: absolute;
-  inset: 3px;
-  border: 1px solid rgba(23, 20, 16, 0.14);
+  inset: 0;
+  width: 40%;
   pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  animation: vd-sheen 3.6s var(--ease-out) infinite;
 }
-.vd-btn--primary:hover:not(:disabled) { background: #f2ebda; }
-.vd-btn--primary:active:not(:disabled) { background: #ded5c2; }
+.vd-btn--primary:disabled::before { content: none; }
 /* A disabled primary kept its parchment fill and took `.vd-btn:disabled`'s
    grey ink, which put its label at 2.6:1 on cream — the least readable text
    in the app, on the control a stuck player is staring at. It now reads as
@@ -320,10 +377,15 @@
   height: var(--vd-seat-disc, 62px);
   margin: 0 auto;
   border-radius: 50%;
-  background: var(--vd-bg-raised);
-  border: 1px solid #3a342b;
+  /* A token sits ON the cloth: domed by a radial fill, held by a hairline,
+     dropped onto a soft ground shadow. */
+  background: radial-gradient(circle at 50% 30%, #211b12, #100d09);
+  border: 0;
+  box-shadow: var(--shadow-token);
   display: grid;
   place-items: center;
+  transition: background var(--dur-tint) linear, box-shadow var(--dur-tint) linear,
+              color var(--dur-tint) linear;
 }
 .vd-seat__name { margin-top: 10px; font: 600 var(--vd-seat-name, 12.5px)/1.2 var(--vd-ui); color: var(--vd-ink-soft); }
 .vd-seat__state { margin-top: 4px; font: 700 10px/1.2 var(--vd-ui); letter-spacing: 0.05em; color: var(--vd-brass); }
@@ -340,9 +402,10 @@
 .vd-seat.is-leader .vd-seat__name { color: var(--vd-ink); }
 
 /* named / riding: the piece is lifted off the board — parchment, brass stud */
+/* Named onto the party: the token turns to brass foil and lifts. */
 .vd-seat.is-named .vd-seat__disc {
-  background: var(--vd-parchment);
-  border-color: var(--vd-brass-edge);
+  background: var(--brass-fill);
+  box-shadow: var(--shadow-token-named);
 }
 .vd-seat.is-named .vd-seat__disc::after {
   content: "";
@@ -1081,29 +1144,77 @@
   border-top: 1px solid var(--vd-rule-structure);
   border-bottom: 1px solid var(--vd-rule-structure);
 }
-.vd-strip__ladder { display: flex; gap: 5px; }
+.vd-strip__ladder { display: flex; gap: var(--space-3); }
+
+/* Mission coins.
+
+   This was five small rounded plaques carrying a number and a tally. The
+   system says square is for panels and round is for things that are
+   physically round — a mission is a coin you put down on the cloth, so it is
+   struck rather than drawn: a domed fill, a serif face, and a landing
+   animation with a counter-rotation.
+
+   Four states, and only one of them is lit: `is-active` is where the table
+   is now. A held mission is parchment foil, a fallen one is rust, and an
+   unplayed one is barely there. */
 .vd-slot {
   position: relative;
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  min-width: 34px; padding: 4px 5px;
-  border: 1px solid var(--vd-rule-control);
+  display: grid;
+  place-items: center;
+  width: var(--coin-size);
+  height: var(--coin-size);
+  border-radius: var(--radius-round);
+  background: radial-gradient(circle at 50% 30%, #1c1811, #0e0b08);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  font: 400 15px/1 var(--font-display);
+  color: #5e5647;
+  animation: vd-coin var(--dur-coin) var(--ease-deal) both;
 }
-.vd-slot__n { font: 500 12px/1 var(--vd-display); color: var(--vd-ink-dim); }
-.vd-slot__v { font: 700 11.5px/1 var(--vd-ui); color: var(--vd-ink-muted); }
-.vd-slot.is-active { background: var(--vd-parchment); border-color: var(--vd-brass-edge); }
-.vd-slot.is-active .vd-slot__n { color: #171410; }
-.vd-slot.is-active .vd-slot__v { color: rgba(23, 20, 16, 0.7); }
-.vd-slot.is-held { border-color: var(--vd-brass-edge); }
-.vd-slot.is-held .vd-slot__v { color: var(--vd-ink); }
-.vd-slot.is-fail { border-color: var(--vd-red-rule); }
-.vd-slot.is-fail .vd-slot__v { color: var(--vd-red-ink); }
+/* Dealt, not switched on — one coin lands after the next. */
+.vd-slot:nth-child(2) { animation-delay: calc(var(--stagger) * 1); }
+.vd-slot:nth-child(3) { animation-delay: calc(var(--stagger) * 2); }
+.vd-slot:nth-child(4) { animation-delay: calc(var(--stagger) * 3); }
+.vd-slot:nth-child(5) { animation-delay: calc(var(--stagger) * 4); }
+
+.vd-slot.is-active {
+  background: linear-gradient(180deg, #2a2417, #161009);
+  box-shadow: inset 0 0 0 1px rgba(235, 207, 136, 0.7), 0 0 16px rgba(235, 207, 136, 0.18);
+  color: var(--brass-lit);
+}
+.vd-slot.is-held {
+  background: linear-gradient(180deg, var(--parch-2), #b8ac8c);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  color: var(--ink-on-brass);
+}
+.vd-slot.is-fail {
+  background: linear-gradient(180deg, var(--evil), #6e2e1f);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  color: #f6eedc;
+}
+
+/* The face. One glyph or one number — a coin cannot hold a tally, and the
+   score of a finished mission is in the ledger behind the info sheet. */
+.vd-slot__face { font: inherit; }
+/* A mission that needs two fails is marked on the rim, not spelled out. */
 .vd-slot__dbl {
-  position: absolute; top: 2px; right: 2px;
-  width: 4px; height: 4px; background: var(--vd-red);
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-round);
+  background: var(--evil);
 }
-.vd-strip__rejects { display: flex; gap: 3px; width: 66px; margin-left: auto; }
-.vd-strip__rejects > i { flex: 1; height: 4px; background: #2c2721; }
-.vd-strip__rejects > i.is-used { background: var(--vd-red); }
+
+.vd-strip__rejects { display: flex; gap: 4px; margin-left: auto; }
+.vd-strip__rejects > i {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-round);
+  background: rgba(255, 255, 255, 0.12);
+}
+.vd-strip__rejects > i.is-used { background: var(--evil); }
+
 .vd-strip__warn {
   font: 700 var(--vd-t-label)/1.2 var(--vd-ui);
   letter-spacing: 0.08em; text-transform: uppercase;
@@ -1160,12 +1271,12 @@
 
 .vd-tile {
   display: flex; align-items: center; gap: 10px;
-  padding: 11px 13px; border: 1px solid var(--vd-rule-container);
-  background: var(--vd-bg-raised); color: var(--vd-ink);
+  padding: 11px 13px; border: 0;
+  background: var(--raised); box-shadow: var(--shadow-row); color: var(--vd-ink);
   font: 600 14px/1.25 var(--vd-ui); text-align: left; width: 100%;
   min-height: 44px;
 }
-.vd-tile--parchment { background: var(--vd-parchment); border-color: var(--vd-brass-edge); color: #171410; }
+.vd-tile--parchment { background: var(--vd-parchment); box-shadow: none; color: var(--ink-on-brass); }
 /* A name you were SHOWN, carrying the same mark that seat wears on the seal.
    The sigil is the thing being matched, so it leads; the seat number is the
    tiebreak for a table where two marks read alike across the room. */
@@ -1176,12 +1287,12 @@
   text-transform: uppercase;
   color: rgba(23, 20, 16, 0.58);
 }
-.vd-tile--evil { background: rgba(158, 59, 40, 0.07); border-color: var(--vd-red-rule); }
-.vd-tile--brass { border-color: var(--vd-brass); }
+.vd-tile--evil { background: rgba(180, 85, 60, 0.09); box-shadow: var(--shadow-row), inset 0 0 0 1px var(--vd-red-rule); }
+.vd-tile--brass { box-shadow: var(--shadow-row), inset 0 0 0 1px var(--vd-brass); }
 /* A tile that is a button gets a brass hover and a real focus ring, so "can I
    click this row?" is answered by the row itself rather than by trying it. */
 .vd-tile--btn { cursor: pointer; }
-.vd-tile--btn:hover:not(:disabled) { border-color: var(--vd-brass); background: #1f1b16; }
+.vd-tile--btn:hover:not(:disabled) { box-shadow: var(--shadow-row), inset 0 0 0 1px var(--vd-brass-edge); }
 .vd-tile--btn:focus-visible { outline: 2px solid var(--vd-brass); outline-offset: 2px; }
 .vd-tile:disabled { opacity: 0.65; cursor: not-allowed; }
 .vd-tile__meta { margin-left: auto; font: 700 var(--vd-t-label)/1 var(--vd-ui); letter-spacing: 0.07em; text-transform: uppercase; color: var(--vd-ink-dim); }
@@ -1437,22 +1548,53 @@
 .vd-world { flex-direction: row; align-items: center; }
 .vd-world__body { flex-direction: column; align-items: flex-start; gap: 3px; }
 
+/* The code plate.
+
+   Hammered brass: a warm gradient body, a lit top edge, a dark lip beneath,
+   and the code itself struck into it at display size. This is the one thing
+   on the lobby people read out loud across a room, so it is the largest thing
+   on the screen after the action — it used to be 26px inside a hairline box,
+   ranked below the player count. */
 .vd-invite {
-  display: flex; align-items: center; gap: var(--vd-3); flex-wrap: wrap;
-  padding: 12px 14px; border: 1px solid var(--vd-rule-strong);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--vd-3); flex-wrap: wrap;
+  padding: 15px 18px;
+  border: 0;
+  background: var(--plate);
+  box-shadow: var(--shadow-plate);
+  animation: vd-rise var(--dur-rise) var(--ease-deal) both;
 }
 .vd-invite__code {
-  font: 500 26px/1 var(--vd-display); letter-spacing: 0.2em; color: var(--vd-brass);
+  font: 400 42px/1.05 var(--vd-display);
+  letter-spacing: var(--code-tracking);
+  color: var(--brass-lit);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
 }
 .vd-invite__btn {
   margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 12px; min-height: 40px;
-  border: 1px solid var(--vd-rule-control); background: transparent;
-  min-height: 44px;
-  color: var(--vd-ink); font: 700 12.5px/1 var(--vd-ui);
+  padding: 9px 12px;
+  min-height: var(--hit-min);
+  border: 0;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  color: var(--vd-ink); font: 600 12.5px/1 var(--vd-ui);
   letter-spacing: 0.01em; cursor: pointer;
+  transition: background var(--dur-tint) linear, color var(--dur-tint) linear;
 }
-.vd-invite__btn:hover { color: var(--vd-brass); border-color: var(--vd-brass); }
+.vd-invite__btn:hover { background: rgba(235, 207, 136, 0.16); color: var(--vd-ink); }
+
+/* A player in a list: the mark they wear on the seal, at roster size. */
+.vd-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--token-size);
+  height: var(--token-size);
+  border-radius: var(--radius-round);
+  background: var(--ink-1);
+  box-shadow: inset 0 0 0 1px #3a2f1c;
+  color: var(--brass);
+}
 .vd-invite__btn:focus-visible { outline: 2px solid var(--vd-brass); outline-offset: 2px; }
 
 /* Was 8px uppercase at 0.2em tracking with no height — which is what Confirm's

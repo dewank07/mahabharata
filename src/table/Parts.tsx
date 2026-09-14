@@ -115,14 +115,33 @@ export function NamePlate({ children }: { children: React.ReactNode }) {
  * rather than widening the room payload. A name that somehow finds no player
  * still renders, as the plain plate it always was.
  */
-export function KnownPlayers({ room, names }: { room: Room; names: string[] }) {
-  // Dealt once for the row, not once per plate: `dealSigils` walks the whole
-  // table to keep the marks distinct, so calling it per name is quadratic for
-  // an identical answer.
-  const sigils = useMemo(
+/**
+ * The table's marks, dealt once.
+ *
+ * `dealSigils` walks the whole roster to keep every mark distinct, so it must
+ * be called for the table and not per row — and the seal, the roster and the
+ * night reveal have to agree, or the mark you were shown is not the mark on
+ * the seat.
+ */
+export function useSigils(room: Room): Record<string, number> {
+  return useMemo(
     () => dealSigils(room.players.map((p) => p.playerId)),
     [room.players.map((p) => p.playerId).join(",")], // eslint-disable-line react-hooks/exhaustive-deps
   );
+}
+
+/** One player's mark, at roster size. */
+export function PlayerMark({ room, playerId }: { room: Room; playerId: string }) {
+  const sigils = useSigils(room);
+  return (
+    <span className="vd-mark" aria-hidden>
+      <Sigil index={sigils[playerId] ?? 0} size={13} color="currentColor" />
+    </span>
+  );
+}
+
+export function KnownPlayers({ room, names }: { room: Room; names: string[] }) {
+  const sigils = useSigils(room);
 
   return (
     <div className="vd-row" style={{ marginTop: 9 }}>

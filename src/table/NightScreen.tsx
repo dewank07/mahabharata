@@ -30,6 +30,7 @@ import { Eye, EyeOff, Sword } from "lucide-react";
 import { CharacterCard } from "../CharacterCard";
 import { characterFor, rolesInPlay, usePreloadArt } from "../characters";
 import { Studded } from "./TableShell";
+import tableEmblem from "../assets/emblem.png";
 import { KnownPlayers, RoleBrief } from "./Parts";
 import { useHold } from "./RoleReveal";
 import type { TableProps } from "./types";
@@ -102,7 +103,7 @@ export function NightScreen({
               </div>
 
               {held ? (
-                <>
+                <div className="vd-turned">
                   {/* Mounted only inside this branch, like everything else that
                       names the role: a portrait is the loudest tell there is,
                       and it must not be sitting in the DOM before the hold. */}
@@ -133,9 +134,21 @@ export function NightScreen({
                       <KnownPlayers room={room} names={me!.known} />
                     )}
                   </div>
-                </>
+                </div>
               ) : (
-                <div className="vd-role__hidden">— — —</div>
+                /* The object says it: three cards in a slew with the table's
+                   mark on the back. The line under it is the only words the
+                   face-down state needs, and the button beneath says how to
+                   turn it. */
+                <>
+                  <div className="vd-facedown">
+                    <i /><i />
+                    <div className="vd-facedown__top">
+                      <img className="vd-facedown__mark" src={tableEmblem} alt="" />
+                    </div>
+                  </div>
+                  <p className="vd-facedown__say">Your card, face down</p>
+                </>
               )}
 
               <button

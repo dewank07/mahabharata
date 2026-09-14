@@ -1,6 +1,10 @@
 /* ============================================================================
-   Shared pieces: the quest ladder, the chronicle, and the overlay plate. All
-   flat — no animation, no glow.
+   Shared pieces: the chronicle and the overlay plate.
+
+   `QuestLadder` left with the reckoning's redesign. It was a second drawing of
+   the same five facts `StatusStrip` already deals as coins, kept in step with
+   it by hand — so the reckoning renders that same coin a size larger and there
+   is one board in the app instead of two.
 
    `ClockFuse` (a 52px numeral, a caption and fifteen ticks) and
    `RejectionTrack` (dots under a sentence explaining them) both left when the
@@ -10,87 +14,6 @@
    ========================================================================== */
 
 import { useEffect, useRef } from "react";
-
-/* -------------------------------------------------------- quest ladder --- */
-
-export function QuestLadder({
-  sizes,
-  questIndex,
-  results,
-  doubleFail = [],
-  log = [],
-}: {
-  sizes: number[];                                  // QUEST_SIZES[playerCount]
-  questIndex: number;
-  results: (("success" | "fail") | null)[];
-  /** Quests needing two fails: Q4 at 7+, and Q3 as well above ten. */
-  doubleFail?: number[];
-  /**
-   * Counts for quests already ridden. A ridden rung swaps its party size for
-   * what actually came back, so the history is legible from every screen
-   * without opening the ledger.
-   */
-  log?: Array<{ questIndex: number; successes: number; fails: number }>;
-}) {
-  return (
-    <div>
-      <div className="vd-label">The five missions</div>
-      <div className="vd-seg" style={{ marginTop: 12 }}>
-        {sizes.map((size, i) => {
-          const result = results[i];
-          const active = i === questIndex;
-          const tally = log.find((q) => q.questIndex === i);
-          return (
-            <div key={i} className={active ? "is-active" : undefined} style={{ position: "relative" }}>
-              <div className="vd-numeral" style={{
-                fontSize: 16,
-                color: active ? "#171410" : result === "fail" ? "var(--vd-red-ink)" : result ? "var(--vd-ink)" : "var(--vd-ink-muted)",
-              }}>
-                {i + 1}
-              </div>
-              <div
-                style={{
-                  marginTop: 5, font: "700 11.5px/1 var(--vd-ui)",
-                  color: active ? "rgba(23,20,16,.6)" : "var(--vd-ink-dim)",
-                }}
-                title={
-                  tally
-                    ? `Mission ${i + 1}: ${tally.successes} Succeed, ${tally.fails} Fail`
-                    : `Mission ${i + 1}: ${size} people go`
-                }
-              >
-                {tally ? (
-                  <>
-                    <span style={{ color: "var(--vd-ink)" }}>{tally.successes}</span>
-                    <span style={{ opacity: 0.5 }}>–</span>
-                    <span style={{ color: tally.fails > 0 ? "var(--vd-red-ink)" : "inherit" }}>
-                      {tally.fails}
-                    </span>
-                  </>
-                ) : (
-                  size
-                )}
-              </div>
-              {doubleFail.includes(i) && (
-                <span style={{ position: "absolute", top: 4, right: 4, width: 5, height: 5, background: "var(--vd-red)" }} />
-              )}
-            </div>
-          );
-        })}
-      </div>
-      {doubleFail.length > 0 && (
-        <div style={{ marginTop: 9, display: "flex", alignItems: "center", gap: 7 }}>
-          <span style={{ width: 5, height: 5, background: "var(--vd-red)" }} />
-          <span style={{ font: "400 13px/1.4 var(--vd-ui)", color: "var(--vd-ink-soft)" }}>
-            {doubleFail.length === 1
-              ? `Mission ${doubleFail[0] + 1} needs two Fail cards to fail`
-              : `Missions ${doubleFail.map((i) => i + 1).join(" and ")} need two Fail cards to fail`}
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
 
 /* ------------------------------------------------------------ chronicle --- */
 

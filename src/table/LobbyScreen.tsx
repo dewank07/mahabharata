@@ -69,9 +69,9 @@ const ROLE_OPTS: Array<{
 ];
 
 export function LobbyScreen({
-  room, pid, emblemSrc, account, worlds, act,
+  room, pid, account, worlds, act,
   onStart, onSwapSeat, onRemovePlayer, onSetOpts, onChangeTheme,
-}: Pick<TableProps, "room" | "pid" | "emblemSrc" | "account" | "worlds" | "act"> & {
+}: Pick<TableProps, "room" | "pid" | "account" | "worlds" | "act"> & {
   onStart: () => Promise<unknown>;
   onSwapSeat: (watcherId: string, seatedId: string) => Promise<unknown>;
   onRemovePlayer: (targetId: string) => Promise<unknown>;
@@ -437,8 +437,7 @@ export function LobbyScreen({
       <div className="vd-centre">
         <SeatRing
           room={room}
-          emblemSrc={emblemSrc}
-          stateFor={(p) => (p.playerId === pid ? "leader" : "idle")}
+            stateFor={(p) => (p.playerId === pid ? "leader" : "idle")}
           /* Every non-host seat used to be labelled with a Roman numeral —
              "II", "III", "IV" — which reads as a fact about that player and
              is really just their seat index. Only the two labels that mean

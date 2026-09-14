@@ -23,8 +23,8 @@ import { Riders } from "./ProposeScreen";
 import { type TableProps, nameOf } from "./types";
 
 export function VoteScreen({
-  room, pid, emblemSrc, act, onVote,
-}: Pick<TableProps, "room" | "pid" | "emblemSrc" | "act"> & {
+  room, pid, act, onVote,
+}: Pick<TableProps, "room" | "pid" | "act"> & {
   onVote: (choice: "approve" | "reject") => Promise<unknown>;
 }) {
   const voted = room.voteProgress.iVoted;
@@ -55,7 +55,6 @@ export function VoteScreen({
 
       <SeatRing
         room={room}
-        emblemSrc={emblemSrc}
         // A brass ring means a vote is in. It never says which way.
         stateFor={(p) => {
           if (room.proposedTeam.includes(p.playerId)) return "named";

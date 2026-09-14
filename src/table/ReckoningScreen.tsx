@@ -1,17 +1,19 @@
 /* ============================================================================
    08 · The reckoning.
 
-   A ledger of allegiances, not a scoreboard: `winReason` in the engine's own
-   words, the five-quest board, then every seat in order with its role. Evil rows
-   are tinted; Merlin's row is brass.
+   A ledger of allegiances, not a scoreboard: the verdict struck at display
+   size in the engine's own words, the five missions landing one last time as
+   coins, then every seat in order with the character behind it.
+
+   The board is the SAME coin the status strip deals, a size larger, rather
+   than `QuestLadder` — a second drawing of the same five facts that had to be
+   kept in step with the strip by hand, and drifted.
    ========================================================================== */
 
 import { RefreshCw } from "lucide-react";
-import { CharacterCard } from "../CharacterCard";
 import { characterFor } from "../characters";
-import { QuestLadder } from "../TableParts";
-import { QUEST_SIZES, doubleFailQuests } from "../../convex/logic";
-import { Studded, Waiting } from "./TableShell";
+import { QUEST_SIZES } from "../../convex/logic";
+import { Waiting } from "./TableShell";
 import { type TableProps, displayName, nameOf } from "./types";
 
 export function ReckoningScreen({
@@ -31,25 +33,44 @@ export function ReckoningScreen({
   return (
     <div className="vd-table vd-table-layout">
       <div className="vd-stack">
-        <Studded className={`vd-role ${goodWon ? "" : "vd-role--evil"}`}>
-          <div className="vd-role__side">
+        {/* The verdict, struck. It was a studded panel with the winner as a
+            30px heading inside it; the system makes the result the largest
+            thing on the screen and gives it the display face at 52px, with
+            the engine's own `winReason` under it. */}
+        <div className={`vd-verdict ${goodWon ? "" : "vd-verdict--evil"}`}>
+          <div className="vd-verdict__side">
             {goodWon ? theme.goodTeamName : theme.evilTeamName}
           </div>
-          <div className="vd-role__name" style={{ fontSize: 30 }}>
-            {goodWon
-              ? `${theme.goodTeamName} win`
-              : `${theme.evilTeamName} win`}
-          </div>
-          <p className="vd-voice" style={{ margin: 0 }}>{room.winReason}</p>
-        </Studded>
+          <h1 className="vd-verdict__name">
+            {goodWon ? `${theme.goodTeamName} win` : `${theme.evilTeamName} win`}
+          </h1>
+          <p className="vd-verdict__why">{room.winReason}</p>
+        </div>
 
-        <QuestLadder
-          sizes={QUEST_SIZES[n] ?? []}
-          questIndex={-1}
-          results={room.questResults}
-          doubleFail={doubleFailQuests(n)}
-          log={room.questLog ?? []}
-        />
+        {/* The five, one more time — the same coins the strip deals, struck a
+            size larger. `QuestLadder` was a second, different drawing of the
+            board that had to be kept in step with the strip by hand. */}
+        <div className="vd-result" role="group" aria-label="How the five missions went">
+          {(QUEST_SIZES[n] ?? []).map((size, i) => {
+            const r = room.questResults[i];
+            const q = (room.questLog ?? []).find((x) => x.questIndex === i);
+            return (
+              <span
+                key={i}
+                className={`vd-slot ${r === "success" ? "is-held" : r === "fail" ? "is-fail" : ""}`}
+                aria-label={
+                  q
+                    ? `Mission ${i + 1}: ${q.successes} succeeded, ${q.fails} failed`
+                    : `Mission ${i + 1}: never ridden, ${size} would have gone`
+                }
+              >
+                <span className="vd-slot__face" aria-hidden>
+                  {r === "success" ? "\u2726" : r === "fail" ? "\u2715" : size}
+                </span>
+              </span>
+            );
+          })}
+        </div>
 
         {room.lancelot?.swapped && (
           <p className="vd-hint">
@@ -79,8 +100,12 @@ export function ReckoningScreen({
               side — dealt out as the cards everyone has been looking at all
               game, because this screen is the moment the table finds out who
               everybody was. */}
-          <div className="cc-grid cc-grid--sm">
-            {room.players.map((p) => {
+          {/* One raised row per seat: the face at card proportion, the player,
+              the character under them in the display face, the side struck at
+              the end. The card grid said the same thing at four times the
+              height, and this screen is a list to read down, not a gallery. */}
+          <div className="vd-whowas">
+            {room.players.map((p, i) => {
               const evil = p.team === "evil";
               const character = p.role ? characterFor(room.theme, p.role) : null;
               const turned =
@@ -95,31 +120,32 @@ export function ReckoningScreen({
               return (
                 <div
                   key={p.playerId}
-                  style={{ display: "flex", flexDirection: "column", gap: 5 }}
+                  className={`vd-whowas__row ${evil ? "is-evil" : ""}`}
+                  style={{ animationDelay: `calc(var(--stagger) * ${i})` }}
                 >
-                  {character ? (
-                    <CharacterCard
-                      character={character}
-                      size="sm"
-                      mode="static"
-                      teams={teams}
-                      title={displayName(p.name)}
-                      subtitle={character.name}
-                      badge={{ label: `Seat ${p.seat + 1}` }}
-                    />
+                  {character?.image ? (
+                    <img className="vd-whowas__face" src={character.image} alt="" />
                   ) : (
-                    /* No role dealt — somebody who joined mid-game. */
-                    <div className={`vd-tile ${evil ? "vd-tile--evil" : ""}`}>
-                      <span className="vd-tile__seat">{p.seat + 1}</span>
-                      {displayName(p.name)}
-                      <span className="vd-tile__meta">{roleName(p.role)}</span>
-                    </div>
-                  )}
-                  {notes.length > 0 && (
-                    <span className="vd-hint" style={{ margin: 0 }}>
-                      {notes.join(" · ")}
+                    <span
+                      className="vd-whowas__face vd-whowas__mono"
+                      style={{ color: evil ? "var(--evil-lit)" : "var(--vd-brass)" }}
+                      aria-hidden
+                    >
+                      {character?.monogram ?? "?"}
                     </span>
                   )}
+                  <span className="vd-whowas__body">
+                    <span className="vd-whowas__who">{displayName(p.name)}</span>
+                    <span className="vd-whowas__role" style={{ display: "block" }}>
+                      {roleName(p.role)}
+                    </span>
+                    {notes.length > 0 && (
+                      <span className="vd-whowas__note">{notes.join(" \u00b7 ")}</span>
+                    )}
+                  </span>
+                  <span className="vd-whowas__side">
+                    {evil ? theme.evilTeamName : theme.goodTeamName}
+                  </span>
                 </div>
               );
             })}

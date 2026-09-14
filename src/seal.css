@@ -1210,6 +1210,10 @@
   color: var(--vd-ink); font: 700 13.5px/1.2 var(--vd-ui);
   letter-spacing: 0.02em; cursor: pointer;
   touch-action: none; user-select: none; -webkit-user-select: none;
+  /* The whole control is a long press, which is also the gesture iOS uses to
+     raise a selection callout. Without this the bubble can come up over the
+     one card in the game nobody else may see. */
+  -webkit-touch-callout: none;
 }
 .vd-hold:focus-visible { outline: 2px solid var(--vd-brass); outline-offset: 2px; }
 .vd-hold.is-holding { background: var(--vd-parchment); border-color: var(--vd-brass-edge); color: #171410; }
@@ -1263,8 +1267,9 @@
 .vd-watcher__q { font: 500 12px/1 var(--vd-display); color: var(--vd-ink-dim); min-width: 16px; }
 .vd-watcher__seat {
   margin-left: auto; padding: 5px 9px;
+  min-width: 44px;
   border: 1px solid var(--vd-rule-control); background: transparent;
-  min-height: 36px;
+  min-height: 44px;
   color: var(--vd-brass); font: 700 12px/1 var(--vd-ui);
   letter-spacing: 0.02em; cursor: pointer;
 }
@@ -1784,6 +1789,7 @@ body { background: var(--vd-bg); }
   cursor: pointer;
   touch-action: none;          /* the hold must not become a scroll */
   user-select: none;
+  -webkit-touch-callout: none; /* ...nor an iOS selection callout */
 }
 .vd-mylot:hover { border-color: var(--vd-brass); color: var(--vd-brass); }
 .vd-mylot:focus-visible { outline: 2px solid var(--vd-brass); outline-offset: 2px; }

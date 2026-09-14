@@ -95,6 +95,31 @@ export function CharacterCard({
   // the previous portrait would leave the new one invisible.
   const shown = art.src === c.image ? art : { src: c.image, loaded: false, failed: false };
 
+  /**
+   * The portrait is held at `opacity: 0` until it reports in, so the load is a
+   * fade rather than a snap. That made the whole picture depend on ONE event
+   * arriving — and `load` does not arrive for an image the browser already had
+   * cached, because it can finish before React attaches the handler. The
+   * portrait then sat at opacity 0 for the life of the card and the monogram
+   * plate showed through instead, which read exactly like art that had failed
+   * to download. It was worst on the surfaces that show the same cast twice
+   * (the lobby, then /learn), where the second visit is the cached one.
+   *
+   * So the DOM is asked as well as listened to. `complete` with a non-zero
+   * `naturalWidth` is a load that already happened; `complete` with zero is a
+   * failure that already happened. The guard is what keeps this off the
+   * render loop: it can only fire while the card is still undecided.
+   */
+  const settleFromDom = (el: HTMLImageElement | null) => {
+    if (!el || !el.complete) return;      // still in flight — the events will do it
+    if (shown.loaded || shown.failed) return;             // already decided
+    setArt(
+      el.naturalWidth > 0
+        ? { src: c.image, loaded: true, failed: false }
+        : { src: c.image, loaded: false, failed: true },
+    );
+  };
+
   const evil = c.team === "evil";
   const sideName = evil ? (teams?.evil ?? "Evil") : (teams?.good ?? "Good");
   // A world with no art, and a portrait that would not load, are the same thing
@@ -134,6 +159,7 @@ export function CharacterCard({
         </span>
         {showArt && (
           <img
+            ref={settleFromDom}
             src={c.image}
             alt=""
             loading="lazy"
@@ -187,15 +213,23 @@ export function CharacterCard({
     <span className="cc__face cc__face--back" aria-hidden={!flipped || undefined}>
       <span className="cc__back">
         {/* One line, not a second title block: you arrived here by turning over
-            a card whose name you have just read. */}
+            a card whose name you have just read.
+
+            The side used to sit on the right of this row, and on a phone the
+            two collided: `cc__side` is `flex: none` and the name is allowed to
+            shrink past its content, so "Merlin" drew straight through "Knights
+            of Arthur". It is also the one fact this face did not need — the
+            front you just turned over says it, and the card's own border
+            carries it in colour. */}
         <span className="cc__backhead">
           <span className="cc__backname">{c.name}</span>
-          <span className="cc__side">
-            {evil ? <Flame size={10} /> : <Sun size={10} />} {sideName}
-          </span>
         </span>
 
-        {c.what && <Block label="What they are" text={c.what} />}
+        {/* No "What they are" block. It restated the tagline on the front of
+            this same card — "Sees the traitors" / "The one good player who
+            knows who the traitors are" — which on a 174px column cost three of
+            the twelve lines this face has to give. What is left is the three
+            things the front does NOT say. */}
         {c.job && <Block label="Your job" text={c.job} />}
         {c.shown && <Block label="You are shown" text={c.shown} />}
         {c.watch && <Block label="Watch out" text={c.watch} warn />}

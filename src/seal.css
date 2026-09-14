@@ -913,32 +913,8 @@
 
 /* What you actually do, before either door. Numbered because the order is the
    point: someone has to start a game before anyone can join one. */
-.lp-how {
-  margin: var(--vd-6) 0 0;
-  padding: 0;
-  list-style: none;
-  counter-reset: lp-how;
-  display: grid;
-  gap: var(--vd-3);
-  width: 100%;
-  text-align: left;
-}
-.lp-how > li {
-  counter-increment: lp-how;
-  display: grid;
-  grid-template-columns: 30px 1fr;
-  align-items: baseline;
-  gap: var(--vd-3);
-  font: 400 15px/1.5 var(--vd-ui);
-  color: var(--vd-ink-soft);
-}
-.lp-how > li::before {
-  content: counter(lp-how);
-  font: 500 20px/1.4 var(--vd-display);
-  color: var(--vd-brass);
-}
-.lp-how > li > span { min-width: 0; }
-.lp-how b { color: var(--vd-ink); font-weight: 700; }
+/* `.lp-how` lived here: the front page's three numbered steps, removed when
+   that page was cut back to one sentence and two doors. */
 
 .lp-note {
   margin: var(--vd-4) 0 0;
@@ -2343,33 +2319,15 @@ body { background: var(--vd-bg); }
 }
 @media (max-width: 380px) { .vd-seg__label { font-size: 13px; } }
 
-/* "What happens next" — the short numbered list under a primary action, so
-   pressing it is not a guess. */
+/* What pressing the button will do, in one line above it.
+   
+   This was a bordered box holding a three-item numbered list, which is a lot
+   of furniture for a sentence — and on a form that is already a tab strip, a
+   field, a hint and a button, it was the fourth box in a column of boxes. The
+   border went with the list; `.vd-steps` went with it, having had no other
+   call site in the app. */
 .vd-gate__next {
   margin: var(--vd-4) 0 var(--vd-5);
-  padding: var(--vd-3) 13px;
-  border: 1px solid var(--vd-rule-container);
-}
-.vd-steps {
-  margin: var(--vd-2) 0 0;
-  padding: 0;
-  list-style: none;
-  counter-reset: vd-steps;
-  display: grid;
-  gap: 6px;
-}
-.vd-steps > li {
-  counter-increment: vd-steps;
-  display: grid;
-  grid-template-columns: 20px 1fr;
-  gap: var(--vd-2);
-  font: 400 13.5px/1.45 var(--vd-ui);
-  color: var(--vd-ink-soft);
-}
-.vd-steps > li::before {
-  content: counter(vd-steps) ".";
-  font: 700 13.5px/1.45 var(--vd-ui);
-  color: var(--vd-brass);
 }
 
 /* A choice card plus the reason it is unavailable, as one grid cell — the
@@ -2456,7 +2414,7 @@ body { background: var(--vd-bg); }
 .vd-list strong, .vd-list b { color: var(--vd-ink); font-weight: 700; }
 
 /* Ordered-list markers were the same faint grey as the text they numbered. */
-.vd-page__section ol:not(.vd-steps):not(.lp-how) { color: var(--vd-ink-soft); }
+.vd-page__section ol { color: var(--vd-ink-soft); }
 .vd-page__section ol::marker { color: var(--vd-brass); }
 
 /* Inline code in the rules must be able to break rather than widen its panel. */

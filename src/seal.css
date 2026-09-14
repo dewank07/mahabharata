@@ -1166,6 +1166,16 @@
   min-height: 44px;
 }
 .vd-tile--parchment { background: var(--vd-parchment); border-color: var(--vd-brass-edge); color: #171410; }
+/* A name you were SHOWN, carrying the same mark that seat wears on the seal.
+   The sigil is the thing being matched, so it leads; the seat number is the
+   tiebreak for a table where two marks read alike across the room. */
+.vd-known { gap: 8px; }
+.vd-known__seat {
+  font: 700 var(--vd-t-label)/1 var(--vd-ui);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgba(23, 20, 16, 0.58);
+}
 .vd-tile--evil { background: rgba(158, 59, 40, 0.07); border-color: var(--vd-red-rule); }
 .vd-tile--brass { border-color: var(--vd-brass); }
 /* A tile that is a button gets a brass hover and a real focus ring, so "can I

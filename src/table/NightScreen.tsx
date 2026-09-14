@@ -30,7 +30,7 @@ import { Eye, EyeOff, Sword } from "lucide-react";
 import { CharacterCard } from "../CharacterCard";
 import { characterFor, rolesInPlay, usePreloadArt } from "../characters";
 import { Studded } from "./TableShell";
-import { NamePlate, RoleBrief } from "./Parts";
+import { KnownPlayers, RoleBrief } from "./Parts";
 import { useHold } from "./RoleReveal";
 import type { TableProps } from "./types";
 
@@ -130,11 +130,7 @@ export function NightScreen({
                       {roleDef?.knowledgeLabel ?? "You are shown nothing."}
                     </span>
                     {(me?.known.length ?? 0) > 0 && (
-                      <div className="vd-row" style={{ marginTop: 10 }}>
-                        {me!.known.map((nm) => (
-                          <NamePlate key={nm}>{nm}</NamePlate>
-                        ))}
-                      </div>
+                      <KnownPlayers room={room} names={me!.known} />
                     )}
                   </div>
                 </>

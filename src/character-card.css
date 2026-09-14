@@ -64,7 +64,8 @@
   text-align: left;
   /* Depth for the flip only. Without it the rotation reads as a squash. */
   perspective: 1200px;
-  transition: border-color 140ms linear, transform 140ms ease-out;
+  /* Nothing transforms the card itself any more — only its rule changes. */
+  transition: border-color 140ms linear;
 }
 /* The 2:3 shape, as a padding ratio rather than `aspect-ratio`.
    This is not nostalgia. `aspect-ratio: 2/3` together with the `min-height`
@@ -98,12 +99,16 @@
    tapping, and none of it is the only signal that the card does something. */
 @media (hover: hover) and (pointer: fine) {
   .cc--btn:hover:not(:disabled) { border-color: var(--vd-brass); }
-  .cc--btn:hover:not(:disabled) .cc__art img { transform: scale(1.04); }
   .cc--btn:hover:not(:disabled) .cc__hint { color: var(--vd-brass); }
 }
-@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
-  .cc--btn:hover:not(:disabled) { transform: translateY(-2px); }
-}
+/* The lift and the portrait zoom are gone.
+
+   The zoom was doing hidden structural work: it was the transform that
+   promoted the image above the fallback plate, so "the picture appears" read
+   as a hover effect rather than as the bug it was papering over. With the
+   stacking fixed the painting is simply always there, which is what a card of
+   a character is for. The rule still goes brass on hover — that is a state,
+   not an animation, and it has a touch equivalent. */
 
 .cc.is-selected { border-color: var(--vd-brass); }
 .cc.is-selected.cc--evil { border-color: var(--vd-red); }
@@ -175,14 +180,35 @@
 /* ---------------------------------------------------------------- the art -- */
 
 .cc__art { display: block; position: absolute; inset: 0; background: var(--vd-bg-raised); }
+/* `position: absolute` is not decoration here — it is the whole reason the
+   portrait is visible.
+
+   `.cc__plate-art` below is positioned and opaque; this image was not
+   positioned. CSS paints in-flow, non-positioned content BEFORE positioned
+   descendants with `z-index: auto`, so the engraved fallback plate was drawn
+   straight over every portrait in the app. The art was downloading, decoding,
+   and then being covered up.
+
+   It showed through in exactly two situations, which is what made this look
+   like a loading fault rather than a stacking one: a `transform` or a `filter`
+   creates a stacking context and promotes the element into the positioned
+   pass. So the card under the cursor (`transform: scale`) and a disabled card
+   (`filter: grayscale`) both revealed their painting, while every ordinary
+   card showed a letter. Hence "images only appear on hover", and hence the
+   lobby showing faces on exactly the options you could not pick.
+
+   Positioned, it paints after `.cc__plate-art` and still beneath the scrim,
+   the name plate and the corner marks, which are later siblings of `.cc__art`. */
 .cc__art img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   /* The faces sit high in every one of these paintings. */
   object-position: center 22%;
   display: block;
-  transition: transform 220ms ease-out, opacity 200ms linear;
+  transition: opacity 200ms linear;
 }
 
 /* Standing in for a portrait: while one loads, when one fails, and in the four

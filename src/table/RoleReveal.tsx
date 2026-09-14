@@ -19,8 +19,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, PointerEvent } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { CharacterCard } from "../CharacterCard";
-import { characterFor } from "../characters";
-import { NamePlate, RoleBrief } from "./Parts";
+import { characterFor, rolesInPlay, usePreloadArt } from "../characters";
+import { KnownPlayers, RoleBrief } from "./Parts";
 import type { Room } from "./types";
 
 const HOLD_MS = 400;
@@ -103,6 +103,23 @@ export function RoleReveal({
   const { held, start, end, onKeyDown, onKeyUp } = useHold();
   const me = room.me;
 
+  /* The card is mounted only while the hold lasts, so an uncached portrait
+     starts downloading at the moment it is needed and arrives after the
+     finger has already lifted — the reveal shows the engraved monogram and
+     the painting never appears at all. The night screen warms the cast for
+     exactly this reason; anyone who joined mid-game never saw that screen,
+     and this is their first hold.
+
+     The whole in-play set, not your own portrait: a request for one file
+     would put your role in the network log, which is the thing the rest of
+     this component goes to lengths to keep out of the DOM. Keyed on the url
+     list inside `usePreloadArt`, so it fetches once and not per phase. */
+  usePreloadArt(
+    rolesInPlay(room.opts as Record<string, boolean | undefined>).map(
+      (id) => characterFor(room.theme, id)?.image,
+    ),
+  );
+
   // Watchers hold nothing, so there is nothing to offer them.
   if (!me || me.isWatcher || !me.role) return null;
 
@@ -161,9 +178,7 @@ export function RoleReveal({
                 {roleDef?.knowledgeLabel ?? "You are shown nothing."}
               </span>
               {me.known.length > 0 && (
-                <div className="vd-row" style={{ marginTop: 9 }}>
-                  {me.known.map((nm) => <NamePlate key={nm}>{nm}</NamePlate>)}
-                </div>
+                <KnownPlayers room={room} names={me.known} />
               )}
             </div>
           </div>

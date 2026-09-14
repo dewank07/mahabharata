@@ -24,6 +24,7 @@ import { CharacterCard } from "../CharacterCard";
 import { characterFor } from "../characters";
 import { SeatRing } from "./Parts";
 import { ActionLine, Confirm } from "./TableShell";
+import { Tutorial, hasSeenTutorial, markTutorialSeen } from "../Tutorial";
 import { type Room, type TableProps } from "./types";
 
 type Opts = Room["opts"];
@@ -78,6 +79,15 @@ export function LobbyScreen({
   onChangeTheme: (themeId: string) => Promise<unknown>;
 }) {
   const [copied, setCopied] = useState(false);
+  /* The lobby is the first moment a new player is sitting still with nothing
+     to press, so it is where the explainer offers itself — once, and then only
+     when asked for. Read at mount rather than on every render: a player who
+     dismisses it should not have it flicker back. */
+  const [tutorial, setTutorial] = useState(() => !hasSeenTutorial());
+  const closeTutorial = () => {
+    markTutorialSeen();
+    setTutorial(false);
+  };
   /* The setup was 3,700px of phone scrolling before the Start button. On a
      roomy screen there is space to show all of it at once, and a host
      configuring a game on a laptop should not have to click four times. */
@@ -343,6 +353,7 @@ export function LobbyScreen({
 
   return (
     <>
+    {tutorial && <Tutorial onClose={closeTutorial} />}
     <div className="vd-table vd-table-layout">
       {/* ------------------------------- left ------------------------------ */}
       <div className="vd-stack">
@@ -357,9 +368,17 @@ export function LobbyScreen({
             </li>
             <li>The leader picks a team, everyone votes, the team decides.</li>
           </ul>
-          <a className="vd-textbtn" href="/learn" style={{ marginTop: 4 }}>
-            See a round played out
-          </a>
+          {/* Was a direct link to /learn. The explainer is the smaller first
+              step and offers /learn on its own last line, so this opens that
+              instead of skipping past it — and it means a player who dismissed
+              the explainer has somewhere to get it back. */}
+          <button
+            className="vd-textbtn"
+            style={{ marginTop: 4 }}
+            onClick={() => setTutorial(true)}
+          >
+            How to play
+          </button>
         </div>
 
         <div className="vd-studded vd-panel vd-panel--strong">

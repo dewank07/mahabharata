@@ -439,6 +439,75 @@
 .vd-plate--danger.vd-studded > .vd-stud-b::after { background: var(--vd-red); }
 
 /* ============================================================================
+   The first-time explainer (`Tutorial.tsx`)
+
+   Built on the overlay plate above, so it inherits the studs and the 1px rule
+   and adds only what paging needs. It sits UNDER the unveil: a reveal is the
+   game talking, and the game always outranks the tutorial.
+   ========================================================================== */
+
+.vd-overlay--tut { z-index: 75; }
+
+.vd-tut { width: min(440px, 100%); padding: 15px 18px 18px; }
+
+.vd-tut__head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--vd-3);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--vd-rule-container);
+}
+
+/* A floor, not a height. The four slides are different lengths, and without
+   this the plate resized under the thumb on every Next — the button moved out
+   from under the finger that was tapping it. */
+.vd-tut__body { min-height: 132px; padding: var(--vd-5) 0 var(--vd-4); }
+@media (max-width: 480px) { .vd-tut__body { min-height: 158px; } }
+
+.vd-tut__title {
+  margin: 0;
+  font: 500 23px/1.25 var(--vd-display);
+  color: var(--vd-ink);
+}
+.vd-tut__text { margin: 11px 0 0; }
+
+/* Dots are 8px of ink inside a 44px target: the mark should read as a position
+   indicator, not as a button, but it is one and a thumb has to be able to find
+   it. Same reason the seat discs carry their own padding. */
+.vd-tut__dots {
+  display: flex; justify-content: center; align-items: center;
+  gap: 2px;
+  margin-bottom: var(--vd-3);
+}
+.vd-tut__dot {
+  display: grid; place-items: center;
+  width: 34px; height: 44px;
+  padding: 0; border: 0; background: none; cursor: pointer;
+}
+.vd-tut__dot > i {
+  display: block; width: 22px; height: 2px;
+  background: var(--vd-rule-strong);
+  transition: background-color 120ms linear;
+}
+.vd-tut__dot.is-on > i { background: var(--vd-brass); }
+.vd-tut__dot:focus-visible { outline: 2px solid var(--vd-brass); outline-offset: -6px; }
+
+.vd-tut__acts {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--vd-3);
+}
+/* `.vd-btn` is full-width everywhere else in the app, which is right for a
+   single decision and wrong inside a row that also holds Back. */
+.vd-tut__go { width: auto; min-width: 146px; }
+
+.vd-tut__more {
+  display: flex; justify-content: center;
+  width: 100%;
+  margin-top: var(--vd-2);
+  color: var(--vd-ink-dim);
+}
+.vd-tut__more:hover { color: var(--vd-brass); }
+
+/* ============================================================================
    The unveiling (vote verdict, quest deeds)
    Sits on the overlay plate above. The tally borrows the segmented group's
    shared 1px rules; the outcome is struck like a chronicle outcome.

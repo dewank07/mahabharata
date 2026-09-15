@@ -23,12 +23,21 @@ import {
   useLocation,
 } from "./router";
 import "./styles.css";
-// After styles.css so the Council Seal tokens win on gameplay screens.
+// The design system's own token set. Before seal.css, which aliases its
+// `--vd-*` names onto these — a var() referencing a later declaration would
+// resolve to nothing.
+import "./tokens.css";
+// After styles.css so the Verdict Table tokens win on gameplay screens.
 import "./seal.css";
 // After seal.css, and here rather than inside CharacterCard: a component-level
 // import lands wherever the bundler happens to reach it, and the card's rules
 // are meant to sit on top of the seal's.
 import "./character-card.css";
+// Last, and for the same reason character-card.css is late: the chamber layer
+// is presentation laid ON the finished system — an illustrated ground, the
+// front door's fan, the phone's role handle — and each one needs to win
+// against the rule it is replacing.
+import "./chamber.css";
 import { Loader2 } from "lucide-react";
 
 const url = import.meta.env.VITE_CONVEX_URL as string;

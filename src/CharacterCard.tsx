@@ -139,6 +139,10 @@ export function CharacterCard({
   const classes = [
     "cc",
     `cc--${size}`,
+    /* The picker needs to be distinguishable from a static card in CSS: an
+       unselected option is drained of colour, while a static card during play
+       never is. */
+    mode === "select" ? "cc--select" : "",
     evil ? "cc--evil" : "cc--good",
     mode !== "static" ? "cc--btn" : "",
     flipped ? "is-flipped" : "",

@@ -1,6 +1,12 @@
 /* ============================================================================
-   Shared pieces: the quest ladder, the chronicle, and the overlay plate. All
-   flat — no animation, no glow.
+   Shared pieces: the mission board, the chronicle and the overlay plate.
+
+   `QuestLadder` and `StatusStrip` used to draw the same five facts two
+   different ways and had to be kept in step by hand. `MissionCoins` is that
+   one board, struck as coins per the design system — and it carries
+   everything BOTH of them carried: the mission number, the party size, the
+   tally a ridden mission came back with, the two-fails mark, and the line
+   that explains that mark.
 
    `ClockFuse` (a 52px numeral, a caption and fifteen ticks) and
    `RejectionTrack` (dots under a sentence explaining them) both left when the
@@ -10,85 +16,111 @@
    ========================================================================== */
 
 import { useEffect, useRef } from "react";
+import { useHeldQuests } from "./reveal-gate";
 
-/* -------------------------------------------------------- quest ladder --- */
+/* --------------------------------------------------------- mission board --- */
 
-export function QuestLadder({
+/**
+ * The five missions, as struck coins.
+ *
+ * One coin carries two lines because it has to carry two facts: WHICH mission
+ * it is, and what is known about it — the party size before it rides, the
+ * `successes–fails` it came back with after. The coin's colour says whether it
+ * held; the numbers say by how much, which is the thing the next round argues
+ * about.
+ *
+ * `size="lg"` is the reckoning, where the board is the record rather than a
+ * readout, and where the two-fails legend is worth the line it costs.
+ */
+export function MissionCoins({
   sizes,
   questIndex,
   results,
   doubleFail = [],
   log = [],
+  size = "sm",
+  legend = false,
+  holdUnrevealed = false,
 }: {
-  sizes: number[];                                  // QUEST_SIZES[playerCount]
+  sizes: number[];
   questIndex: number;
   results: (("success" | "fail") | null)[];
-  /** Quests needing two fails: Q4 at 7+, and Q3 as well above ten. */
   doubleFail?: number[];
-  /**
-   * Counts for quests already ridden. A ridden rung swaps its party size for
-   * what actually came back, so the history is legible from every screen
-   * without opening the ledger.
-   */
   log?: Array<{ questIndex: number; successes: number; fails: number }>;
+  size?: "sm" | "lg";
+  legend?: boolean;
+  /**
+   * Draw a quest as un-ridden while its unveil is still owed to this player.
+   *
+   * The server writes the result and the tally in one patch, so without this
+   * the coin turns red and prints "0–2" the instant the last card lands —
+   * behind an unveil that is still showing those cards face down. On for the
+   * in-play strip; off for the reckoning, which is the record after the game
+   * and has nothing left to spoil.
+   */
+  holdUnrevealed?: boolean;
 }) {
+  const heldQuests = useHeldQuests();
+
   return (
-    <div>
-      <div className="vd-label">The five missions</div>
-      <div className="vd-seg" style={{ marginTop: 12 }}>
-        {sizes.map((size, i) => {
-          const result = results[i];
+    <>
+      <div
+        className={`vd-coins ${size === "lg" ? "vd-coins--lg" : ""}`}
+        role="group"
+        aria-label="The five missions"
+      >
+        {sizes.map((n, i) => {
+          // Everything this coin knows is withheld together — the colour and
+          // the count come from the same write and would give each other away.
+          const held = holdUnrevealed && heldQuests.has(i);
+          const result = held ? null : results[i];
           const active = i === questIndex;
-          const tally = log.find((q) => q.questIndex === i);
+          const tally = held ? undefined : log.find((q) => q.questIndex === i);
+          const twoFails = doubleFail.includes(i);
           return (
-            <div key={i} className={active ? "is-active" : undefined} style={{ position: "relative" }}>
-              <div className="vd-numeral" style={{
-                fontSize: 16,
-                color: active ? "#171410" : result === "fail" ? "var(--vd-red-ink)" : result ? "var(--vd-ink)" : "var(--vd-ink-muted)",
-              }}>
-                {i + 1}
-              </div>
-              <div
-                style={{
-                  marginTop: 5, font: "700 11.5px/1 var(--vd-ui)",
-                  color: active ? "rgba(23,20,16,.6)" : "var(--vd-ink-dim)",
-                }}
-                title={
-                  tally
-                    ? `Mission ${i + 1}: ${tally.successes} Succeed, ${tally.fails} Fail`
-                    : `Mission ${i + 1}: ${size} people go`
-                }
-              >
+            <span
+              key={i}
+              className={[
+                "vd-slot",
+                active ? "is-active" : "",
+                result === "fail" ? "is-fail" : "",
+                result === "success" ? "is-held" : "",
+              ].filter(Boolean).join(" ")}
+              style={{ animationDelay: `calc(var(--stagger) * ${i})` }}
+              aria-label={
+                tally
+                  ? `Mission ${i + 1}: ${tally.successes} succeeded, ${tally.fails} failed`
+                  : `Mission ${i + 1}: ${n} people go${twoFails ? ", needs two fails" : ""}`
+              }
+            >
+              <span className="vd-slot__n" aria-hidden>{i + 1}</span>
+              <span className="vd-slot__face" aria-hidden>
                 {tally ? (
                   <>
-                    <span style={{ color: "var(--vd-ink)" }}>{tally.successes}</span>
-                    <span style={{ opacity: 0.5 }}>–</span>
-                    <span style={{ color: tally.fails > 0 ? "var(--vd-red-ink)" : "inherit" }}>
-                      {tally.fails}
-                    </span>
+                    {tally.successes}
+                    <i className="vd-slot__dash">–</i>
+                    <i className={tally.fails > 0 ? "vd-slot__fails" : undefined}>{tally.fails}</i>
                   </>
                 ) : (
-                  size
+                  n
                 )}
-              </div>
-              {doubleFail.includes(i) && (
-                <span style={{ position: "absolute", top: 4, right: 4, width: 5, height: 5, background: "var(--vd-red)" }} />
-              )}
-            </div>
+              </span>
+              {twoFails && <span className="vd-slot__dbl" aria-hidden />}
+            </span>
           );
         })}
       </div>
-      {doubleFail.length > 0 && (
-        <div style={{ marginTop: 9, display: "flex", alignItems: "center", gap: 7 }}>
-          <span style={{ width: 5, height: 5, background: "var(--vd-red)" }} />
-          <span style={{ font: "400 13px/1.4 var(--vd-ui)", color: "var(--vd-ink-soft)" }}>
-            {doubleFail.length === 1
-              ? `Mission ${doubleFail[0] + 1} needs two Fail cards to fail`
-              : `Missions ${doubleFail.map((i) => i + 1).join(" and ")} need two Fail cards to fail`}
-          </span>
-        </div>
+
+      {/* The mark on a coin's rim means nothing on its own. */}
+      {legend && doubleFail.length > 0 && (
+        <p className="vd-coins__legend">
+          <span className="vd-slot__dbl" aria-hidden />
+          {doubleFail.length === 1
+            ? `Mission ${doubleFail[0] + 1} needed two Fail cards to fail`
+            : `Missions ${doubleFail.map((i) => i + 1).join(" and ")} needed two Fail cards to fail`}
+        </p>
       )}
-    </div>
+    </>
   );
 }
 

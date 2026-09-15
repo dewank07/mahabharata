@@ -26,6 +26,7 @@ import { GameInfo } from "./GameInfo";
 import type { Account, Room } from "./types";
 import { displayName, leaderOf, partySize } from "./types";
 import { RoleReveal } from "./RoleReveal";
+import { SoundToggle } from "../SoundToggle";
 
 /** Phases that are a turn of the game rather than setup, dealing or results. */
 const IN_PLAY = new Set([
@@ -81,6 +82,7 @@ export function TableShell({
             {room.phase !== "lobby" && room.phase !== "reveal" && (
               <RoleReveal room={room} theme={theme} />
             )}
+            <SoundToggle />
             {room.phase !== "lobby" && (
               <button
                 className="vd-iconbtn"

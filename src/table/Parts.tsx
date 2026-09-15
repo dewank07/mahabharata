@@ -11,7 +11,7 @@
 
 import { useMemo } from "react";
 import { CouncilSeal, type Seat, type SeatState } from "../CouncilSeal";
-import { dealSigils } from "../sigils";
+import { Sigil, dealSigils } from "../sigils";
 import { type Room, displayName } from "./types";
 
 /**
@@ -98,4 +98,69 @@ export function RoleBrief({ room }: { room: Room }) {
 /** A parchment name plate. The design never shows a learned name as plain text. */
 export function NamePlate({ children }: { children: React.ReactNode }) {
   return <span className="vd-tile vd-tile--parchment" style={{ width: "auto" }}>{children}</span>;
+}
+
+/**
+ * The people you were shown, as they appear everywhere else in the game.
+ *
+ * This was a row of bare names. A name is not how anyone identifies a player
+ * mid-game: the seal deals every seat a sigil and a number, and that mark is
+ * what "the third one round, the peak" means when you are looking at a table
+ * rather than at a list. Being told "you are shown: bran, esa" and then having
+ * to map two strings onto a ring of eighteen marks is work the reveal can just
+ * do for you — and it is the one screen you cannot ask for again.
+ *
+ * The server sends NAMES (`knownNames`), and names are unique in a room —
+ * `joinRoom` refuses a duplicate — so the mark is looked up by name here
+ * rather than widening the room payload. A name that somehow finds no player
+ * still renders, as the plain plate it always was.
+ */
+/**
+ * The table's marks, dealt once.
+ *
+ * `dealSigils` walks the whole roster to keep every mark distinct, so it must
+ * be called for the table and not per row — and the seal, the roster and the
+ * night reveal have to agree, or the mark you were shown is not the mark on
+ * the seat.
+ */
+export function useSigils(room: Room): Record<string, number> {
+  return useMemo(
+    () => dealSigils(room.players.map((p) => p.playerId)),
+    [room.players.map((p) => p.playerId).join(",")], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+}
+
+/** One player's mark, at roster size. */
+export function PlayerMark({ room, playerId }: { room: Room; playerId: string }) {
+  const sigils = useSigils(room);
+  return (
+    <span className="vd-mark" aria-hidden>
+      <Sigil index={sigils[playerId] ?? 0} size={13} color="currentColor" />
+    </span>
+  );
+}
+
+export function KnownPlayers({ room, names }: { room: Room; names: string[] }) {
+  const sigils = useSigils(room);
+
+  return (
+    <div className="vd-row" style={{ marginTop: 9 }}>
+      {names.map((nm) => {
+        const p = room.players.find((x) => x.name === nm);
+        if (!p) return <NamePlate key={nm}>{displayName(nm)}</NamePlate>;
+        return (
+          <span
+            key={nm}
+            className="vd-tile vd-tile--parchment vd-known"
+            style={{ width: "auto" }}
+          >
+            {/* Ink on parchment, like the named seats on the seal. */}
+            <Sigil index={sigils[p.playerId] ?? 0} size={17} color="#171410" />
+            {displayName(p.name)}
+            <span className="vd-known__seat">Seat {p.seat + 1}</span>
+          </span>
+        );
+      })}
+    </div>
+  );
 }

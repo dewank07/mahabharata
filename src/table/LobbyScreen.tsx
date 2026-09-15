@@ -22,7 +22,7 @@ import {
 } from "../../convex/logic";
 import { CharacterCard } from "../CharacterCard";
 import { characterFor } from "../characters";
-import { SeatRing } from "./Parts";
+import { PlayerMark, SeatRing } from "./Parts";
 import { ActionLine, Confirm } from "./TableShell";
 import { Tutorial, hasSeenTutorial, markTutorialSeen } from "../Tutorial";
 import { type Room, type TableProps } from "./types";
@@ -405,6 +405,12 @@ export function LobbyScreen({
           <span className="vd-label">Who's here ({room.players.length})</span>
           {room.players.map((p) => (
             <div key={p.playerId} className="vd-tile">
+              {/* The mark AND the seat. The sigil is how this person is
+                  identified on the seal, in the night reveal and across the
+                  table; the number is how the host refers to them while
+                  setting up. The design adds the first, it does not replace
+                  the second. */}
+              <PlayerMark room={room} playerId={p.playerId} />
               <span className="vd-tile__seat">{p.seat + 1}</span>
               {p.name}
               <span className="vd-tile__meta">

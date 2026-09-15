@@ -15,6 +15,7 @@
    ========================================================================== */
 
 import { QUEST_SIZES, doubleFailQuests } from "../../convex/logic";
+import { MissionCoins } from "../TableParts";
 import type { Room } from "./types";
 
 export function StatusStrip({ room }: { room: Room }) {
@@ -25,36 +26,19 @@ export function StatusStrip({ room }: { room: Room }) {
 
   return (
     <div className="vd-strip">
-      <div className="vd-strip__ladder" role="group" aria-label="The five missions">
-        {sizes.map((size, i) => {
-          const result = room.questResults[i];
-          const active = i === room.questIndex;
-          const tally = log.find((q) => q.questIndex === i);
-          const twoFails = doubleFail.includes(i);
-          return (
-            <span
-              key={i}
-              className={[
-                "vd-slot",
-                active ? "is-active" : "",
-                result === "fail" ? "is-fail" : "",
-                result === "success" ? "is-held" : "",
-              ].filter(Boolean).join(" ")}
-              aria-label={
-                tally
-                  ? `Mission ${i + 1}: ${tally.successes} succeeded, ${tally.fails} failed`
-                  : `Mission ${i + 1}: ${size} people go${twoFails ? ", needs two fails" : ""}`
-              }
-            >
-              <span className="vd-slot__n">{i + 1}</span>
-              <span className="vd-slot__v">
-                {tally ? `${tally.successes}–${tally.fails}` : size}
-              </span>
-              {twoFails && <span className="vd-slot__dbl" aria-hidden />}
-            </span>
-          );
-        })}
-      </div>
+      {/* The board. Number, party size, and the tally a ridden mission came
+          back with — the same five facts the reckoning shows, from the same
+          component, so the two can no longer drift. */}
+      <MissionCoins
+        sizes={sizes}
+        questIndex={room.questIndex}
+        results={room.questResults}
+        doubleFail={doubleFail}
+        log={log}
+        /* The strip sits behind the unveil, so it is the surface that was
+           giving quests away before the cards had been turned over. */
+        holdUnrevealed
+      />
 
       <div
         className="vd-strip__rejects"

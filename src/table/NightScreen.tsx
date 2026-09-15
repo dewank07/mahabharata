@@ -30,7 +30,8 @@ import { Eye, EyeOff, Sword } from "lucide-react";
 import { CharacterCard } from "../CharacterCard";
 import { characterFor, rolesInPlay, usePreloadArt } from "../characters";
 import { Studded } from "./TableShell";
-import { NamePlate, RoleBrief } from "./Parts";
+import markSrc from "../assets/mark.svg";
+import { KnownPlayers, RoleBrief } from "./Parts";
 import { useHold } from "./RoleReveal";
 import type { TableProps } from "./types";
 
@@ -73,11 +74,18 @@ export function NightScreen({
 
   return (
     <div className="vd-table vd-table-layout">
+      {/* The same instruction was on screen three times: the phase banner says
+          "Hold your card to see your role", the hold button says "Press and
+          hold to see your role", and this block said it a third — and on a
+          phone it lands UNDER the action, where it reads as something left
+          over rather than something to do first.
+
+          What is left is the one fact none of the other two carry: that this
+          is not your only chance to look. */}
       <div className="vd-stack">
-        <div className="vd-label">Your secret role</div>
         <p className="vd-hint" style={{ margin: 0 }}>
-          Hold the card to read it — let go and it hides. You can check it again
-          later with <b>Show my role</b>.
+          You can check your role again at any time with <b>Show my role</b>,
+          top right.
         </p>
       </div>
 
@@ -102,7 +110,7 @@ export function NightScreen({
               </div>
 
               {held ? (
-                <>
+                <div className="vd-turned">
                   {/* Mounted only inside this branch, like everything else that
                       names the role: a portrait is the loudest tell there is,
                       and it must not be sitting in the DOM before the hold. */}
@@ -130,16 +138,24 @@ export function NightScreen({
                       {roleDef?.knowledgeLabel ?? "You are shown nothing."}
                     </span>
                     {(me?.known.length ?? 0) > 0 && (
-                      <div className="vd-row" style={{ marginTop: 10 }}>
-                        {me!.known.map((nm) => (
-                          <NamePlate key={nm}>{nm}</NamePlate>
-                        ))}
-                      </div>
+                      <KnownPlayers room={room} names={me!.known} />
                     )}
                   </div>
-                </>
+                </div>
               ) : (
-                <div className="vd-role__hidden">— — —</div>
+                /* The object says it: three cards in a slew with the table's
+                   mark on the back. The line under it is the only words the
+                   face-down state needs, and the button beneath says how to
+                   turn it. */
+                <>
+                  <div className="vd-facedown">
+                    <i /><i />
+                    <div className="vd-facedown__top">
+                      <img className="vd-facedown__mark" src={markSrc} alt="" />
+                    </div>
+                  </div>
+                  <p className="vd-facedown__say">Your card, face down</p>
+                </>
               )}
 
               <button

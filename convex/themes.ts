@@ -112,9 +112,44 @@ const MEDIEVAL_ART: Record<string, string> = {
   minion: art("Minion of Mordred.webp"),
 };
 
+/**
+ * Engine role id → its portrait in the Indian world.
+ *
+ * Unlike the medieval set these are served from `public/`, not R2: they were
+ * cut from a single 3×3 sheet of engraved charcoal-and-bone plates, so the
+ * whole world is 440KB and versions with the app rather than out of band. The
+ * filenames are the engine ids, which is why there is no lookup table of
+ * original names the way `MEDIEVAL_ART` needs one.
+ *
+ * The sheet holds eight plates and a shared back. Five of this world's roles —
+ * Gandhari, the lovers and the two Karnas — have no plate on it and are absent
+ * here on purpose: `characterFor` leaves `image` undefined and the card draws
+ * its engraved monogram, which is the same thing every world did before any of
+ * this art existed. A wrong face is worse than no face.
+ */
+const INDIA_ART: Record<string, string> = {
+  merlin: "/art/india/merlin.webp",
+  percival: "/art/india/percival.webp",
+  servant: "/art/india/servant.webp",
+  assassin: "/art/india/assassin.webp",
+  morgana: "/art/india/morgana.webp",
+  mordred: "/art/india/mordred.webp",
+  oberon: "/art/india/oberon.webp",
+  minion: "/art/india/minion.webp",
+};
+
+/**
+ * The back of the Indian deck — a compass seal, and the one card face that is
+ * the same for everybody. It is not a role, so it cannot live in `INDIA_ART`
+ * (the check below would reject it); it is exported for the front door's fan
+ * and for anywhere else a card has to be shown face-down.
+ */
+export const INDIA_CARD_BACK = "/art/india/back.webp";
+
 /** Theme id → that world's portraits. A world with no entry has no art. */
 export const THEME_ART: Record<string, Record<string, string>> = {
   medieval: MEDIEVAL_ART,
+  india: INDIA_ART,
 };
 
 /** Indian myth — indigo void, saffron gold, dharma / adharma. */

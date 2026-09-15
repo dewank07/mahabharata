@@ -10,6 +10,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
 import { Check, X } from "lucide-react";
 import { settleWhenUnwatched } from "./motion";
+import { clearHolds, holdQuest, releaseQuest } from "./reveal-gate";
 
 export type LastVote = {
   roundId: number;
@@ -125,6 +126,16 @@ export function RevealCeremony({
     if (queued.current.has(item.key)) return;
     queued.current.add(item.key);
     if (alreadySeen(item.key)) return;
+    /* The board must not print this quest's tally before this plate has shown
+       it. Held here rather than when it reaches the front of the queue: a vote
+       unveil ahead of it can keep it waiting for several seconds, and the
+       mission coin behind both of them would spoil the answer for the whole of
+       that wait. Released in `dismiss`.
+
+       A reveal that `alreadySeen` rejects is deliberately never held — that is
+       a reconnect, the player has already been shown this result, and holding
+       it would blank a mission they have every right to see. */
+    if (item.kind === "quest") holdQuest(item.quest.questIndex);
     setQueue((q) => [...q, item]);
   };
 
@@ -155,9 +166,19 @@ export function RevealCeremony({
     Continue on it.
   */
   const dismiss = () => {
-    if (current) markSeen(current.key);
+    if (current) {
+      markSeen(current.key);
+      // Shown and acknowledged — the board may say it now.
+      if (current.kind === "quest") releaseQuest(current.quest.questIndex);
+    }
     setQueue((q) => q.slice(1));
   };
+
+  /* Leaving the table, or a new game under the same code, drops every hold.
+     Holds are keyed by quest INDEX and those restart at 0, so one left behind
+     would blank mission 1 of the next game — and a component that comes down
+     mid-queue would strand its holds forever. */
+  useEffect(() => clearHolds, []);
 
   // Escape dismisses — a deliberate key press, unlike the timer that used to
   // close this on its own.

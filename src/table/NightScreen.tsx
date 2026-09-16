@@ -30,7 +30,7 @@ import { Eye, EyeOff, Sword } from "lucide-react";
 import { CharacterCard } from "../CharacterCard";
 import { characterFor, rolesInPlay, usePreloadArt } from "../characters";
 import { Studded } from "./TableShell";
-import markSrc from "../assets/mark.svg";
+import { CARD_BACK } from "../../convex/themes";
 import { KnownPlayers, RoleBrief } from "./Parts";
 import { useHold } from "./RoleReveal";
 import type { TableProps } from "./types";
@@ -150,9 +150,10 @@ export function NightScreen({
                 <>
                   <div className="vd-facedown">
                     <i /><i />
-                    <div className="vd-facedown__top">
-                      <img className="vd-facedown__mark" src={markSrc} alt="" />
-                    </div>
+                    {/* The deck's painted back, the same plate the front door
+                        fans. It was a hatched plate with the app's mark laid on
+                        top — a stand-in from before the deck had a back. */}
+                    <img className="vd-facedown__top" src={CARD_BACK} alt="" />
                   </div>
                   <p className="vd-facedown__say">Your card, face down</p>
                 </>

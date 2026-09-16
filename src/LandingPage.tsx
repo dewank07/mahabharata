@@ -12,10 +12,10 @@ import { useQuery } from "convex/react";
 import gsap from "gsap";
 import { ArrowRight, BadgeCheck, Crown, LogOut, Shield, Ticket } from "lucide-react";
 import { api } from "../convex/_generated/api";
-import { THEME_ART, THEMES } from "../convex/themes";
+import { CARD_BACK, THEME_ART, THEMES } from "../convex/themes";
 import { useAuth } from "./auth";
 import { Dock } from "./Dock";
-const cardBackSrc = "/art/medieval/back.png";
+
 import { prefersReducedMotion, settleWhenUnwatched } from "./motion";
 
 const WORDMARK = "DECEVIA";
@@ -385,7 +385,7 @@ function CardFan() {
           <div className="lp-card lp-card--c">
             <img
               className="lp-card__art"
-              src={cardBackSrc}
+              src={CARD_BACK}
               alt=""
               width={364}
               height={542}

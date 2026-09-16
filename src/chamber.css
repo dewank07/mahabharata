@@ -480,27 +480,6 @@
 
 
 
-/* ------------------------------------------------------- the ninth plate -- */
-
-/* The sheet the portraits were cut from carries a shared card back as well as
-   its eight faces, and the night screen is the one place in the app that draws
-   a card face-down. In the Indian world it draws the real one.
-
-   CSS rather than markup, because `.vd-facedown__top::before` is already the
-   printed back inset from the card edge — the hatching becomes the engraving,
-   and the layout, the slew of the two cards underneath and the shadow are all
-   untouched. Every other world keeps the hatch until it has a deck of its own. */
-:root[data-realm="india"] .vd-facedown__top::before {
-  background: url("/art/india/back.webp") center / cover no-repeat;
-  /* The plate is printed lighter than the room it is lying in. */
-  filter: brightness(0.82) saturate(0.92);
-}
-/* The seal is already at the middle of that plate; the app's mark on top of it
-   is two marks in one place. */
-:root[data-realm="india"] .vd-facedown__mark {
-  display: none;
-}
-
 /* ============================================================================
    3. The private-role handle
    ========================================================================== */

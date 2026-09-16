@@ -146,6 +146,15 @@ const INDIA_ART: Record<string, string> = {
  */
 export const INDIA_CARD_BACK = "/art/india/back.webp";
 
+/**
+ * The deck's back, and the only one the app draws.
+ *
+ * Cropped to the plate's own alpha bounds, so the file IS the card: no margin
+ * to fit around, and a 1:1.489 aspect anything showing it must respect.
+ */
+export const CARD_BACK = "/art/medieval/back.png";
+export const CARD_BACK_RATIO = 542 / 364;
+
 /** Theme id → that world's portraits. A world with no entry has no art. */
 export const THEME_ART: Record<string, Record<string, string>> = {
   medieval: MEDIEVAL_ART,

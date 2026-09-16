@@ -196,7 +196,9 @@ export function RoleReveal({
                 ? `You are EVIL · ${theme.evilTeamName}`
                 : `You are GOOD · ${theme.goodTeamName}`}
             </div>
-            <div className="cc-reveal" style={{ marginTop: 12 }}>
+            {/* Portrait left, who-you-are right, and everything the role has to
+                tell you underneath. */}
+            <div className="cc-reveal">
               {character && (
                 <div className="cc-reveal__card">
                   <CharacterCard
@@ -208,9 +210,7 @@ export function RoleReveal({
                 </div>
               )}
               <div className="cc-reveal__body">
-                <div className="vd-role__name" style={{ marginTop: 0 }}>
-                  {roleDef?.name ?? "—"}
-                </div>
+                <div className="vd-role__name">{roleDef?.name ?? "—"}</div>
                 <RoleBrief room={room} />
               </div>
             </div>

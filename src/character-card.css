@@ -496,15 +496,22 @@
    who you are; the words next to it are what you have to do about it.
    ========================================================================== */
 
-.cc-reveal { display: flex; align-items: flex-start; gap: var(--vd-4); }
+.cc-reveal { display: flex; align-items: flex-start; gap: var(--vd-4); margin-top: var(--vd-4); }
 .cc-reveal__card { flex: 0 0 132px; }
 /* Free of the grid's floor: here the card is sized by the column it sits in. */
 .cc-reveal__card .cc { min-height: 0; }
 .cc-reveal__body { flex: 1 1 auto; min-width: 0; }
 
+/* It used to stack on a phone — portrait centred, everything under it — which
+   pushed the one sentence that says what you have to DO below the fold on the
+   screen a player reads while covering it with their hand. The row holds at
+   every width now; only the portrait's column narrows. */
 @media (max-width: 480px) {
-  .cc-reveal { flex-direction: column; align-items: stretch; gap: var(--vd-3); }
-  .cc-reveal__card { flex: none; width: 150px; margin: 0 auto; }
+  .cc-reveal { gap: var(--vd-3); }
+  .cc-reveal__card { flex: 0 0 108px; }
+}
+@media (max-width: 360px) {
+  .cc-reveal__card { flex: 0 0 92px; }
 }
 
 /* ============================================================================

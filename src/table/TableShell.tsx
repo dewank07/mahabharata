@@ -175,7 +175,7 @@ function OverflowMenu({
       {open && (
         <div className="vd-menu__panel" role="menu">
           <a className="vd-menu__item" href="/rules" role="menuitem">
-            <ScrollText size={14} /> Full rules
+            <ScrollText size={14} /> How to play
           </a>
 
           {account.premium ? (

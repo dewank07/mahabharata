@@ -154,46 +154,50 @@ export function LobbyScreen({
      option rows fit on one line each. */
   const setup = (
     <section className="vd-setup">
-      <SetupSection title="Setting" summary={themeSummary} startOpen={roomy}>
-        <p className="vd-hint" style={{ margin: 0 }}>
-          Names and story only — the rules never change.
-        </p>
-        <div className="vd-worlds">
-          {worlds.map((w) => {
-            const on = w.id === room.themeId;
-            const paid = !roomPremium && w.id !== "medieval" && !on;
-            return (
-              <div key={w.id} className="vd-worldcell">
-                <button
-                  className={`vd-world ${on ? "is-on" : ""}`}
-                  disabled={!isHost || paid}
-                  aria-pressed={on}
-                  onClick={act(() => onChangeTheme(w.id))}
-                >
-                  <span className="vd-world__body">
-                    <span className="vd-world__name">{w.name}</span>
-                    <span className="vd-world__sub">
-                      Good: {w.goodTeamName} · Evil: {w.evilTeamName}
+{worlds.length > 1 && (
+      /* One playable setting means this section can only ever report the one
+         it already shows in its own summary. */
+            <SetupSection title="Setting" summary={themeSummary} startOpen={roomy}>
+          <p className="vd-hint" style={{ margin: 0 }}>
+            Names and story only — the rules never change.
+          </p>
+          <div className="vd-worlds">
+            {worlds.map((w) => {
+              const on = w.id === room.themeId;
+              const paid = !roomPremium && w.id !== "medieval" && !on;
+              return (
+                <div key={w.id} className="vd-worldcell">
+                  <button
+                    className={`vd-world ${on ? "is-on" : ""}`}
+                    disabled={!isHost || paid}
+                    aria-pressed={on}
+                    onClick={act(() => onChangeTheme(w.id))}
+                  >
+                    <span className="vd-world__body">
+                      <span className="vd-world__name">{w.name}</span>
+                      <span className="vd-world__sub">
+                        Good: {w.goodTeamName} · Evil: {w.evilTeamName}
+                      </span>
                     </span>
-                  </span>
-                  {on
-                    ? <span className="vd-opt__lock"><Check size={13} /> In use</span>
-                    : paid
-                      ? <span className="vd-opt__lock"><Lock size={11} /> Paid</span>
-                      : null}
-                </button>
-                {/* The reason a tile is off used to live only in `title`,
-                    which never appears on a phone. */}
-                {(paid || !isHost) && (
-                  <span className="vd-hint">
-                    {paid ? "Included with a paid plan" : "Only the host can change this"}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </SetupSection>
+                    {on
+                      ? <span className="vd-opt__lock"><Check size={13} /> In use</span>
+                      : paid
+                        ? <span className="vd-opt__lock"><Lock size={11} /> Paid</span>
+                        : null}
+                  </button>
+                  {/* The reason a tile is off used to live only in `title`,
+                      which never appears on a phone. */}
+                  {(paid || !isHost) && (
+                    <span className="vd-hint">
+                      {paid ? "Included with a paid plan" : "Only the host can change this"}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </SetupSection>
+      )}
 
       <SetupSection title="Extra roles" summary={rolesSummary} startOpen={roomy}>
         <div className="vd-row" style={{ justifyContent: "flex-end" }}>
@@ -357,30 +361,10 @@ export function LobbyScreen({
     <div className="vd-table vd-table-layout">
       {/* ------------------------------- left ------------------------------ */}
       <div className="vd-stack">
-        {/* What the table is trying to do. The lobby used to explain the
-            setup options in detail and never once say what the game is. */}
-        <div className="vd-goal">
-          <span className="vd-label">The goal</span>
-          <ul className="vd-goal__list">
-            <li>
-              Five missions. <b>Good wins</b> if three succeed, <b>evil wins</b>{" "}
-              if three fail.
-            </li>
-            <li>The leader picks a team, everyone votes, the team decides.</li>
-          </ul>
-          {/* Was a direct link to /learn. The explainer is the smaller first
-              step and offers /learn on its own last line, so this opens that
-              instead of skipping past it — and it means a player who dismissed
-              the explainer has somewhere to get it back. */}
-          <button
-            className="vd-textbtn"
-            style={{ marginTop: 4 }}
-            onClick={() => setTutorial(true)}
-          >
-            How to play
-          </button>
-        </div>
-
+        {/* "The goal" stood here — two bullets restating the rules above a
+            lobby whose own job is to say who is in and how many more are
+            needed. The explainer still opens itself on a first game, and the
+            shell's ⋯ menu carries the full page. */}
         <div className="vd-studded vd-panel vd-panel--strong">
           <span className="vd-stud-b" aria-hidden />
           <div className="vd-label">People in</div>

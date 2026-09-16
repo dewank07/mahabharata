@@ -11,6 +11,7 @@ import { navigate } from "./router";
 import { play } from "./sound";
 import { THEMES, THEME_LIST } from "../convex/themes";
 import { isPremiumTheme } from "../convex/logic";
+import { Dock } from "./Dock";
 import {
   BadgeCheck,
   Check,
@@ -25,8 +26,7 @@ import {
   Key,
   Timer,
   Lock,
-  Shield,
-  BookOpen,
+  ArrowLeft,
 } from "lucide-react";
 
 /* ============================ identity (per tab) ========================= */
@@ -480,8 +480,16 @@ export default function App() {
   function Home() {
     const gateSubmit = wrap(activeTab === "create" ? createRoom : () => joinRoom());
     return (
-      <div className="vd-board">
+      <div className="vd-board vd-board--gate">
         <div className="vd-content vd-gate">
+          {/* The way back to the front page. The gate replaced its footer with
+              the dock, and the dock is all sheets — nothing on this screen led
+              anywhere, including home. Out of the centred column so it cannot
+              push the card off centre. */}
+          <a className="vd-gate__back" href="/">
+            <ArrowLeft size={14} aria-hidden /> Decevia
+          </a>
+
           <header className="vd-gate__head">
             <img src={emblemSrc} alt="" width={30} height={30} className="vd-topbar__emblem" />
             <h1 className="vd-gate__brand">DECEVIA</h1>
@@ -499,9 +507,7 @@ export default function App() {
             </p>
           </header>
 
-          <div className="vd-studded vd-gate__card">
-            <span className="vd-stud-b" aria-hidden />
-
+          <div className="vd-gate__card">
             {/* "Convene" / "Join" gave no clue that one of them needs a code
                 you may not have. The labels now say which is which. */}
             <div className="vd-seg" role="tablist" aria-label="Start or join a game">
@@ -531,12 +537,14 @@ export default function App() {
               maxLength={16}
               onChange={(e) => { setName(e.target.value); setRejoinName(null); }}
               onKeyDown={(e) => { if (e.key === "Enter") void gateSubmit(); }}
-              placeholder="e.g. Priya"
+              placeholder="e.g. John"
               aria-describedby="gate-name-help"
               autoComplete="nickname"
             />
             <span className="vd-hint" id="gate-name-help">
-              Everyone at the table sees this.
+              {activeTab === "create"
+                ? "Everyone sees this. You'll get a code to share once you're in."
+                : "Everyone at the table sees this."}
             </span>
 
             {activeTab === "join" && (
@@ -560,18 +568,69 @@ export default function App() {
               </>
             )}
 
-            {/* One line, not a labelled box of three numbered steps.
-            
-                Everything the list said that a person actually needs before
-                pressing the button is here: that a code is coming and has to
-                be shared, and that five is the number. The rest — everyone
-                joins on their own phone, the app deals the roles — is either
-                obvious or is the next screen's job to show. */}
-            <p className="vd-hint vd-gate__next">
-              {activeTab === "create"
-                ? "You'll get a 4-letter code to share. Start once five are in."
-                : "You'll take a seat and be dealt a secret role."}
-            </p>
+            {/* Inside the card, because choosing a setting is part of
+                  starting a game — it was a third loose block under two others,
+                  which is most of why this screen read as a list of panels. */}
+            {/* Only worth showing while there is a choice to make. With one
+                playable setting the picker is a card that says CHOSEN and can
+                never say anything else — and its "Included with a paid plan.
+                Sign in" line was the second Sign in on the screen. */}
+            {THEME_LIST.length > 1 && (
+              <>
+              {/* Inside the card, because choosing a setting is part of starting
+                  a game. It was a third loose block under two others, which is
+                  most of why this screen read as a list of panels. */}
+              <div className="vd-gate__worlds">
+                <span className="vd-field__label">Setting</span>
+                <p className="vd-hint">Only the names change — never the rules.</p>
+                {activeTab === "join" ? (
+                  // A joiner's pick here is discarded server-side — only the
+                  // host's setting applies. Leaving the grid interactive implied
+                  // otherwise.
+                  <p className="vd-voice" style={{ marginTop: 10 }}>
+                    The host picks the setting. You'll see theirs once you're in.
+                  </p>
+                ) : (
+                  <div className="vd-worlds" style={{ marginTop: 10 }}>
+                    {THEME_LIST.map((t) => {
+                      const on = t.id === localThemeId;
+                      const paid = !premium && isPremiumTheme(t.id) && !on;
+                      return (
+                        <div key={t.id} className="vd-worldcell">
+                          <button
+                            className={`vd-world ${on ? "is-on" : ""}`}
+                            disabled={paid}
+                            aria-pressed={on}
+                            onClick={() => setLocalThemeId(t.id)}
+                          >
+                            <span className="vd-world__body">
+                              <span className="vd-world__name">{t.name}</span>
+                              <span className="vd-world__sub">
+                                Good: {t.goodTeamName} · Evil: {t.evilTeamName}
+                              </span>
+                            </span>
+                            {on
+                              ? <span className="vd-opt__lock"><Check size={13} /> Chosen</span>
+                              : paid
+                                ? <span className="vd-opt__lock"><Lock size={11} /> Paid</span>
+                                : null}
+                          </button>
+                          {paid && (
+                            <span className="vd-hint">
+                              Included with a paid plan.{" "}
+                              <a href={signedIn ? "/upgrade" : "/signin"}>
+                                {signedIn ? "See plans" : "Sign in"}
+                              </a>
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              </>
+            )}
 
             <button className="vd-btn vd-btn--primary" onClick={gateSubmit}>
               <span>{activeTab === "create" ? "Create the game" : "Join the game"}</span>
@@ -602,77 +661,11 @@ export default function App() {
             {msg && <p className="vd-errline vd-panel vd-panel--danger">{msg}</p>}
           </div>
 
-          <div className="vd-gate__worlds">
-            {/* "Choose a world" named a concept the app never explained, and
-                the locked tiles said only "premium world" — with the reason
-                in a `title` tooltip, which never fires on a phone. */}
-            <span className="vd-label">Setting {activeTab === "create" ? "(optional)" : ""}</span>
-            <p className="vd-hint" style={{ marginTop: 4 }}>
-              Only the names change. The rules never do.
-            </p>
-            {activeTab === "join" ? (
-              // A joiner's pick here is discarded server-side — only the
-              // host's setting applies. Leaving the grid interactive implied
-              // otherwise.
-              <p className="vd-voice" style={{ marginTop: 10 }}>
-                The host picks the setting. You'll see theirs once you're in.
-              </p>
-            ) : (
-              <div className="vd-worlds" style={{ marginTop: 10 }}>
-                {THEME_LIST.map((t) => {
-                  const on = t.id === localThemeId;
-                  const paid = !premium && isPremiumTheme(t.id) && !on;
-                  return (
-                    <div key={t.id} className="vd-worldcell">
-                      <button
-                        className={`vd-world ${on ? "is-on" : ""}`}
-                        disabled={paid}
-                        aria-pressed={on}
-                        onClick={() => setLocalThemeId(t.id)}
-                      >
-                        <span className="vd-world__body">
-                          <span className="vd-world__name">{t.name}</span>
-                          <span className="vd-world__sub">
-                            Good: {t.goodTeamName} · Evil: {t.evilTeamName}
-                          </span>
-                        </span>
-                        {on
-                          ? <span className="vd-opt__lock"><Check size={13} /> Chosen</span>
-                          : paid
-                            ? <span className="vd-opt__lock"><Lock size={11} /> Paid</span>
-                            : null}
-                      </button>
-                      {paid && (
-                        <span className="vd-hint">
-                          Included with a paid plan.{" "}
-                          <a href={signedIn ? "/upgrade" : "/signin"}>
-                            {signedIn ? "See plans" : "Sign in"}
-                          </a>
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          {/* The same dock the front door has. An arrival on an invite
+              link never sees that page, so this is their only way to the
+              rules, the plans or a sign-in — and it says each of them once. */}
+          <Dock />
 
-          <footer className="vd-gate__foot">
-            <a className="vd-pill" href="/learn"><BookOpen size={13} /> How to play</a>
-            <a className="vd-pill" href="/rules"><ScrollText size={13} /> Full rules</a>
-            {signedIn ? (
-              premium
-                ? <span className="vd-pill vd-pill--brass"><BadgeCheck size={13} /> Paid plan</span>
-                : <a className="vd-pill" href="/upgrade"><Crown size={13} /> Paid plan</a>
-            ) : (
-              <a className="vd-pill" href="/signin">
-                <LogIn size={13} /> Sign in
-              </a>
-            )}
-            {viewer?.isAdmin && (
-              <a className="vd-pill" href="/admin"><Shield size={13} /> Admin</a>
-            )}
-          </footer>
         </div>
       </div>
     );

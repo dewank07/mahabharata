@@ -852,10 +852,319 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   place-items: center;
-  padding: var(--vd-8) var(--vd-5);
-  padding-left: max(var(--vd-5), env(safe-area-inset-left));
-  padding-right: max(var(--vd-5), env(safe-area-inset-right));
+  min-height: 100svh;
+  padding: 0;
+
+  /* ---- type, for this page only -----------------------------------------
+     Cinzel is the inscription face the wordmark was already imitating, and DM
+     Sans is what carries everything read at speed. Declared HERE rather than
+     in `tokens.css` so the table, the lobby and the rules keep the type they
+     were designed in — a front door may be dressed differently from the rooms
+     behind it, and this is the one screen whose job is the first impression.
+
+     The `--type-*` composites have to be restated because a `var()` inside a
+     custom property is substituted where that property is DECLARED: the ones
+     on `:root` already baked EB Garamond in, and redefining `--font-display`
+     alone would never reach them. */
+  --font-display: "Cinzel", "EB Garamond", Georgia, serif;
+  --font-ui: "DM Sans", "Manrope", system-ui, sans-serif;
+  --vd-display: var(--font-display);
+  --vd-lore-face: var(--font-display);
+  --vd-ui: var(--font-ui);
+  --type-display-s: 400 20px/1.15 var(--font-display);
+  --type-body: 400 15px/1.5 var(--font-ui);
+  --type-body-strong: 500 15px/1.45 var(--font-ui);
+  --type-action: 700 16px/1 var(--font-ui);
+  --type-small: 400 13px/1.5 var(--font-ui);
 }
+
+/* ----------------------------------------------------------------- dock -- */
+
+/* One slab of glass, floating clear of the bottom edge.
+
+   Four things make it read as glass rather than as a dark rectangle, and they
+   are all on the container:
+
+     · `blur(28px) saturate(180%)` — the saturation boost is what stops a
+       blurred dark page turning to grey mud underneath it;
+     · a specular top rim, `inset 0 1px 0` in near-white, which is the light
+       catching the physical edge of a pane. Everything else is a hairline;
+     · an inner floor shadow along the bottom, so the slab has thickness;
+     · an ambient shadow well below it, offset and soft, so it is lying ON the
+       page rather than glued to it.
+
+   `isolation: isolate` fences the lens below into its own stacking context;
+   without it a `z-index: -1` pseudo-element escapes behind the page. */
+.lp-dock {
+  --pad: 6px;
+  --gap: 4px;
+  --n: 3;
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--vd-5) + env(safe-area-inset-bottom));
+  z-index: 20;
+  translate: -50% 0;
+  isolation: isolate;
+  display: flex;
+  align-items: stretch;
+  gap: var(--gap);
+  padding: var(--pad);
+  border: 1px solid var(--line-brass);
+  border-radius: 22px;
+  background: rgba(16, 13, 9, 0.44);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    inset 0 -14px 26px -14px rgba(0, 0, 0, 0.7),
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    0 20px 44px -12px rgba(0, 0, 0, 0.66);
+}
+
+/* The sheen down the face of the pane. */
+.lp-dock::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.09),
+    rgba(255, 255, 255, 0.02) 38%,
+    transparent 62%
+  );
+}
+
+/* ---- the lens ----
+   A single capsule that SLIDES between slots rather than a background that
+   fades in and out under each icon — the difference between three buttons
+   that happen to sit together and one object with a light moving across it.
+
+   It works because every slot is the same width: `translate: 100%` is the
+   lens's own width, so slot n is `n × (100% + gap)` and nothing has to be
+   measured. `--n` comes from React, because the sign-in slot disappears once
+   you are signed in and a hard-coded three would put the lens off the end. */
+.lp-dock::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: var(--pad);
+  bottom: var(--pad);
+  left: var(--pad);
+  width: calc(
+    (100% - var(--pad) * 2 - var(--gap) * (var(--n) - 1)) / var(--n)
+  );
+  border-radius: 16px;
+  background: linear-gradient(
+    180deg,
+    rgba(235, 207, 136, 0.2),
+    rgba(200, 162, 76, 0.07)
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 0 0 1px var(--vd-brass-edge);
+  opacity: 0;
+  transition: translate 380ms var(--ease-out), opacity 220ms ease;
+}
+.lp-dock:has(.lp-dock__btn:nth-child(1):is(:hover, :focus-visible, :active))::after { translate: 0; opacity: 1; }
+.lp-dock:has(.lp-dock__btn:nth-child(2):is(:hover, :focus-visible, :active))::after { translate: calc(100% + var(--gap)); opacity: 1; }
+.lp-dock:has(.lp-dock__btn:nth-child(3):is(:hover, :focus-visible, :active))::after { translate: calc(200% + var(--gap) * 2); opacity: 1; }
+
+.lp-dock__btn {
+  position: relative;
+  flex: 1 1 0;
+  display: grid;
+  place-items: center;
+  min-width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--vd-ink-soft);
+  cursor: pointer;
+  transform-origin: bottom center;
+  transition: scale 260ms var(--ease-out), translate 260ms var(--ease-out),
+    color 200ms ease;
+}
+.lp-dock__btn > svg {
+  color: var(--vd-brass);
+  transition: filter 220ms ease;
+}
+.lp-dock__btn:focus-visible { outline: none; }
+.lp-dock__btn:active { scale: 0.94; }
+
+/* The name, floating above the icon it belongs to. */
+.lp-dock__label {
+  position: absolute;
+  bottom: calc(100% + 14px);
+  left: 50%;
+  translate: -50% 4px;
+  padding: 6px 11px;
+  border: 1px solid var(--line-brass);
+  border-radius: 9px;
+  background: rgba(20, 16, 11, 0.86);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(16px) saturate(160%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 8px 20px rgba(0, 0, 0, 0.5);
+  font: 500 12px/1 var(--vd-ui);
+  color: var(--vd-ink);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease, translate 260ms var(--ease-out);
+}
+
+@media (min-width: 901px) and (hover: hover) and (pointer: fine) {
+  .lp-dock__btn:is(:hover, :focus-visible) {
+    scale: 1.3;
+    translate: 0 -6px;
+    color: var(--vd-ink);
+  }
+  .lp-dock__btn:is(:hover, :focus-visible) > svg {
+    filter: drop-shadow(0 0 7px rgba(235, 207, 136, 0.5));
+  }
+  /* The one after the hovered icon, and — via `:has` — the one before it. */
+  .lp-dock__btn:is(:hover, :focus-visible) + .lp-dock__btn,
+  .lp-dock__btn:has(+ .lp-dock__btn:is(:hover, :focus-visible)) {
+    scale: 1.12;
+    translate: 0 -2px;
+  }
+  .lp-dock__btn:is(:hover, :focus-visible) .lp-dock__label {
+    opacity: 1;
+    translate: -50% 0;
+    /* Undo the parent's magnification so the tooltip is not blown up with it. */
+    scale: calc(1 / 1.3);
+  }
+}
+
+/* No hover to reveal anything with, so the names live under the icons instead
+   of above them — and the bar becomes a tab strip, which is the shape a phone
+   expects at the bottom of a screen anyway. The lens stays: it lands under
+   whatever was last pressed. */
+@media (max-width: 900px), (hover: none), (pointer: coarse) {
+  .lp-dock {
+    --pad: 7px;
+    --gap: 2px;
+    border-radius: 24px;
+  }
+  .lp-dock__btn {
+    min-width: 76px;
+    height: auto;
+    padding: 9px 6px 8px;
+    gap: 5px;
+    grid-auto-flow: row;
+    border-radius: 18px;
+  }
+  .lp-dock__label {
+    position: static;
+    translate: none;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+    font: 500 10px/1.1 var(--vd-ui);
+    color: var(--vd-ink-dim);
+    opacity: 1;
+    text-align: center;
+  }
+  /* `:active` is in the lens selectors above, so a tap slides it to the item
+     being pressed — the only pointer feedback a touchscreen gets. */
+  .lp-dock__btn:active { scale: 1; }
+}
+
+/* Three names side by side stop fitting somewhere around here. */
+@media (max-width: 360px) {
+  .lp-dock__btn { min-width: 0; padding: 9px 8px 8px; }
+  .lp-dock__label { font-size: 9px; }
+}
+
+/* ---------------------------------------------------------------- sheet -- */
+
+.lp-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: var(--vd-5);
+  background: rgba(8, 6, 5, 0.72);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  animation: vd-rise var(--dur-rise) var(--ease-out) both;
+}
+.lp-sheet__panel {
+  position: relative;
+  width: min(880px, 100%);
+  max-height: min(860px, 92svh);
+  border: 1px solid var(--line-brass);
+  border-radius: 14px;
+  background: rgba(19, 15, 10, 0.92);
+  -webkit-backdrop-filter: blur(22px) saturate(1.2);
+  backdrop-filter: blur(22px) saturate(1.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 30px 70px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+.lp-sheet__panel:focus { outline: none; }
+
+/* The bodies are whole route components and bring their own top padding, so
+   the only thing reserved here is the lane the close button sits in. */
+.lp-sheet__body {
+  max-height: inherit;
+  padding: var(--vd-6) var(--vd-6) var(--vd-8);
+  padding-right: max(var(--vd-6), 56px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* The bodies are whole route pages, and each one paints its own board: the
+   room gradient, the hairline weave, the relief on top of it — all of which is
+   route furniture, sitting inside a panel that is already glass over that very
+   same board. Two grounds stacked, and the page's own won.
+   
+   So inside a sheet the page is only its content. The routes keep every layer;
+   this strips them for the one place they are wrong, which is cheaper and
+   safer than teaching four page components what context they are in. */
+.lp-sheet__body .vd-board {
+  min-height: 0;
+  background: none;
+}
+.lp-sheet__body .vd-board::before,
+.lp-sheet__body .vd-board::after { display: none; }
+.lp-sheet__body .vd-page { padding: 0; max-width: none; }
+
+/* Its own way back is the close button in the corner now. */
+.lp-sheet__body .vd-page__back { display: none; }
+
+.lp-sheet__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--line-brass);
+  border-radius: 50%;
+  background: rgba(14, 11, 8, 0.7);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: var(--vd-ink-soft);
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+.lp-sheet__close:hover {
+  color: var(--vd-ink);
+  border-color: var(--vd-brass);
+  background: rgba(30, 24, 16, 0.8);
+}
+.lp-sheet__close:focus-visible { outline: 2px solid var(--vd-brass); outline-offset: 3px; }
 
 /* `place-items: center` makes this a FIT-CONTENT box: it takes the width of
    its widest child rather than the width of the track. That is fine while
@@ -868,48 +1177,115 @@
    `width: 100%` pins it to the track. The two rules under it mean no future
    child can do this again. */
 .lp__inner {
+  /* The bottom is the dock's. It floats over the page rather than taking a row
+     of its own, so the page has to leave it the room — without this the last
+     line of the fan's caption was read through a sheet of frosted glass. */
+  padding: var(--vd-6) max(var(--vd-4), env(safe-area-inset-left))
+    calc(104px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
+  /* Every gap on this page is this one number. The blocks carry no margins of
+     their own, so the rhythm cannot drift a few pixels per element the way it
+     had — it scales with the screen and there is one place to change it. */
+  gap: clamp(22px, 5.5vw, 34px);
   width: 100%;
   max-width: 560px;
 }
 .lp__inner > * { max-width: 100%; }
 
-.lp-mark { opacity: 0.95; margin-bottom: var(--vd-6); }
+/* The two halves of the stage. Below 900px they are just the same single
+   column this page has always been — the grid only exists on a screen wide
+   enough that the copy and the fan can stand side by side without either one
+   shrinking to fit. */
+.lp__brand,
+.lp__copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--vd-5);
+  width: 100%;
+}
+.lp__brand { gap: var(--vd-3); }
+.lp__showcase { width: 100%; min-width: 0; }
+
+@media (min-width: 900px) {
+  .lp__inner {
+    padding-block: var(--vd-10) calc(var(--vd-10) + 78px);
+    display: grid;
+    grid-template-columns: minmax(270px, 0.72fr) minmax(0, 1.28fr);
+    /* The DOM order is the phone's — name, picture, doors. Areas put the two
+       text blocks back in one column beside the picture without a single
+       `order` declaration, so the reading order and the tab order stay the
+       order the markup is in. */
+    grid-template-areas:
+      "brand showcase"
+      "copy  showcase";
+    grid-template-rows: auto auto;
+    align-content: center;
+    justify-items: start;
+    gap: var(--vd-5) clamp(32px, 5vw, 76px);
+    max-width: 1180px;
+    text-align: left;
+  }
+  .lp__brand { grid-area: brand; align-items: flex-start; }
+  .lp__copy { grid-area: copy; align-items: flex-start; }
+  .lp__showcase { grid-area: showcase; align-self: center; }
+  .lp-wordmark { justify-content: flex-start; }
+  .lp-lede { max-width: 38ch; }
+  /* A third of the page wide, so the doors stop where the sentence does. */
+  .lp-acts { max-width: 340px; }
+  .lp-fan__cap { max-width: 42ch; }
+}
 
 /* Letters are individually wrapped so they can rise in sequence; the tracking
    is on the wrapper so the spacing stays even. */
 .lp-wordmark {
   display: flex;
   margin: 0;
-  font: 500 clamp(38px, 9vw, 62px)/1 var(--vd-display);
+  font: 500 clamp(27px, 5.6vw, 40px)/1 var(--vd-display);
   letter-spacing: 0.22em;
   text-indent: 0.22em;          /* balances the trailing letter-space */
   color: var(--vd-ink);
+  /* Type stands ON the room rather than in front of a scrim — a hard 3px lift
+     and one soft pool, which is how every heading in the prototype is lit. */
+  text-shadow: 0 3px 1px #000, 0 6px 18px #000;
 }
 .lp-letter { display: inline-block; }
 
 .lp-promise {
-  margin: var(--vd-4) 0 0;
-  font: 700 12px/1.3 var(--vd-ui);
+  margin: 0;
+  text-shadow: 0 2px 2px #000;
+  font: 700 10px/1.3 var(--vd-ui);
   letter-spacing: 0.24em;
   text-indent: 0.24em;
   text-transform: uppercase;
   color: var(--vd-brass);
 }
 
-.lp-line {
-  width: 76px;
-  height: 1px;
-  margin: var(--vd-6) 0;
-  border: 0;
-  background: var(--vd-rule-strong);
+.lp-lede {
+  margin: 0;
+  font: 400 clamp(16px, 4.4vw, 19px)/1.5 var(--vd-display);
+  letter-spacing: 0.01em;
+  color: var(--vd-ink);
+  text-wrap: balance;
+  text-shadow: 0 2px 3px #000;
+}
+.lp-lede strong { color: var(--brass-lit); font-weight: 500; }
+/* Single column: the wordmark, the tagline, the fan and its caption have
+   already said what this is four times over by the time the lede arrives, and
+   it was pushing the two doors below the fold. The stage at 900px up has a
+   column standing empty beside the picture, so there it earns its place. */
+@media (max-width: 899px) {
+  .lp-lede { display: none; }
 }
 
-.lp-lede { margin: 0; font: 400 17px/1.6 var(--vd-ui); color: var(--vd-ink-soft); }
-.lp-lede strong { color: var(--vd-ink); font-weight: 700; }
+/* The line break is an editorial one — it belongs to the two-line shape, not
+   to a column that has gone narrow enough to wrap on its own. */
+@media (max-width: 400px) {
+  .lp-lede br { display: none; }
+}
 
 /* What you actually do, before either door. Numbered because the order is the
    point: someone has to start a game before anyone can join one. */
@@ -917,63 +1293,384 @@
    that page was cut back to one sentence and two doors. */
 
 .lp-note {
-  margin: var(--vd-4) 0 0;
-  font: 400 13.5px/1.5 var(--vd-ui);
-  color: var(--vd-ink-dim);
+  margin: 0;
+  font: 400 11.5px/1.5 var(--vd-ui);
+  color: #c3c7b8;
+  text-shadow: 0 2px 2px #000;
 }
 .lp-note a { color: var(--vd-brass); }
 
 /* The two ways in. Same 1px engraved language as every other control on the
    board — the weighting is done with fill and rule, never with size alone, so
    the pair still reads as one object. */
+/* Stacked, never side by side: each door now carries a second line saying what
+   it actually does, and two of those in a row is a paragraph pretending to be
+   a button bar. Stacked they read as a short menu, which is what they are. */
 .lp-acts {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: var(--vd-3);
-  margin-top: var(--vd-8);
   width: 100%;
+  max-width: 100%;
 }
-.lp-act {
-  display: inline-flex;
+
+/* ---------------------------------------------------------------------------
+   The two doors, struck as plaques.
+
+   Not a rounded rectangle — a cartouche: the corners are CUT, and a second
+   hairline runs inside the first, which is what every engraved plate in this
+   world carries and what a rounded button can never be made to look like.
+
+   The chamfer is one `--cut` and one polygon, repeated on each layer, so the
+   three layers stay in register at any size:
+
+     · `.lp-act` itself is the outer 1px rule — its background IS the brass, and
+       everything else is drawn on top of it;
+     · `::before`, inset 1px and clipped to the same shape, is the fill. That is
+       the whole trick for getting a border that follows a diagonal: `clip-path`
+       clips a real border away at the cuts, so the border has to be a layer
+       underneath rather than a border at all;
+     · `::after` is the inner hairline, an even-odd ring — one chamfered path
+       and a second 1px inside it, with the fill rule leaving only the gap
+       between them.
+   ------------------------------------------------------------------------- */
+.lp-act,
+.vd-gate .vd-btn {
+  --cut: 11px;
+  --frame: var(--vd-brass-edge);
+  position: relative;
+  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
+  justify-content: flex-start;
+  gap: var(--vd-3);
   min-height: 56px;
-  padding: 17px 30px;
-  border: 1px solid var(--vd-rule-control);
-  font: 700 16px/1.2 var(--vd-ui);
-  letter-spacing: 0.01em;
+  padding: 9px 18px;
+  border: 0;
+  background: var(--frame);
+  clip-path: polygon(
+    var(--cut) 0, calc(100% - var(--cut)) 0,
+    100% var(--cut), 100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%, var(--cut) 100%,
+    0 calc(100% - var(--cut)), 0 var(--cut)
+  );
+  /* `clip-path` clips the box-shadow away with everything else, so the plate's
+     lip and the shadow it casts have to be `drop-shadow` filters — those follow
+     the clipped silhouette instead of the box. Held in a variable because hover
+     and press add `brightness()` to the same filter chain and would otherwise
+     drop the shadows the moment they fired. */
+  --shade: drop-shadow(0 2px 0 var(--lip)) drop-shadow(0 9px 16px rgba(0, 0, 0, 0.5));
+  filter: var(--shade);
+  isolation: isolate;
+  text-align: left;
   text-decoration: none;
   color: var(--vd-ink);
-}
-.lp-act:hover { border-color: var(--vd-brass); color: var(--vd-brass); }
-.lp-act:focus-visible { outline: 2px solid var(--vd-brass); outline-offset: 2px; }
-
-/* The one most arrivals want. It is FILLED, so which of the two doors is the
-   main one is settled before anyone reads either label — the old pair differed
-   only by rule colour, which is not a weighting a first-time visitor sees. */
-.lp-act--primary {
-  background: var(--vd-parchment);
-  border-color: var(--vd-brass-edge);
-  color: #171410;
-}
-.lp-act--primary:hover { background: #f4eddd; border-color: var(--vd-brass); color: #171410; }
-
-/* On a phone they stack full width and become proper thumb targets. */
-@media (max-width: 520px) {
-  .lp-acts { flex-direction: column; align-items: stretch; }
-  .lp-act { padding: 18px 20px; justify-content: center; }
+  transition: transform 140ms var(--ease-out), filter 140ms ease;
 }
 
-.lp-foot {
-  display: flex;
-  gap: var(--vd-5);
-  flex-wrap: wrap;
+/* The fill, one pixel inside the rule. */
+.lp-act::before,
+.vd-gate .vd-btn::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  width: auto;
+  animation: none;
+  z-index: -2;
+  background: var(--fill);
+  clip-path: polygon(
+    calc(var(--cut) - 1px) 0, calc(100% - var(--cut) + 1px) 0,
+    100% calc(var(--cut) - 1px), 100% calc(100% - var(--cut) + 1px),
+    calc(100% - var(--cut) + 1px) 100%, calc(var(--cut) - 1px) 100%,
+    0 calc(100% - var(--cut) + 1px), 0 calc(var(--cut) - 1px)
+  );
+}
+
+/* The inner hairline: the ring between two chamfered paths 1px apart. */
+.lp-act::after,
+.vd-gate .vd-btn::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--inner-rule);
+  clip-path: polygon(
+    evenodd,
+    calc(var(--cut) - 5px) 0, calc(100% - var(--cut) + 5px) 0,
+    100% calc(var(--cut) - 5px), 100% calc(100% - var(--cut) + 5px),
+    calc(100% - var(--cut) + 5px) 100%, calc(var(--cut) - 5px) 100%,
+    0 calc(100% - var(--cut) + 5px), 0 calc(var(--cut) - 5px),
+
+    calc(var(--cut) - 4px) 1px, calc(100% - var(--cut) + 4px) 1px,
+    calc(100% - 1px) calc(var(--cut) - 4px), calc(100% - 1px) calc(100% - var(--cut) + 4px),
+    calc(100% - var(--cut) + 4px) calc(100% - 1px), calc(var(--cut) - 4px) calc(100% - 1px),
+    1px calc(100% - var(--cut) + 4px), 1px calc(var(--cut) - 4px)
+  );
+}
+
+.lp-act > span {
+  display: grid;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.lp-act strong { font: 500 16px/1.25 var(--vd-display); letter-spacing: 0.02em; }
+.lp-act small  { font: 400 11px/1.3 var(--vd-ui); }
+.lp-act > svg:last-child { margin-left: auto; opacity: 0.75; }
+
+.lp-act:focus-visible,
+.vd-gate .vd-btn:focus-visible { outline: 2px solid var(--vd-brass); outline-offset: 4px; }
+.lp-act:hover,
+.vd-gate .vd-btn:hover:not(:disabled) { transform: translateY(-1px); filter: var(--shade) brightness(1.06); }
+.lp-act:active,
+.vd-gate .vd-btn:active:not(:disabled) { transform: translateY(1px); filter: var(--shade) brightness(0.97); }
+
+/* The one most arrivals want: an aged gold plate, lit from the top edge, with
+   the lettering cut into it. */
+.lp-act--primary,
+.vd-gate .vd-btn--primary {
+  --frame: rgba(247, 231, 187, 0.75);
+  --fill: linear-gradient(180deg, #f2e5c2 0%, #dcc78f 46%, #c0a25f 100%);
+  --inner-rule: rgba(88, 66, 26, 0.45);
+  --lip: rgba(96, 79, 44, 0.85);
+  color: #2a2114;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.lp-act--primary small { color: #5d4f34; }
+.lp-act--primary > svg { color: #4a3d22; }
+.lp-act--primary > svg:last-child { opacity: 0.85; }
+
+/* The other door: the same plate, unstruck. */
+.lp-act--quiet,
+.vd-gate .vd-btn:not(.vd-btn--primary) {
+  --frame: rgba(235, 207, 136, 0.34);
+  --fill: linear-gradient(180deg, #1a1610 0%, #0d0b07 100%);
+  --inner-rule: rgba(235, 207, 136, 0.16);
+  --lip: rgba(6, 5, 3, 0.9);
+  color: var(--brass-pale);
+  text-shadow: 0 1px 2px #000;
+}
+.lp-act--quiet small { color: var(--vd-ink-dim); }
+.lp-act--quiet > svg:first-child { color: var(--vd-brass); }
+
+/* Narrower on a phone, same height. Edge to edge the plaques stopped reading as
+   objects and started reading as rows of a table — a struck plate wants air
+   around it. Held to a column rather than to the screen. */
+@media (max-width: 899px) {
+  .lp-acts { max-width: 300px; }
+}
+
+/* ============================================================================
+   The gate — the front door for anyone who arrived on an invite link
+
+   Same room, same materials as the landing: the throne wall behind it, one
+   frosted panel standing on it, and the two struck plaques reused rather than
+   restated (see the selector lists above — `.vd-gate .vd-btn` IS `.lp-act`).
+   Everything here is scoped to `.vd-gate`, so the lobby and the table keep the
+   engraved-plate language they were designed in.
+   ========================================================================== */
+
+.vd-gate {
+  --font-display: "Cinzel", "EB Garamond", Georgia, serif;
+  --font-ui: "DM Sans", "Manrope", system-ui, sans-serif;
+  --vd-display: var(--font-display);
+  --vd-ui: var(--font-ui);
+  --type-small: 400 13px/1.5 var(--font-ui);
+}
+
+.vd-gate__brand {
+  font: 500 clamp(24px, 6.5vw, 34px)/1 var(--vd-display);
+  letter-spacing: 0.24em;
+  text-indent: 0.24em;
+  text-shadow: 0 3px 1px #000, 0 6px 18px #000;
+}
+.vd-gate__promise { text-shadow: 0 2px 2px #000; }
+.vd-gate__tag { text-shadow: 0 2px 3px #000; }
+/* The crest ring the landing gives its mark. */
+.vd-gate .vd-topbar__emblem {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  outline: 1px solid var(--brass-deep);
+  outline-offset: 6px;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.55));
+}
+
+/* One pane of the room, not a plate bolted onto it. */
+.vd-gate__card {
+  padding: 20px 18px 22px;
+  border: 1px solid var(--line-brass);
+  border-radius: 14px;
+  background: rgba(16, 13, 9, 0.52);
+  -webkit-backdrop-filter: blur(22px) saturate(1.3);
+  backdrop-filter: blur(22px) saturate(1.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -14px 26px -14px rgba(0, 0, 0, 0.6),
+    0 20px 44px -12px rgba(0, 0, 0, 0.6);
+}
+
+/* The tab pair, as one track with a brass slug in it. */
+.vd-gate .vd-seg {
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line-brass);
+  border-radius: 11px;
+  background: rgba(0, 0, 0, 0.32);
+}
+.vd-gate .vd-seg > * {
+  border: 0;
+  border-radius: 8px;
+  font: 500 13.5px/1 var(--vd-ui);
+  letter-spacing: 0.01em;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+.vd-gate .vd-seg > button:hover:not(.is-active) {
+  background: rgba(255, 255, 255, 0.05);
+}
+.vd-gate .vd-seg > .is-active {
+  background: linear-gradient(180deg, #f0e2be, #cbb075);
+  color: #241d12;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Fields cut into the pane rather than sitting on it. */
+.vd-gate .vd-field {
+  border: 1px solid var(--line-brass);
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.34);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.45);
+  color: var(--vd-ink);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.vd-gate .vd-field:focus {
+  border-color: var(--vd-brass);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.45),
+    0 0 0 3px rgba(200, 162, 76, 0.16);
+  outline: none;
+}
+.vd-gate .vd-field--code {
+  font-family: var(--font-mono);
+  letter-spacing: var(--code-tracking);
+}
+.vd-gate .vd-field__label {
+  font: 400 10px/1 var(--font-mono);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  color: var(--vd-ink-muted);
+}
+
+/* The one button on this screen is the same gold plate as the front door's, so
+   the two screens agree about what "the thing to press" looks like. */
+.vd-gate .vd-btn {
   justify-content: center;
-  margin-top: var(--vd-8);
+  /* `.vd-btn--primary::before` is the sheen that runs across the old plate: a
+     40%-wide gradient on a 3.6s loop. This element's `::before` is the plaque's
+     FILL, and the sheen's `width` and `animation` cascade into it separately
+     from the background — so without these two the gold fill was 40% wide and
+     sliding back and forth across the button. */
+  min-height: 54px;
+  gap: 10px;
+  font: 500 16px/1.25 var(--vd-display);
+  letter-spacing: 0.02em;
 }
-.lp-foot .vd-textbtn:hover { color: var(--vd-brass); }
+.vd-gate .vd-btn:disabled {
+  filter: saturate(0.3) brightness(0.8);
+  cursor: not-allowed;
+}
+
+/* Settings, as cards cut from the same stock as the doors. */
+.vd-gate .vd-world {
+  --cut: 9px;
+  position: relative;
+  border: 0;
+  padding: 12px 14px;
+  border-radius: 0;
+  background: rgba(235, 207, 136, 0.22);
+  clip-path: polygon(
+    var(--cut) 0, calc(100% - var(--cut)) 0,
+    100% var(--cut), 100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%, var(--cut) 100%,
+    0 calc(100% - var(--cut)), 0 var(--cut)
+  );
+  isolation: isolate;
+  transition: background-color 180ms ease;
+}
+.vd-gate .vd-world::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(26, 22, 16, 0.92), rgba(10, 8, 5, 0.94));
+  clip-path: inherit;
+}
+.vd-gate .vd-world:hover:not(:disabled) { background: var(--vd-brass); }
+.vd-gate .vd-world.is-on { background: var(--vd-brass); }
+.vd-gate .vd-world.is-on::before {
+  background: linear-gradient(180deg, rgba(58, 47, 28, 0.92), rgba(24, 19, 11, 0.94));
+}
+.vd-gate .vd-world__name { font: 500 15px/1.2 var(--vd-display); letter-spacing: 0.01em; }
+/* The two team names were three wrapped lines inside a card two inches wide,
+   and they answer a question nobody is asking at the moment they choose. The
+   setting's own screens say them, at the size they deserve. */
+.vd-gate .vd-world__sub { display: none; }
+
+/* The picker sits inside the card now, so it needs the separation a block
+   boundary used to give it. */
+.vd-gate__worlds {
+  margin-top: var(--vd-5);
+  padding-top: var(--vd-5);
+  border-top: 1px solid var(--vd-rule-structure);
+}
+.vd-gate__worlds .vd-hint { margin: 2px 0 0; }
+.vd-gate__worlds .vd-worlds { margin-top: 10px; }
+.vd-gate__card .vd-btn--primary { margin-top: var(--vd-5); }
+
+/* A name, a state, nothing else — so the two cards are one line tall and the
+   same height whichever is chosen. */
+.vd-gate .vd-worldcell > .vd-hint { display: block; margin-top: 6px; }
+
+/* The dock floats over the page rather than taking a row, so the page has to
+   leave it the room — without this it sat on the button. */
+.vd-gate { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
+
+/* The way home, in the dock's glass so the two controls on this screen are the
+   same object. Fixed rather than in flow: the card is vertically centred, and
+   a link above it in the column would shove it down. */
+.vd-gate__back {
+  position: fixed;
+  top: max(var(--vd-4), env(safe-area-inset-top));
+  left: max(var(--vd-4), env(safe-area-inset-left));
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 15px;
+  border: 1px solid var(--line-brass);
+  border-radius: 20px;
+  background: rgba(16, 13, 9, 0.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  backdrop-filter: blur(20px) saturate(1.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 8px 20px rgba(0, 0, 0, 0.4);
+  font: 500 12.5px/1 var(--vd-ui);
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  color: var(--vd-ink-soft);
+  transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+.vd-gate__back > svg { color: var(--vd-brass); }
+.vd-gate__back:hover {
+  color: var(--vd-ink);
+  border-color: var(--vd-brass-edge);
+  background: rgba(30, 24, 16, 0.6);
+}
+.vd-gate__back:focus-visible { outline: 2px solid var(--vd-brass); outline-offset: 3px; }
+
+/* It would otherwise sit on the emblem on a short screen. */
+@media (max-width: 520px) {
+  .vd-gate { padding-top: 56px; }
+}
 
 /* ============================================================================
    Layout
@@ -1835,7 +2532,6 @@
    navigational-pill height. */
 .vd-pill--action { min-width: 44px; min-height: 44px; padding: 4px 16px; }
 .vd-page__back .vd-pill,
-.vd-gate__foot .vd-pill,
 .lx-head .vd-pill,
 .vd-signin-page > .vd-pill,
 .vd-toc .vd-pill { min-height: 44px; padding: 0 14px; }
@@ -1865,7 +2561,6 @@
 .vd-gate__card .vd-seg { margin-bottom: var(--vd-5); }
 .vd-gate__hint { margin: 12px 0 16px; font-size: var(--vd-t-sm); }
 .vd-gate__worlds { }
-.vd-gate__foot { display: flex; gap: var(--vd-2); justify-content: center; flex-wrap: wrap; }
 
 .vd-field__label {
   display: block; margin: 0 0 7px;

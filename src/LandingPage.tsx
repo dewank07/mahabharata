@@ -12,9 +12,10 @@ import { useQuery } from "convex/react";
 import gsap from "gsap";
 import { ArrowRight, BadgeCheck, Crown, LogOut, Shield, Ticket } from "lucide-react";
 import { api } from "../convex/_generated/api";
-import { INDIA_CARD_BACK, THEME_ART, THEMES } from "../convex/themes";
+import { THEME_ART, THEMES } from "../convex/themes";
 import { useAuth } from "./auth";
-import markSrc from "./assets/mark.svg";
+import { Dock } from "./Dock";
+const cardBackSrc = "/art/medieval/back.png";
 import { prefersReducedMotion, settleWhenUnwatched } from "./motion";
 
 const WORDMARK = "DECEVIA";
@@ -74,15 +75,6 @@ const PAIRS: ReadonlyArray<{
   },
 ];
 
-/**
- * The back in the middle is the Indian deck's, borrowed, because it is the only
- * drawn card back in the app — the medieval deck has none, and the night screen
- * gives it a hatched plate instead. It is tinted into the brass band at the CSS
- * rule for `.lp-card--c`, so it reads as a card rather than as a second world.
- * If a medieval back is ever drawn, this is the one line that changes.
- */
-const CARD_BACK = INDIA_CARD_BACK;
-
 /** How long a pair is held, and how long the tuck behind the back takes. */
 const HOLD_MS = 4200;
 const TUCK_MS = 340;
@@ -112,6 +104,7 @@ export function LandingPage() {
    */
   const [heroDone, setHeroDone] = useState(false);
 
+
   useLayoutEffect(() => {
     // Anyone who has asked for less motion gets the finished frame, not a
     // slower version of the show.
@@ -123,14 +116,10 @@ export function LandingPage() {
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
 
-      tl.from(".lp-mark", { scale: 0.7, opacity: 0, duration: 0.7 })
-        // Half a turn: the light side becomes the dark one.
-        .from(".lp-mark", { rotate: -180, duration: 1.1, ease: "power2.inOut" }, "<")
-        .from(
-          ".lp-letter",
-          { y: 22, opacity: 0, stagger: 0.055, duration: 0.5 },
-          "-=0.45",
-        )
+      tl.from(
+        ".lp-letter",
+        { y: 22, opacity: 0, stagger: 0.055, duration: 0.5 },
+      )
         // The promise arrives by spreading apart, not by fading.
         .from(
           ".lp-promise",
@@ -170,10 +159,11 @@ export function LandingPage() {
           { opacity: 0, duration: 0.4, clearProps: "opacity" },
           "-=0.2",
         )
-        .from(".lp-line", { scaleX: 0, duration: 0.6 }, "-=0.4")
         .from(".lp-lede", { y: 12, opacity: 0, duration: 0.5 }, "-=0.3")
         .from(".lp-acts", { y: 14, opacity: 0, duration: 0.5 }, "-=0.2")
-        .from(".lp-foot", { opacity: 0, duration: 0.5 }, "-=0.2")
+        /* The dock is its own component now, but it still renders inside the
+           board this context is scoped to, so the deal can still reach it. */
+        .from(".lp-dock", { y: 24, opacity: 0, duration: 0.5 }, "-=0.25")
         .add(() => setHeroDone(true));
 
       /* The front page is the one surface where freezing mid-entrance is
@@ -184,67 +174,6 @@ export function LandingPage() {
       return settleWhenUnwatched(tl);
     }, root);
     return () => ctx.revert();
-  }, []);
-
-  /**
-   * Depth, from the pointer.
-   *
-   * The relief and the fan sit on the same flat page, and a still picture of a
-   * wall is a still picture of a wall. Moving them by a few pixels in OPPOSITE
-   * directions is the whole illusion: the carving behaves like something a long
-   * way behind the cards, and the cards like objects held in front of it. Six
-   * pixels is enough — more and it stops reading as parallax and starts reading
-   * as the page sliding around.
-   *
-   * Two custom properties on the board, and CSS does the rest. Writing a
-   * variable is one style recalculation; animating the two layers from here
-   * would be two GSAP tweens per frame for something the compositor can do on
-   * its own. Coalesced into a rAF so a 1000Hz mouse cannot schedule more work
-   * than there are frames to do it in.
-   *
-   * Pointer only, and fine pointers only. There is no hover on a phone, a
-   * device-orientation version would ask for a permission prompt on the front
-   * door, and anyone who has asked for less motion gets a still page.
-   */
-  useLayoutEffect(() => {
-    if (prefersReducedMotion()) return;
-    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
-
-    const el = root.current;
-    if (!el) return;
-
-    let frame = 0;
-    let x = 0;
-    let y = 0;
-
-    const paint = () => {
-      frame = 0;
-      el.style.setProperty("--lp-px", x.toFixed(3));
-      el.style.setProperty("--lp-py", y.toFixed(3));
-    };
-
-    const onMove = (e: PointerEvent) => {
-      // -1 … 1 from the middle of the window, so the rest is a multiplication.
-      x = (e.clientX / window.innerWidth) * 2 - 1;
-      y = (e.clientY / window.innerHeight) * 2 - 1;
-      if (!frame) frame = requestAnimationFrame(paint);
-    };
-
-    // Leaving the window returns everything to centre rather than freezing it
-    // wherever the pointer happened to go out.
-    const onLeave = () => {
-      x = 0;
-      y = 0;
-      if (!frame) frame = requestAnimationFrame(paint);
-    };
-
-    window.addEventListener("pointermove", onMove, { passive: true });
-    document.addEventListener("pointerleave", onLeave);
-    return () => {
-      window.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerleave", onLeave);
-      if (frame) cancelAnimationFrame(frame);
-    };
   }, []);
 
   /** The late arrival, eased in rather than snapped in. */
@@ -262,73 +191,77 @@ export function LandingPage() {
   return (
     <div className="vd-board lp" ref={root}>
       <div className="vd-content lp__inner">
-        <img className="lp-mark" src={markSrc} alt="" width={64} height={64} />
+        {/* Three blocks, in the order a phone reads them: who this is, what it
+            looks like, what to do. The picture sits BETWEEN the name and the
+            doors — on a narrow screen the fan was below both, so the one thing
+            the page is selling arrived after the ask. The two-column stage
+            reassembles them with grid areas, nothing reorders. */}
+        <div className="lp__brand">
+          {/* The crest stood here. It is on the card back now, struck into the
+              middle of the compass rose at ten times the size — saying the same
+              thing twice, once small and once well, was the small one's job to
+              give up. */}
+          <h1 className="lp-wordmark" aria-label={WORDMARK}>
+            {WORDMARK.split("").map((ch, i) => (
+              <span className="lp-letter" key={i} aria-hidden>
+                {ch}
+              </span>
+            ))}
+          </h1>
 
-        <h1 className="lp-wordmark" aria-label={WORDMARK}>
-          {WORDMARK.split("").map((ch, i) => (
-            <span className="lp-letter" key={i} aria-hidden>
-              {ch}
-            </span>
-          ))}
-        </h1>
+          <p className="lp-promise">Where friends become foes</p>
+        </div>
 
-        <p className="lp-promise">Where friends become foes</p>
+        {/* The picture column. */}
+        <div className="lp__showcase">
+          <CardFan />
+        </div>
 
-        <CardFan />
+        <div className="lp__copy">
+          {/* Every fact the long version carried — the count, the same room,
+              the phones, the split — in two lines instead of four, and set in
+              the display face so it reads as the page's own voice rather than
+              as help text. A front door has one job. */}
+          <p className="lp-lede">
+            <strong>5 to 18 players</strong>, one room, a phone each.{" "}
+            <br />
+            {" "}Most of you are loyal. A few are lying.
+          </p>
 
-        <hr className="lp-line" />
-
-        {/* Two sentences, where there were five plus a numbered list.
-
-            A front door has one job — say what this is and open. The long
-            lede, the three how-to steps and the cast strip below them were all
-            true and all better told elsewhere: the steps are the first screen
-            of /learn, the cast is /learn#cast, and both are one tap from the
-            footer. What has to be here is the shape of the thing (a party
-            game, in person, on phones), the count, and the door. */}
-        <p className="lp-lede">
-          A hidden-roles party game for <strong>5 to 18 people</strong> in the
-          same room, played on your phones. Most of you are good — a few are
-          secretly not.
-        </p>
-
-        {/* Two doors, and they are the two things a visitor can actually be:
-            the person setting the game up, or the person who was sent a code.
-            The old page offered only "Join the council" — which, with no code
-            to type, was a dead end for anyone arriving on their own. */}
-        <div className="lp-acts">
-          <a className="lp-act lp-act--primary" href="/play?tab=create">
-            Start a new game <ArrowRight size={16} />
-          </a>
-          <a className="lp-act" href="/play?tab=join">
-            <Ticket size={15} /> I have a code
-          </a>
+          {/* Two doors, and they are the two things a visitor can actually be:
+              the person setting the game up, or the person who was sent a code.
+              The old page offered only "Join the council" — which, with no code
+              to type, was a dead end for anyone arriving on their own. */}
+          <div className="lp-acts">
+            <a className="lp-act lp-act--primary" href="/play?tab=create">
+              <Crown size={20} />
+              <span>
+                <strong>Start a new game</strong>
+                <small>Create a private room</small>
+              </span>
+              <ArrowRight size={16} />
+            </a>
+            <a className="lp-act lp-act--quiet" href="/play?tab=join">
+              <Ticket size={20} />
+              <span>
+                <strong>I have a code</strong>
+                <small>Join a game you were invited to</small>
+              </span>
+              <ArrowRight size={16} />
+            </a>
         </div>
 
         {heroDone && known && !signedIn && (
-          <p className="lp-note lp-late">
-            No account needed to play. <a href="/signin">Create one</a> only if
-            you want the extra roles and settings.
-          </p>
+          <p className="lp-note lp-late">No account needed to play.</p>
         )}
 
         {heroDone && known && signedIn && viewer && (
           <AccountCard viewer={viewer} config={config} onSignOut={signOut} />
         )}
-
-        {/* The six-card cast strip stood here. The fan at the top of the page
-            now shows the same art at ten times the size and says what the two
-            faces ARE, which is the job the strip was doing badly — and the
-            whole cast, with what each one does, is one tap away below. */}
-        <div className="lp-foot">
-          <a className="vd-textbtn" href="/learn">
-            New here? See how it plays
-          </a>
-          <a className="vd-textbtn" href="/rules">
-            Full rules
-          </a>
         </div>
       </div>
+
+      <Dock />
     </div>
   );
 }
@@ -433,11 +366,6 @@ function CardFan() {
     }
   }, [next.good, next.evil]);
 
-  const cards = [
-    { key: "l", src: THEME_ART.medieval[pair.good] },
-    { key: "c", src: CARD_BACK },
-    { key: "r", src: THEME_ART.medieval[pair.evil] },
-  ];
 
   return (
     <div className="lp-fan">
@@ -447,24 +375,26 @@ function CardFan() {
         onPointerLeave={() => setPaused(false)}
       >
         <div className="lp-fan__stage" aria-hidden>
-          {cards.map(({ key, src }) => (
-            <div className={`lp-card lp-card--${key}`} key={key}>
-              {/* Keyed on the URL so React swaps the element rather than
-                  mutating `src` on a live one — a mutated `src` paints the old
-                  picture until the new one decodes, which during a tuck means
-                  the card fans back out still showing the face it just left. */}
-              <img
-                key={src}
-                className="lp-card__art"
-                src={src}
-                alt=""
-                width={362}
-                height={483}
-                loading="eager"
-                decoding="async"
-              />
-            </div>
-          ))}
+          <Face which="l" src={THEME_ART.medieval[pair.good]} />
+
+          {/* The deck's own back: a painted plate, brass-framed, with the
+              app's mark struck into the middle of the compass rose. It stands
+              on its own — no card box behind it, no added rule — because the
+              art already has an edge, and a second frame around a framed
+              object is just a second frame. */}
+          <div className="lp-card lp-card--c">
+            <img
+              className="lp-card__art"
+              src={cardBackSrc}
+              alt=""
+              width={364}
+              height={542}
+              loading="eager"
+              decoding="async"
+            />
+          </div>
+
+          <Face which="r" src={THEME_ART.medieval[pair.evil]} />
         </div>
       </div>
 
@@ -474,6 +404,31 @@ function CardFan() {
           The {world.name} setting — free to play.
         </span>
       </p>
+    </div>
+  );
+}
+
+/**
+ * One painted face in the fan.
+ *
+ * Keyed on the URL by its caller so React swaps the element rather than
+ * mutating `src` on a live one — a mutated `src` paints the old picture until
+ * the new one decodes, which during a tuck means the card fans back out still
+ * showing the face it just left.
+ */
+function Face({ which, src }: { which: "l" | "r"; src: string }) {
+  return (
+    <div className={`lp-card lp-card--${which}`}>
+      <img
+        key={src}
+        className="lp-card__art"
+        src={src}
+        alt=""
+        width={362}
+        height={483}
+        loading="eager"
+        decoding="async"
+      />
     </div>
   );
 }

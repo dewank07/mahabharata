@@ -154,46 +154,50 @@ export function LobbyScreen({
      option rows fit on one line each. */
   const setup = (
     <section className="vd-setup">
-      <SetupSection title="Setting" summary={themeSummary} startOpen={roomy}>
-        <p className="vd-hint" style={{ margin: 0 }}>
-          Names and story only — the rules never change.
-        </p>
-        <div className="vd-worlds">
-          {worlds.map((w) => {
-            const on = w.id === room.themeId;
-            const paid = !roomPremium && w.id !== "medieval" && !on;
-            return (
-              <div key={w.id} className="vd-worldcell">
-                <button
-                  className={`vd-world ${on ? "is-on" : ""}`}
-                  disabled={!isHost || paid}
-                  aria-pressed={on}
-                  onClick={act(() => onChangeTheme(w.id))}
-                >
-                  <span className="vd-world__body">
-                    <span className="vd-world__name">{w.name}</span>
-                    <span className="vd-world__sub">
-                      Good: {w.goodTeamName} · Evil: {w.evilTeamName}
+{worlds.length > 1 && (
+      /* One playable setting means this section can only ever report the one
+         it already shows in its own summary. */
+            <SetupSection title="Setting" summary={themeSummary} startOpen={roomy}>
+          <p className="vd-hint" style={{ margin: 0 }}>
+            Names and story only — the rules never change.
+          </p>
+          <div className="vd-worlds">
+            {worlds.map((w) => {
+              const on = w.id === room.themeId;
+              const paid = !roomPremium && w.id !== "medieval" && !on;
+              return (
+                <div key={w.id} className="vd-worldcell">
+                  <button
+                    className={`vd-world ${on ? "is-on" : ""}`}
+                    disabled={!isHost || paid}
+                    aria-pressed={on}
+                    onClick={act(() => onChangeTheme(w.id))}
+                  >
+                    <span className="vd-world__body">
+                      <span className="vd-world__name">{w.name}</span>
+                      <span className="vd-world__sub">
+                        Good: {w.goodTeamName} · Evil: {w.evilTeamName}
+                      </span>
                     </span>
-                  </span>
-                  {on
-                    ? <span className="vd-opt__lock"><Check size={13} /> In use</span>
-                    : paid
-                      ? <span className="vd-opt__lock"><Lock size={11} /> Paid</span>
-                      : null}
-                </button>
-                {/* The reason a tile is off used to live only in `title`,
-                    which never appears on a phone. */}
-                {(paid || !isHost) && (
-                  <span className="vd-hint">
-                    {paid ? "Included with a paid plan" : "Only the host can change this"}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </SetupSection>
+                    {on
+                      ? <span className="vd-opt__lock"><Check size={13} /> In use</span>
+                      : paid
+                        ? <span className="vd-opt__lock"><Lock size={11} /> Paid</span>
+                        : null}
+                  </button>
+                  {/* The reason a tile is off used to live only in `title`,
+                      which never appears on a phone. */}
+                  {(paid || !isHost) && (
+                    <span className="vd-hint">
+                      {paid ? "Included with a paid plan" : "Only the host can change this"}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </SetupSection>
+      )}
 
       <SetupSection title="Extra roles" summary={rolesSummary} startOpen={roomy}>
         <div className="vd-row" style={{ justifyContent: "flex-end" }}>

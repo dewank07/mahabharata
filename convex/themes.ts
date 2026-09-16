@@ -1224,7 +1224,10 @@ for (const [themeId, roleArt] of Object.entries(THEME_ART)) {
 }
 
 /** Playable worlds. Other keys in THEMES stay for older rooms. */
-export const PLAYABLE_THEME_IDS = ["medieval", "india"] as const;
+/* What the pickers offer. `THEMES` still holds every world and a room already
+   saved with one keeps playing in it — this is only the list you can CHOOSE
+   from, so dropping one here never strands a game in progress. */
+export const PLAYABLE_THEME_IDS = ["medieval"] as const;
 
 export const THEME_LIST = PLAYABLE_THEME_IDS.map((id) => {
   const t = THEMES[id];

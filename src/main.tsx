@@ -2,15 +2,20 @@ import { lazy, StrictMode, Suspense, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { ConvexReactClient } from "convex/react";
 import App from "./App";
-import RulesPage from "./RulesPage";
 import AdminPage from "./AdminPage";
-import UpgradePage from "./UpgradePage";
+
+/* Lazy on BOTH sides or lazy on neither: `LandingPage` opens these in sheets
+   with `lazy()`, and a static import here would pull them straight back into
+   the entry chunk and quietly defeat it — which is exactly what the bundler
+   warned about when this file imported them directly. */
+const RulesPage = lazy(() => import("./RulesPage"));
+const UpgradePage = lazy(() => import("./UpgradePage"));
 import { SignInPage } from "./SignIn";
 // Standalone, animation-heavy, and read once — it has no business riding
 // along in the bundle every player downloads to sit at a table.
-const LearnPage = lazy(() => import("./LearnPage"));
 import { LandingPage } from "./LandingPage";
 import { AuthProvider } from "./auth";
+import { Loader2 } from "lucide-react";
 /* `/react`, not `/next` — the dashboard's Get Started card defaults to the
    Next.js snippet and this is a Vite SPA. The component only injects
    `/_vercel/insights/script.js`; the route tracking lives in that script, not
@@ -38,7 +43,6 @@ import "./character-card.css";
 // front door's fan, the phone's role handle — and each one needs to win
 // against the rule it is replacing.
 import "./chamber.css";
-import { Loader2 } from "lucide-react";
 
 const url = import.meta.env.VITE_CONVEX_URL as string;
 if (!url) {
@@ -63,15 +67,10 @@ const PAGE_META: Record<string, { title: string; description: string }> = {
     description:
       "A free hidden-roles party game for 5 to 18 people in the same room, played on your phones. Most of you are good; a few are secretly not. Five settings to play it in.",
   },
-  learn: {
+  rules: {
     title: "How to play — Decevia",
     description:
-      "A walkthrough you can step through: one round from start to finish, every role, the three add-ons and all nine plot cards.",
-  },
-  rules: {
-    title: "The rules — Decevia",
-    description:
-      "Team sizes, who gets shown what, the three add-ons, and how games of more than ten people work.",
+      "Watch a round play out, then look it up: how a round works, how you win, team sizes, who gets shown what, and every role.",
   },
   signin: {
     title: "Sign in — Decevia",
@@ -125,22 +124,22 @@ function Router() {
       <div className='app-root'>
         <div className='vd-board'>
           <div className='vd-content'>
-            {route === "signin" && <SignInPage />}
-            {route === "learn" && (
-              <Suspense
-                fallback={
-                  <p className='vd-loading' role='status'>
-                    <Loader2 size={24} className='vd-spin' color='var(--vd-brass)' />
-                    <span>Loading how to play…</span>
-                  </p>
-                }
-              >
-                <LearnPage />
-              </Suspense>
-            )}
-            {route === "rules" && <RulesPage />}
-            {route === "admin" && <AdminPage />}
-            {route === "upgrade" && <UpgradePage />}
+            <Suspense
+              fallback={
+                <p className='vd-loading' role='status'>
+                  <Loader2 size={24} className='vd-spin' color='var(--vd-brass)' />
+                  <span>Loading…</span>
+                </p>
+              }
+            >
+              {route === "signin" && <SignInPage />}
+              {/* /learn and /rules are the same page. They were two, and the
+                  second repeated most of the first; both paths are kept
+                  because both are in links already handed out. */}
+              {route === "rules" && <RulesPage />}
+              {route === "admin" && <AdminPage />}
+              {route === "upgrade" && <UpgradePage />}
+            </Suspense>
           </div>
         </div>
       </div>
@@ -161,17 +160,15 @@ function routeFor(pathname: string, invited: boolean) {
 
   return at("/signin")
     ? "signin"
-    : at("/learn")
-      ? "learn"
-      : at("/rules")
-        ? "rules"
-        : at("/admin")
-          ? "admin"
-          : at("/upgrade")
-            ? "upgrade"
-            : at("/play") || invited
-              ? "game"
-              : "landing";
+    : at("/learn") || at("/rules")
+      ? "rules"
+      : at("/admin")
+        ? "admin"
+        : at("/upgrade")
+          ? "upgrade"
+          : at("/play") || invited
+            ? "game"
+            : "landing";
 }
 
 createRoot(document.getElementById("root")!).render(

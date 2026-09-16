@@ -1,14 +1,15 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
-  ArrowLeft, Check, Crown, Eye, EyeOff, Flame, ScrollText, Shield, Swords,
-  Sun, Users, X,
+  ArrowLeft, Crown, Eye, EyeOff, Flame, ScrollText, Shield, Swords, Sun, Users,
 } from "lucide-react";
-import { THEMES, THEME_LIST, type ThemeConfig } from "../convex/themes";
+import { THEMES, type ThemeConfig } from "../convex/themes";
 import { CharacterCard, CharacterGallery } from "./CharacterCard";
+import { Stage } from "./learn/Stage";
+import { SCENARIOS, SCENARIO_GROUPS } from "./learn/scenarios";
+import "./learn.css";
 import { characterFor } from "./characters";
 import {
   doubleFailQuests, MAX_PLAYERS, QUEST_SIZES, TEAM_COUNTS, MAX_REJECTS,
-  LADY_MIN_PLAYERS, PLOT_CARDS, plotCardsPerRound, NIGHT_ORDER,
 } from "../convex/logic";
 
 const BASE = THEMES.medieval;
@@ -29,27 +30,21 @@ const BASE_ROLE_IDS = [
 ] as const;
 
 const PHASES = [
-  { id: "lobby", title: "Setting up", detail: "Everyone joins with the same 4-letter code. The host picks the setting and any optional roles or add-ons." },
-  { id: "reveal", title: "Secret roles", detail: "Each player is shown their own role, and only what that role is allowed to know. The order this happens in is fixed." },
-  { id: "plot", title: "Plot cards", detail: "Only if the host turned them on. At the start of each round the leader deals that round's cards face down to other players." },
-  { id: "propose", title: "Picking a team", detail: "Everyone gets 3 minutes to talk, then the leader has 1 minute to choose a team of the size the board shows. With Excalibur on, they also choose who carries it." },
-  { id: "vote", title: "Voting", detail: "Everyone votes yes or no on that team — not just the people on it. More yes than no and the team goes; a tie counts as no." },
-  { id: "quest", title: "The mission", detail: "Only the people on the team play a card, in secret: Succeed or Fail. Good players can only play Succeed, unless the host turned on the house rule. Excalibur, if in play, can then flip one card." },
-  { id: "lady", title: "Lady of the Lake", detail: "Only with 7 or more players and the add-on on. After missions 2, 3 and 4 one player privately learns somebody's real side, then hands the power to that person." },
+  { id: "lobby", title: "Setting up", detail: "Everyone joins with the same 4-letter code. The host picks the setting and any optional roles." },
+  { id: "reveal", title: "Secret roles", detail: "Each player is shown their own role, and only what that role is allowed to know." },
+  { id: "propose", title: "Picking a team", detail: "The table talks, then the leader chooses a team of the size the board shows." },
+  { id: "vote", title: "Voting", detail: "Everyone votes yes or no on that team — not just the people on it. A tie counts as no." },
+  { id: "quest", title: "The mission", detail: "Only the people on the team play a card in secret: Succeed or Fail. Good can only play Succeed." },
   { id: "end", title: "Winning", detail: "Once three missions succeed, the evil team gets one guess at who Merlin is. Three failed missions, or five teams voted down in a row, wins outright for evil." },
 ];
 
 const SECTIONS = [
+  { id: "watch", label: "Watch a round" },
   { id: "how-it-plays", label: "How a round works" },
   { id: "winning", label: "How you win" },
   { id: "table-size", label: "Team sizes" },
-  { id: "beyond-ten", label: "More than 10 players" },
   { id: "sight", label: "Who knows what" },
-  { id: "night", label: "Order roles are shown" },
-  { id: "lancelot", label: "The Lancelots" },
-  { id: "expansions", label: "Add-ons" },
   { id: "roles", label: "All the roles" },
-  { id: "themes", label: "Settings" },
 ];
 
 function roleOf(theme: ThemeConfig, id: string) {
@@ -105,39 +100,27 @@ function seesTargets(viewerId: string): { ids: string[]; note: string } {
 }
 
 export default function RulesPage() {
-  const [themeId, setThemeId] = useState("medieval");
+  const [scenarioId, setScenarioId] = useState(SCENARIOS[0].id);
+  const scenario = SCENARIOS.find((s) => s.id === scenarioId) ?? SCENARIOS[0];
   const [players, setPlayers] = useState(7);
-  const theme = THEMES[themeId] ?? BASE;
   const [good, evil] = TEAM_COUNTS[players];
   const quests = QUEST_SIZES[players];
   const evilSpecials = evil - 1;
-
-  const roster = useMemo(
-    () =>
-      BASE_ROLE_IDS.map((id) => ({
-        id,
-        base: roleOf(BASE, id)!,
-        themed: roleOf(theme, id)!,
-      })),
-    [theme],
-  );
 
   return (
     <div className="vd-board">
       <div className="vd-content vd-page">
         <div className="vd-page__back">
           <a className="vd-pill" href="/play"><ArrowLeft size={13} /> Back to the game</a>
-          <a className="vd-pill" href="/learn">See a round played out</a>
         </div>
 
         <header className="vd-page__head">
-          <span className="vd-label vd-label--brass"><ScrollText size={13} /> Full rules</span>
+          <span className="vd-label vd-label--brass"><ScrollText size={13} /> How to play</span>
           <h1 className="vd-hero">How the game works</h1>
           <p className="vd-voice">
-            All five settings are the same game with different character names.
-            These rules use the <strong>Medieval Kingdom</strong> names
-            (Merlin, Arthur, Mordred) throughout. If you'd rather watch a round
-            play out than read, try <a href="/learn">how to play</a> first.
+            Watch a round play out, then look anything up. Every setting is the
+            same game with different character names; this page uses the{" "}
+            <strong>Medieval Kingdom</strong> ones throughout.
           </p>
         </header>
 
@@ -147,6 +130,40 @@ export default function RulesPage() {
             <a key={s.id} className="vd-pill" href={`#${s.id}`}>{s.label}</a>
           ))}
         </nav>
+
+        {/* The walkthrough that was the whole of /learn. It leads, because
+            watching one round land teaches the shape of the game faster than
+            any of the prose under it — and the prose is then a reference for
+            the thing you have already seen, which is what a reference is for.
+            Everything else /learn carried said what these sections say. */}
+        <section id="watch" className="vd-page__section">
+          <h2 className="vd-h1">Watch a round play out</h2>
+          <p className="vd-voice" style={{ marginTop: 12 }}>
+            Pick one and it plays itself, or step through it a moment at a time.
+            Nothing here is a real game — it is a replay.
+          </p>
+          <div className="lx-picker" style={{ marginTop: 16 }}>
+            {SCENARIO_GROUPS.map((g) => (
+              <div key={g.id} className="lx-picker__group">
+                <span className="vd-label vd-label--dim">{g.label}</span>
+                <div className="lx-picker__row">
+                  {SCENARIOS.filter((x) => x.group === g.id).map((x) => (
+                    <button
+                      key={x.id}
+                      type="button"
+                      className={`lx-pick ${x.id === scenarioId ? "is-on" : ""}`}
+                      onClick={() => setScenarioId(x.id)}
+                    >
+                      <span className="lx-pick__name">{x.name}</span>
+                      <span className="lx-pick__blurb">{x.blurb}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <Stage scenario={scenario} />
+        </section>
 
         <section id="how-it-plays" className="vd-page__section">
           <h2 className="vd-h1">How a round works</h2>
@@ -169,11 +186,9 @@ export default function RulesPage() {
               <Users size={18} color="var(--vd-brass)" />
               <h3 className="vd-h3" style={{ margin: "8px 0" }}>Picking a team</h3>
               <p className="vd-voice" style={{ margin: 0 }}>
-                The table gets 4 minutes to talk, then the leader has 1 more
-                minute to lock in a team. They tap names until the count matches
-                the size shown, then send it to a vote. If the minute runs out,
-                the leader loses their turn: the next player picks instead, for
-                the same mission. A missed turn does <em>not</em> count as a
+                The table talks, then the leader taps names until the count
+                matches the size shown and sends it to a vote. A leader who runs
+                out of time loses their turn to the next player — that is not a
                 team being voted down.
               </p>
             </div>
@@ -182,19 +197,17 @@ export default function RulesPage() {
               <h3 className="vd-h3" style={{ margin: "8px 0" }}>Voting</h3>
               <p className="vd-voice" style={{ margin: 0 }}>
                 More <strong>yes</strong> than <strong>no</strong> and the team
-                goes on the mission. More no, or a tie, and the team is turned
-                down: the next player becomes leader and one of the five
-                rejection markers fills up.
+                goes. More no, or a tie, and the next player becomes leader and
+                one of the five rejection markers fills up.
               </p>
             </div>
             <div className="vd-panel">
               <Swords size={18} color="var(--vd-brass)" />
               <h3 className="vd-h3" style={{ margin: "8px 0" }}>Mission cards</h3>
               <p className="vd-voice" style={{ margin: 0 }}>
-                Good players can only play <strong>Succeed</strong>. Evil
-                players can play either. Cards stay secret, and when they are
-                turned over you only learn how many Fails there were — never
-                who played them.
+                Good can only play <strong>Succeed</strong>; evil can play
+                either. When the cards turn over you learn how many Fails there
+                were — never who played them.
               </p>
             </div>
           </div>
@@ -219,18 +232,16 @@ export default function RulesPage() {
                 <li>{MAX_REJECTS} teams in a row are voted down, or</li>
                 <li>Three missions succeed but the evil team correctly guesses who Merlin is.</li>
                 <li>
-                  With the lovers in play, evil can instead guess{" "}
-                  <strong>both</strong> Tristan and Isolde. Both right and evil
-                  wins; either one wrong and good wins.
+                  With the lovers in play, evil can instead name{" "}
+                  <strong>both</strong> Tristan and Isolde.
                 </li>
               </ul>
             </div>
           </div>
           <p className="vd-voice" style={{ marginTop: 16 }}>
             One exception: with 7 or more players, mission 4 needs{" "}
-            <strong>two Fail cards</strong> to fail, not one. With 5 or 6
-            players a single Fail is still enough. Above 10 players, mission 3
-            needs two as well — see <em>More than 10 players</em> below.
+            <strong>two Fail cards</strong> to fail, not one. The table below
+            marks every mission that does.
           </p>
         </section>
 
@@ -238,12 +249,9 @@ export default function RulesPage() {
           <h2 className="vd-h1">How many people, and how big each team is</h2>
           <p className="vd-voice" style={{ marginTop: 12 }}>
             <strong>Merlin</strong> and the <strong>Assassin</strong> are always
-            in the game. Any optional roles you turn on take up the remaining
-            places, and you can never have more roles than players. Percival,
-            Guinevere and the good Lancelot each take one good place; the lovers
-            take two; Morgana, Mordred, Oberon and the evil Lancelot each take
-            one evil place. The Lancelots come as a pair, so turning them on
-            costs one place on <em>each</em> side.
+            in. Every optional role you turn on takes one of the remaining
+            places on its own side, and you can never have more roles than
+            players.
           </p>
 
           <div style={{ marginTop: 20 }}>
@@ -287,60 +295,11 @@ export default function RulesPage() {
           </div>
         </section>
 
-        <section id="beyond-ten" className="vd-page__section">
-          <h2 className="vd-h1">More than 10 players</h2>
-          <p className="vd-voice" style={{ marginTop: 12 }}>
-            The printed board game only covers 5 to 10 players, and says nothing
-            about team sizes above that. This app goes up to{" "}
-            <strong>{MAX_PLAYERS}</strong>, so rather than invent numbers we
-            carried on the same arithmetic the printed table already uses.
-          </p>
-          <div className="vd-grid3" style={{ marginTop: 20 }}>
-            <div className="vd-panel">
-              <Flame size={18} color="var(--vd-brass)" />
-              <h3 className="vd-h3" style={{ margin: "8px 0" }}>How many are evil</h3>
-              <p className="vd-voice" style={{ margin: 0 }}>
-                <code>ceil(n / 3)</code>. That reproduces every official row exactly
-                — 5→2, 6→2, 7→3, 8→3, 9→3, 10→4 — so above ten it simply keeps
-                going. Good takes the rest.
-              </p>
-            </div>
-            <div className="vd-panel">
-              <Users size={18} color="var(--vd-brass)" />
-              <h3 className="vd-h3" style={{ margin: "8px 0" }}>How big each mission is</h3>
-              <p className="vd-voice" style={{ margin: 0 }}>
-                The printed sizes sit flat at <code>3 4 4 5 5</code> from 8 to
-                10 players, so every further three players adds one to each
-                mission. Eleven players sends 4/5/5/6/6; eighteen sends
-                6/7/7/8/8.
-              </p>
-            </div>
-            <div className="vd-panel">
-              <Shield size={18} color="var(--vd-brass)" />
-              <h3 className="vd-h3" style={{ margin: "8px 0" }}>Missions needing two Fails</h3>
-              <p className="vd-voice" style={{ margin: 0 }}>
-                Above 10 players, mission 3 joins mission 4 in needing two Fail
-                cards. Teams get bigger as the group does, so otherwise a single
-                saboteur would be on almost every mission.
-              </p>
-            </div>
-          </div>
-          <p className="vd-voice" style={{ marginTop: 16 }}>
-            Nothing changes at 5 to 10 players — those always use the printed
-            numbers. Worth knowing before you invite eighteen people: the game
-            is still only five missions long, so at the biggest sizes plenty of
-            players never go on one. Every game can seat all eighteen; group
-            size is not part of the paid plan.
-          </p>
-        </section>
-
         <section id="sight" className="vd-page__section">
           <h2 className="vd-h1">Who knows what</h2>
           <p className="vd-voice" style={{ marginTop: 12 }}>
             Everything anyone knows for certain comes from the moment roles are
-            handed out. After that it is all talk. The names below are the
-            Medieval ones; the same applies to the matching characters in every
-            other setting.
+            handed out. After that it is all talk.
           </p>
           <div className="vd-stack" style={{ marginTop: 16 }}>
             {BASE_ROLE_IDS.map((id) => {
@@ -390,198 +349,16 @@ export default function RulesPage() {
           </div>
         </section>
 
-        <section id="night" className="vd-page__section">
-          <h2 className="vd-h1">The order roles are shown</h2>
-          <p className="vd-voice" style={{ marginTop: 12 }}>
-            This always happens in the same order. Any step whose role isn't in
-            your game is skipped. Knowing which step was yours tells you
-            something about the others, which is why the app shows you the list.
-          </p>
-          <ol className="vd-stack" style={{ marginTop: 16, listStyle: "none", padding: 0 }}>
-            {NIGHT_ORDER.map((stp) => (
-              <li key={stp.step} className="vd-row" style={{ gap: 14 }}>
-                <span className="vd-numeral" style={{ fontSize: 18, color: "var(--vd-brass)", minWidth: 22 }}>
-                  {stp.step}
-                </span>
-                <strong>{stp.label}</strong>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        <section id="lancelot" className="vd-page__section">
-          <h2 className="vd-h1">The Lancelots</h2>
-          <p className="vd-voice" style={{ marginTop: 12 }}>
-            Turning Lancelot on adds <strong>two</strong> players to the game:
-            one good, one evil. Neither knows who the other is. They are the
-            only roles with no choice of mission card — the evil Lancelot must
-            always play <strong>Fail</strong> and the good one must always play{" "}
-            <strong>Succeed</strong>, on every mission they go on.
-          </p>
-          <div className="vd-grid3" style={{ marginTop: 20 }}>
-            <div className="vd-panel">
-              <Swords size={18} color="var(--vd-brass)" />
-              <h3 className="vd-h3" style={{ margin: "8px 0" }}>Five cards, two of them swaps</h3>
-              <p className="vd-voice" style={{ margin: 0 }}>
-                From round <strong>3</strong> onwards, one card is drawn at the
-                start of each round out of a deck of five: two swap the sides
-                over, three do nothing.
-              </p>
-            </div>
-            <div className="vd-panel">
-              <Eye size={18} color="var(--vd-brass)" />
-              <h3 className="vd-h3" style={{ margin: "8px 0" }}>A swap moves both of them</h3>
-              <p className="vd-voice" style={{ margin: 0 }}>
-                When a swap card comes up, both Lancelots change sides — and so
-                do the cards they are forced to play. Everyone sees that a swap
-                happened; nobody but the two of them knows what it means.
-              </p>
-            </div>
-            <div className="vd-panel">
-              <EyeOff size={18} color="var(--vd-brass)" />
-              <h3 className="vd-h3" style={{ margin: "8px 0" }}>What Merlin saw doesn't update</h3>
-              <p className="vd-voice" style={{ margin: 0 }}>
-                Merlin was shown the evil Lancelot at the start and still
-                believes they are evil, even after they have turned good.
-                Guinevere has the opposite problem: she knows <em>who</em> the
-                two Lancelots are and never which side either is on.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section id="expansions" className="vd-page__section">
-          <h2 className="vd-h1">Add-ons</h2>
-          <p className="vd-voice" style={{ marginTop: 12 }}>
-            Three extra twists, each switched on separately by the host. Turn
-            them all off and you have the basic game, which is the right way to
-            play your first one. Every setting gives them different names; the
-            rules underneath are the same.
-          </p>
-          <div className="vd-grid3" style={{ marginTop: 20 }}>
-            <div className="vd-panel">
-              <Eye size={18} color="var(--vd-brass)" />
-              <h3 className="vd-h3" style={{ margin: "8px 0" }}>Lady of the Lake</h3>
-              <p className="vd-voice" style={{ margin: 0 }}>
-                Needs <strong>{LADY_MIN_PLAYERS} or more players</strong>. It
-                starts with the player to the first leader's right. After
-                missions 2, 3 and 4 whoever holds it picks somebody and is
-                privately told whether that person is good or evil{" "}
-                <strong>right now</strong> — so a Lancelot who has swapped
-                shows their new side. The power then passes to the person they
-                picked, and anyone who has ever held it can never be picked
-                again.
-              </p>
-            </div>
-            <div className="vd-panel">
-              <Swords size={18} color="var(--vd-brass)" />
-              <h3 className="vd-h3" style={{ margin: "8px 0" }}>Excalibur</h3>
-              <p className="vd-voice" style={{ margin: 0 }}>
-                Whenever the leader picks a team they must also hand Excalibur
-                to one member of it — never themselves. Once every mission card
-                is in, that person may flip <strong>one</strong> other team
-                member's card to the opposite. Everyone sees <em>who</em> was
-                flipped; only those two ever learn what the card had been.
-              </p>
-            </div>
-            <div className="vd-panel">
-              <ScrollText size={18} color="var(--vd-brass)" />
-              <h3 className="vd-h3" style={{ margin: "8px 0" }}>Plot cards</h3>
-              <p className="vd-voice" style={{ margin: 0 }}>
-                At the start of each round the leader deals{" "}
-                <strong>{plotCardsPerRound(players)}</strong> card
-                {plotCardsPerRound(players) === 1 ? "" : "s"} face down (at{" "}
-                {players} players) — never to themselves. Everyone can see how
-                many cards each person holds; nobody can see which ones.
-              </p>
-            </div>
-          </div>
-
-          <div className="vd-rowlist vd-rowlist--3col" style={{ marginTop: 20 }}>
-            <div className="vd-rowlist__head">
-              <span>Plot card</span><span>What it does</span><span>When</span>
-            </div>
-            {Object.values(PLOT_CARDS).map((c) => (
-              <div key={c.id} className="vd-rowlist__row">
-                <span>{c.name}</span>
-                <span style={{ color: "var(--vd-ink-dim)" }}>{c.desc}</span>
-                <span className="vd-label vd-label--dim">
-                  {c.kind === "instant"
-                    ? "Happens straight away"
-                    : c.kind === "effect"
-                      ? "Lasts the whole game"
-                      : c.window === "propose"
-                        ? "While a team is picked"
-                        : c.window === "vote"
-                          ? "During a vote"
-                          : c.window === "quest"
-                            ? "During a mission"
-                            : c.window === "kingReturns"
-                              ? "Just after a vote passes"
-                              : `Play during ${c.window}`}
-                </span>
-              </div>
-            ))}
-          </div>
-          <p className="vd-voice" style={{ marginTop: 16 }}>
-            <strong>Ambush</strong> is the only plot card that leaves no trace:
-            the look is never announced and only the person who used it sees the
-            answer. Every other card shows up in the list of plot cards played.
-          </p>
-        </section>
-
         <section id="roles" className="vd-page__section">
           <h2 className="vd-h1">All the roles</h2>
           <p className="vd-voice" style={{ marginTop: 12 }}>
-            Tap a character to read what it is, what it is told and what it is
-            trying to do. Shown with their Medieval names — the setting picker
-            at the bottom of this page lists what each one is called elsewhere.
+            Tap a character to read what it is told and what it is trying to do.
           </p>
           <div style={{ marginTop: 20 }}>
             <CharacterGallery source={BASE} />
           </div>
         </section>
 
-        <section id="themes" className="vd-page__section">
-          <h2 className="vd-h1">The same game in five settings</h2>
-          <p className="vd-voice" style={{ marginTop: 12 }}>
-            Pick one below. The left column is the name used in these rules; the
-            right column is the name you'd actually see in that setting. Nothing
-            about how the game plays changes.
-          </p>
-          <div className="vd-row" style={{ marginTop: 16 }}>
-            {THEME_LIST.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className={`vd-pill vd-pill--action ${t.id === themeId ? "is-on" : ""}`}
-                onClick={() => setThemeId(t.id)}
-              >
-                {t.name}
-              </button>
-            ))}
-          </div>
-          <p className="vd-voice" style={{ margin: "16px 0" }}>
-            <strong>{theme.name}</strong> — good is {theme.goodTeamName}, evil
-            is {theme.evilTeamName}.{" "}
-            <span className="vd-lore">{theme.tagline}</span>
-          </p>
-          <div className="vd-rowlist vd-rowlist--3col">
-            <div className="vd-rowlist__head">
-              <span>Name in these rules</span><span>Name in {theme.name}</span><span>Side</span>
-            </div>
-            {roster.map(({ id, base, themed }) => (
-              <div key={id} className="vd-rowlist__row">
-                <span>{base.name}</span>
-                <span style={{ color: "var(--vd-brass)" }}>{themed.name}</span>
-                <span className={base.team === "good" ? "vd-pill vd-pill--brass" : "vd-pill vd-pill--danger"}>
-                  {base.team === "good" ? <Check size={13} /> : <X size={13} />}{" "}
-                  {base.team === "good" ? "Good" : "Evil"}
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
       </div>
     </div>
   );

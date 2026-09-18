@@ -132,6 +132,46 @@ const PAGES = [
   })),
 ];
 
+/**
+ * The front door's skeleton, for the gap between first paint and React.
+ *
+ * Same classes as `LandingPage` — `.lp__inner`, `.lp-fan__deck`, `.lp-acts`,
+ * `.lp-dock` — so the built stylesheet (already in <head>) gives it the exact
+ * geometry of the page it stands in for, and `.lp--shell` in chamber.css turns
+ * every `.lp-skel` inside it into a shimmer bar. Real text is kept in the bars
+ * (transparent, not removed) so the widths are the page's own.
+ *
+ * Only the landing gets one: it is the route where the crawler body used to
+ * paint, unstyled, over the dark board for as long as the bundle took — the
+ * flicker this exists to remove. The other routes mount over a spinner anyway.
+ */
+const LANDING_SHELL = `
+<div class="app-root"><div class="vd-board lp lp--shell" aria-busy="true"><div class="vd-content lp__inner">
+  <div class="lp__brand">
+    <p class="lp-wordmark" role="presentation">${"DECEVIA".split("").map((c) => `<span class="lp-letter lp-skel">${c}</span>`).join("")}</p>
+    <p class="lp-promise lp-skel">Where friends become foes</p>
+  </div>
+  <div class="lp__showcase"><div class="lp-fan">
+    <div class="lp-fan__deck"><div class="lp-fan__stage">
+      <div class="lp-card lp-card--l lp-skel"></div>
+      <div class="lp-card lp-card--c lp-skel"></div>
+      <div class="lp-card lp-card--r lp-skel"></div>
+    </div></div>
+    <p class="lp-fan__cap"><span class="lp-fan__world lp-skel">A Loyal Knight is told nothing at all. The last word belongs to the Assassin.</span></p>
+  </div></div>
+  <div class="lp__copy">
+    <p class="lp-lede lp-skel"><strong>5 to 18 players</strong>, one room, a phone each.<br>Most of you are loyal. A few are lying.</p>
+    <div class="lp-acts">
+      <a class="lp-act lp-act--primary lp-skel" href="/play?tab=create"><span><strong>Start a new game</strong><small>Create a private room</small></span></a>
+      <a class="lp-act lp-act--quiet lp-skel" href="/play?tab=join"><span><strong>I have a code</strong><small>Join a game you were invited to</small></span></a>
+    </div>
+    <p class="lp-note lp-skel">No account needed to play.</p>
+  </div>
+</div>
+<nav class="lp-dock" style="--n:3" aria-hidden="true">
+  <span class="lp-dock__btn lp-skel"></span><span class="lp-dock__btn lp-skel"></span><span class="lp-dock__btn lp-skel"></span>
+</nav></div></div>`;
+
 const shell = readFileSync(join(DIST, "index.html"), "utf8");
 
 /** Swap one meta/link value in the built head. */
@@ -175,11 +215,13 @@ for (const page of PAGES) {
     `<meta property="og:url" content="${url}" />`,
   );
 
-  // The content itself. React replaces these children on mount, so this is
-  // written for crawlers and for anyone whose JavaScript never arrives.
+  // The content itself. React replaces these children on mount. The crawler
+  // copy is visually hidden (`.prerender` in chamber.css) — it used to paint
+  // as unstyled text over the board until the bundle arrived — and the landing
+  // shows its skeleton in the meantime.
   html = html.replace(
     '<div id="root"></div>',
-    `<div id="root"><div class="prerender">${page.body.trim()}</div></div>`,
+    `<div id="root">${page.path === "/" ? LANDING_SHELL : ""}<div class="prerender">${page.body.trim()}</div></div>`,
   );
 
   const out = join(DIST, page.file);

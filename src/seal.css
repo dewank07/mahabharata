@@ -1049,6 +1049,11 @@
   inset: 0;
   z-index: 60;
   display: grid;
+  /* `minmax(0, 1fr)`, not the implicit `auto` track: an auto column sizes to
+     its content's max-content width, so a page with one wide row inside made
+     the track — and the panel's `width: 100%` with it — wider than the screen.
+     The content ran off the right edge and took the close button with it. */
+  grid-template-columns: minmax(0, 1fr);
   place-items: center;
   padding: var(--vd-5);
   background: rgba(8, 6, 5, 0.72);
@@ -1059,6 +1064,7 @@
 .lp-sheet__panel {
   position: relative;
   width: min(880px, 100%);
+  min-width: 0;
   max-height: min(860px, 92svh);
   border: 1px solid var(--line-brass);
   border-radius: 14px;
@@ -1099,6 +1105,32 @@
 
 /* Its own way back is the close button in the corner now. */
 .lp-sheet__body .vd-page__back { display: none; }
+
+/* A phone has no room for a dialog framed inside a page: 20px of scrim plus
+   24px of body padding a side left the rules 255px wide on a 375px screen,
+   and every two-column block in them squeezed to a strip. Below the tablet
+   breakpoint the sheet IS the screen — full-bleed, square, one hairline of
+   padding — and the close button keeps its corner. */
+@media (max-width: 720px) {
+  .lp-sheet { padding: 0; }
+  .lp-sheet__panel {
+    width: 100%;
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+  }
+  .lp-sheet__body {
+    max-height: 100dvh;
+    padding: calc(12px + 38px + var(--vd-4)) var(--vd-4)
+      calc(var(--vd-8) + env(safe-area-inset-bottom));
+    padding-left: max(var(--vd-4), env(safe-area-inset-left));
+    padding-right: max(var(--vd-4), env(safe-area-inset-right));
+  }
+  .lp-sheet__close {
+    top: calc(12px + env(safe-area-inset-top));
+  }
+}
 
 .lp-sheet__close {
   position: absolute;
@@ -2166,7 +2198,15 @@
   max-width: var(--card-w);
   aspect-ratio: 364 / 542;
   margin: 0 auto;
+  /* A hold target, same as `.vd-hold`: no scroll-steal, no selection, no iOS
+     long-press callout over the one card nobody else may see. */
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
+.vd-facedown__top { pointer-events: none; -webkit-user-drag: none; }
 /* The two underneath, slewed — the deal never lands square. Rounded, because
    the card on top has cut corners and a square one peeking out from behind it
    reads as a mistake rather than as a second card. */
@@ -2948,6 +2988,13 @@ body { background: var(--vd-bg); }
 /* Prose inside a page section: one comfortable measure, so a rules paragraph
    is not 120 characters wide on a desktop. */
 .vd-page__section .vd-voice, .vd-page__section .vd-lore { max-width: 68ch; }
+/* Two panels of prose side by side is a desktop shape. On a phone each column
+   was under 140px and every list item wrapped to three lines — the plan table
+   on /upgrade, the two win conditions in the rules. The table screens' grids
+   (player-name tiles) are not page sections and keep their two columns. */
+@media (max-width: 720px) {
+  .vd-page__section .vd-grid2 { grid-template-columns: 1fr; }
+}
 
 /* Admin's overview strip: lay several vd-panel--strong stat tiles in a row —
    the tile itself is the Lobby's "At the table" pattern, reused as-is. */

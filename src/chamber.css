@@ -562,3 +562,50 @@
     transform: none;
   }
 }
+
+/* ============================================================================
+   4. Before React: the prerendered front door
+   ========================================================================== */
+
+/* The crawler copy `scripts/prerender.mjs` writes into #root. Read by anything
+   that runs no JavaScript; never painted, because as plain h1/p over the board
+   it was the flash visitors saw before the bundle arrived. */
+.prerender {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The landing's skeleton (same markup as `LandingPage`, see the prerender
+   script). Every `.lp-skel` keeps its text for width and turns it into a
+   shimmer bar; the doors and cards lose their plate so only the shape stays.
+   React replaces the whole thing on mount and the GSAP deal rises out of it. */
+.lp--shell .lp-skel,
+.lp--shell .lp-skel * {
+  color: transparent !important;
+  text-shadow: none !important;
+}
+.lp--shell .lp-skel {
+  border-radius: 6px;
+  filter: none;
+  box-shadow: none;
+  background: linear-gradient(
+      100deg,
+      rgba(235, 207, 136, 0.06) 30%,
+      rgba(235, 207, 136, 0.16) 50%,
+      rgba(235, 207, 136, 0.06) 70%
+    )
+    0 0 / 300% 100%;
+  animation: lp-shimmer 1.5s linear infinite;
+}
+.lp--shell .lp-skel::before,
+.lp--shell .lp-skel::after { display: none; }
+.lp--shell .lp-card.lp-skel { border-radius: 13px; }
+.lp--shell .lp-dock__btn.lp-skel { border-radius: 16px; }
+@keyframes lp-shimmer { to { background-position: -300% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .lp--shell .lp-skel { animation: none; }
+}

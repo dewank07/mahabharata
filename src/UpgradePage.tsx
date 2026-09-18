@@ -110,7 +110,13 @@ export default function UpgradePage() {
               place on one somebody has already bought for you.
             </p>
           </header>
-          <SignInCard />
+          {/* A section, not a bare card: `.vd-page__section:first-of-type`
+              drops the rule and the top margin, and with the card outside the
+              flow the tier table was first — its heading sat flush against the
+              card's bottom studs. */}
+          <section className="vd-page__section">
+            <SignInCard />
+          </section>
           <TierTable config={config} />
         </div>
       </div>

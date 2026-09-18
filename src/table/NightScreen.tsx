@@ -148,7 +148,19 @@ export function NightScreen({
                    face-down state needs, and the button beneath says how to
                    turn it. */
                 <>
-                  <div className="vd-facedown">
+                  {/* The card takes the hold too — it is the thing on the
+                      screen that looks like it should be turned. Pointer only,
+                      and `pointerdown` only: the release is heard on the window
+                      by `useHold`, which matters because the deck unmounts the
+                      moment the hold lands. Not a button, on purpose — the one
+                      below stays the keyboard's and the screen reader's control,
+                      and a keyboard hold on an element that vanishes mid-press
+                      would never hear its own key-up. */}
+                  <div
+                    className="vd-facedown"
+                    onPointerDown={start}
+                    onContextMenu={(e) => e.preventDefault()}
+                  >
                     <i /><i />
                     {/* The deck's painted back, the same plate the front door
                         fans. It was a hatched plate with the app's mark laid on
